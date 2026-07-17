@@ -101,7 +101,7 @@ export const updateThreadModel = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const patch: Record<string, unknown> = {};
+    const patch: { model?: string; temperature?: number; system_prompt?: string } = {};
     if (data.model) patch.model = data.model;
     if (typeof data.temperature === "number") patch.temperature = data.temperature;
     if (typeof data.system_prompt === "string") patch.system_prompt = data.system_prompt;
