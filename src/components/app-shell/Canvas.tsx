@@ -74,10 +74,13 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
   const [showConsole, setShowConsole] = useState(false);
   const [logs, setLogs] = useState<ConsoleEntry[]>([]);
   const [sharing, setSharing] = useState(false);
+  const [edits, setEdits] = useState<Record<string, string>>({});
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const share = useServerFn(setArtifactPublic);
 
-  const files = artifact ? fileList(artifact) : [];
+  const rawFiles = artifact ? fileList(artifact) : [];
+  const files = rawFiles.map((f) => ({ ...f, content: edits[f.path] ?? f.content }));
+  const isDirty = Object.keys(edits).length > 0;
   const currentFile =
     files.find((f) => f.path === activeFile) ??
     files.find((f) => f.path === artifact?.entry_path) ??
@@ -98,11 +101,18 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
     setKey((k) => k + 1);
   };
 
+  const resetEdits = () => {
+    setEdits({});
+    setLogs([]);
+  };
+
   useEffect(() => {
     setActiveFile(null);
     setLogs([]);
+    setEdits({});
     setKey((k) => k + 1);
   }, [artifact?.id]);
+
 
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
