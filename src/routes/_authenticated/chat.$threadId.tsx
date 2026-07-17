@@ -150,7 +150,7 @@ function ChatPage() {
             ) : messages.length === 0 ? (
               <EmptyPrompt onPick={(p) => sendMessage({ text: p })} />
             ) : (
-              <MessageList messages={messages} status={status} />
+              <MessageList messages={messages} status={status} onRegenerate={() => regenerate()} />
             )}
           </div>
           <div className="flex-none p-3 sm:p-4">
