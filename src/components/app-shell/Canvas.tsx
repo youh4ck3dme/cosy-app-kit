@@ -15,6 +15,7 @@ import {
   Download,
   Check,
   X,
+  Undo2,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
