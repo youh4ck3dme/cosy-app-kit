@@ -17,17 +17,11 @@ import { AppDialog } from "@/components/app-shell/AppDialog";
 import { AgentSettingsPanel } from "@/components/app-shell/AgentSettingsPanel";
 import { cn } from "@/lib/utils";
 
+import { Canvas, type Artifact } from "@/components/app-shell/Canvas";
 export const Route = createFileRoute("/_authenticated/chat/$threadId")({
   component: ChatPage,
 });
 
-type Artifact = {
-  id: string;
-  kind: "html" | "markdown" | "code";
-  title: string;
-  content: string;
-  created_at: string;
-};
 
 function ChatPage() {
   const { threadId } = useParams({ from: "/_authenticated/chat/$threadId" });
