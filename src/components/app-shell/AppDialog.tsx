@@ -36,31 +36,31 @@ export function AppDialog({
       {/* Blurred overlay — starts BELOW the header row (56px) on desktop, full-screen on mobile */}
       <div
         onClick={onClose}
-        className="absolute inset-0 top-0 bg-background/60 backdrop-blur-xl md:top-14"
+        className="absolute inset-0 top-0 bg-background/55 backdrop-blur-2xl md:top-14 animate-in-fade"
         aria-hidden
       />
       <div
         className={cn(
-          "relative flex h-full w-full flex-col overflow-hidden bg-panel md:h-auto md:max-h-[85vh] md:w-full md:max-w-2xl md:rounded-2xl md:border md:border-border md:shadow-2xl",
+          "relative flex h-full w-full flex-col overflow-hidden bg-panel md:h-auto md:max-h-[85vh] md:w-full md:max-w-2xl md:rounded-2xl md:border md:border-border-subtle md:shadow-elevated animate-in-scale",
           className,
         )}
       >
-        <div className="flex items-start justify-between border-b border-border px-5 py-4">
+        <div className="flex items-start justify-between border-b border-border-subtle px-6 py-4">
           <div>
-            {title && <h2 className="text-base font-semibold">{title}</h2>}
+            {title && <h2 className="text-base font-semibold tracking-tight">{title}</h2>}
             {description && (
               <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-elevated hover:text-foreground"
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
             aria-label="Close"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-5">{children}</div>
+        <div className="flex-1 overflow-y-auto p-6">{children}</div>
       </div>
     </div>
   );

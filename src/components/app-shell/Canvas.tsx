@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Monitor, Tablet, Smartphone, RefreshCw, ExternalLink, ZoomIn, ZoomOut } from "lucide-react";
+import {
+  Monitor,
+  Tablet,
+  Smartphone,
+  RefreshCw,
+  ExternalLink,
+  ZoomIn,
+  ZoomOut,
+  Wand2,
+} from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 
@@ -29,17 +38,21 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
   useEffect(() => setKey((k) => k + 1), [artifact?.id]);
 
   return (
-    <div className="relative flex h-full min-h-0 flex-1 flex-col bg-[color-mix(in_oklab,var(--color-background)_92%,black)] bg-grid-pattern">
+    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[color-mix(in_oklab,var(--color-background)_94%,black)]">
+      {/* Ambient background */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-grid-pattern bg-grid-fade opacity-70" />
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-mesh-glow opacity-40" />
+
       {/* Top toolbar */}
-      <div className="flex flex-none items-center justify-between border-b border-border/60 bg-background/40 px-3 py-2 backdrop-blur">
+      <div className="relative z-10 flex flex-none items-center justify-between border-b border-border-subtle glass px-3 py-2">
         <div className="flex items-center gap-3">
           <div className="hidden gap-1.5 sm:flex">
-            <span className="h-2.5 w-2.5 rounded-full bg-border" />
-            <span className="h-2.5 w-2.5 rounded-full bg-border" />
-            <span className="h-2.5 w-2.5 rounded-full bg-border" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[oklch(0.65_0.20_25)]/60" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[oklch(0.80_0.16_85)]/60" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[oklch(0.72_0.18_150)]/60" />
           </div>
-          <div className="hidden h-4 w-px bg-border sm:block" />
-          <div className="flex items-center gap-0.5 rounded-md border border-border bg-surface p-0.5">
+          <div className="hidden h-4 w-px bg-border-subtle sm:block" />
+          <div className="flex items-center gap-0.5 rounded-lg border border-border-subtle bg-surface-1/70 p-0.5">
             {(["desktop", "tablet", "mobile"] as Device[]).map((d) => {
               const Icon = d === "desktop" ? Monitor : d === "tablet" ? Tablet : Smartphone;
               const active = device === d;
@@ -48,8 +61,10 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
                   key={d}
                   onClick={() => setDevice(d)}
                   className={cn(
-                    "flex items-center justify-center rounded p-1.5 transition-colors",
-                    active ? "bg-elevated text-foreground" : "text-muted-foreground hover:text-foreground",
+                    "flex items-center justify-center rounded-md p-1.5 transition-all",
+                    active
+                      ? "bg-surface-3 text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                   title={d}
                 >
@@ -60,25 +75,25 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
           </div>
           <button
             onClick={refresh}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-surface hover:text-foreground"
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
             title="Refresh"
           >
             <RefreshCw className="h-3.5 w-3.5" />
           </button>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center rounded-md border border-border bg-surface p-0.5 text-xs font-mono text-muted-foreground">
+          <div className="hidden items-center rounded-lg border border-border-subtle bg-surface-1/70 p-0.5 text-xs font-mono text-muted-foreground sm:flex">
             <button
-              onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}
-              className="rounded p-1.5 hover:text-foreground"
+              onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(2)))}
+              className="rounded-md p-1.5 hover:text-foreground"
               title="Zoom out"
             >
               <ZoomOut className="h-3.5 w-3.5" />
             </button>
-            <span className="w-12 text-center">{Math.round(zoom * 100)}%</span>
+            <span className="w-12 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
             <button
-              onClick={() => setZoom((z) => Math.min(1.5, z + 0.1))}
-              className="rounded p-1.5 hover:text-foreground"
+              onClick={() => setZoom((z) => Math.min(1.5, +(z + 0.1).toFixed(2)))}
+              className="rounded-md p-1.5 hover:text-foreground"
               title="Zoom in"
             >
               <ZoomIn className="h-3.5 w-3.5" />
@@ -94,7 +109,7 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
                   w.document.close();
                 }
               }}
-              className="rounded-md p-1.5 text-muted-foreground hover:bg-surface hover:text-foreground"
+              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
               title="Open in new tab"
             >
               <ExternalLink className="h-3.5 w-3.5" />
@@ -104,23 +119,28 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
       </div>
 
       {/* Preview */}
-      <div className="flex flex-1 items-start justify-center overflow-auto p-4 sm:p-8">
+      <div className="relative z-0 flex flex-1 items-start justify-center overflow-auto p-4 sm:p-8">
         {!artifact && <EmptyCanvas />}
         {artifact?.kind === "html" && (
           <div
-            className="flex-none overflow-hidden rounded-xl border border-border bg-panel shadow-[0_0_60px_rgba(0,0,0,0.5)]"
+            className="flex-none overflow-hidden rounded-2xl border border-border-subtle bg-panel shadow-elevated animate-in-scale"
             style={{
               width: WIDTHS[device] * zoom,
               maxWidth: "100%",
             }}
           >
-            <div className="flex h-8 items-center gap-1.5 border-b border-border bg-surface/40 px-3">
-              <span className="h-2 w-2 rounded-full bg-border" />
-              <span className="h-2 w-2 rounded-full bg-border" />
-              <span className="h-2 w-2 rounded-full bg-border" />
-              <div className="ml-3 truncate font-mono text-[10px] text-muted-foreground">
-                {artifact.title}
+            <div className="flex h-8 items-center gap-1.5 border-b border-border-subtle bg-surface-1/60 px-3">
+              <span className="h-2 w-2 rounded-full bg-[oklch(0.65_0.20_25)]/50" />
+              <span className="h-2 w-2 rounded-full bg-[oklch(0.80_0.16_85)]/50" />
+              <span className="h-2 w-2 rounded-full bg-[oklch(0.72_0.18_150)]/50" />
+              <div className="ml-3 flex flex-1 items-center gap-2 truncate">
+                <span className="font-mono text-[10px] text-muted-foreground">
+                  {artifact.title}
+                </span>
               </div>
+              <span className="font-mono text-[10px] text-muted-foreground/60 tabular-nums">
+                {WIDTHS[device]}px
+              </span>
             </div>
             <iframe
               key={key}
@@ -128,14 +148,14 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
               srcDoc={srcDoc ?? ""}
               sandbox="allow-scripts allow-forms"
               className="block w-full border-0 bg-white"
-              style={{ height: `${(700 * zoom).toFixed(0)}px` }}
+              style={{ height: `${(720 * zoom).toFixed(0)}px` }}
               title={artifact.title}
             />
           </div>
         )}
         {artifact?.kind === "markdown" && (
           <article
-            className="prose prose-invert prose-sm max-w-3xl rounded-xl border border-border bg-panel px-8 py-6 shadow-2xl"
+            className="prose prose-invert prose-sm max-w-3xl rounded-2xl border border-border-subtle bg-panel px-8 py-6 shadow-elevated animate-in-scale"
             style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}
           >
             <h2 className="!mt-0">{artifact.title}</h2>
@@ -149,19 +169,42 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
 
 function EmptyCanvas() {
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col items-center justify-center py-16 text-center">
-      <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-surface/50 px-3 py-1.5 font-mono text-[11px] tracking-widest text-muted-foreground">
-        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-foreground" />
-        BUILDER.LIVE
+    <div className="mx-auto flex w-full max-w-2xl flex-col items-center justify-center py-16 text-center animate-in-fade">
+      <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-border-subtle bg-surface-1/70 px-3 py-1.5 font-mono text-[11px] tracking-widest text-muted-foreground backdrop-blur">
+        <span className="relative flex h-1.5 w-1.5">
+          <span className="absolute inset-0 animate-ping rounded-full bg-accent-primary/60" />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-accent-primary" />
+        </span>
+        BUILDER · LIVE CANVAS
       </div>
       <h1 className="font-mono text-4xl font-bold tracking-tighter sm:text-6xl">
-        &gt;_ AI
+        <span className="text-gradient-accent">&gt;_ Build</span>
         <br />
-        BUILDER
+        anything.
       </h1>
-      <p className="mx-auto mt-6 max-w-md font-mono text-sm text-muted-foreground">
-        // Ask on the left · watch the artifact render on the right · edit any time
+      <p className="mx-auto mt-6 max-w-md text-sm text-muted-foreground">
+        Describe what you want on the left. Watch it render here — pixel-perfect,
+        instantly editable, and always in view.
       </p>
+      <div className="mt-8 grid w-full max-w-md grid-cols-3 gap-2 text-left">
+        {[
+          { icon: Monitor, label: "Desktop" },
+          { icon: Tablet, label: "Tablet" },
+          { icon: Smartphone, label: "Mobile" },
+        ].map(({ icon: Icon, label }) => (
+          <div
+            key={label}
+            className="flex flex-col items-start gap-2 rounded-xl border border-border-subtle bg-surface-1/40 p-3 backdrop-blur"
+          >
+            <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-8 inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/70">
+        <Wand2 className="h-3 w-3" />
+        Try: "Design a hero for a rocket startup"
+      </div>
     </div>
   );
 }

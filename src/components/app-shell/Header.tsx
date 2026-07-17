@@ -1,10 +1,11 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Settings, Menu, Zap, ChevronDown, LogOut } from "lucide-react";
+import { Settings, Menu, X, ChevronDown, LogOut, Rocket } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AVAILABLE_MODELS } from "@/lib/ai-gateway.server";
 import { AppDialog } from "./AppDialog";
 import { ThreadList } from "./ThreadList";
+import { Logo } from "./Logo";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -37,34 +38,31 @@ export function Header({
 
   return (
     <>
-      <header className="z-40 flex-none border-b border-border bg-background/80 backdrop-blur">
+      <header className="sticky top-0 z-40 flex-none border-b border-border-subtle glass-strong">
         <div className="flex h-14 items-center justify-between px-3 sm:px-4">
-          <div className="flex items-center gap-4">
-            <Link to="/chat" className="flex items-center gap-2 font-mono text-sm font-semibold tracking-tight">
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-panel">
-                <Zap className="h-4 w-4" />
+          <div className="flex items-center gap-3">
+            <Link to="/chat" className="group flex items-center gap-2.5">
+              <Logo size={30} />
+              <span className="hidden font-mono text-[13px] font-semibold tracking-tight sm:inline">
+                Builder
               </span>
-              BUILDER
             </Link>
-            <div className="hidden items-center rounded-lg border border-border bg-surface p-0.5 text-[11px] font-mono font-medium sm:flex">
-              <button
-                onClick={() => onViewChange("chat")}
-                className={cn(
-                  "rounded-md px-3 py-1 transition-colors",
-                  view === "chat" ? "bg-elevated text-foreground" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                CHAT
-              </button>
-              <button
-                onClick={() => onViewChange("preview")}
-                className={cn(
-                  "rounded-md px-3 py-1 transition-colors",
-                  view === "preview" ? "bg-elevated text-foreground" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                PREVIEW
-              </button>
+            <div className="hidden h-5 w-px bg-border-subtle sm:block" />
+            <div className="hidden items-center rounded-lg border border-border-subtle bg-surface-1/70 p-0.5 text-[11px] font-mono font-medium sm:flex">
+              {(["chat", "preview"] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => onViewChange(v)}
+                  className={cn(
+                    "rounded-md px-3 py-1 uppercase tracking-wider transition-all",
+                    view === v
+                      ? "bg-surface-3 text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {v}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -74,13 +72,17 @@ export function Header({
                 <button
                   onClick={() => setModelOpen((v) => !v)}
                   onBlur={() => setTimeout(() => setModelOpen(false), 140)}
-                  className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5 font-mono text-xs text-muted-foreground hover:bg-surface"
+                  className="group flex items-center gap-2 rounded-full border border-border-subtle bg-surface-1/60 px-3 py-1.5 font-mono text-[11px] text-muted-foreground transition-all hover:border-border-strong hover:bg-surface-2 hover:text-foreground"
                 >
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inset-0 animate-ping rounded-full bg-accent-primary/60" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-accent-primary" />
+                  </span>
                   <span className="text-foreground">{activeLabel}</span>
-                  <ChevronDown className="h-3 w-3" />
+                  <ChevronDown className="h-3 w-3 opacity-60 transition-transform group-hover:translate-y-px" />
                 </button>
                 {modelOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-64 overflow-hidden rounded-xl border border-border bg-panel p-1 shadow-2xl">
+                  <div className="absolute right-0 top-full mt-2 w-72 overflow-hidden rounded-xl border border-border-subtle bg-popover p-1 shadow-elevated animate-in-scale">
                     {AVAILABLE_MODELS.map((m) => (
                       <button
                         key={m.id}
@@ -90,13 +92,13 @@ export function Header({
                           setModelOpen(false);
                         }}
                         className={cn(
-                          "flex w-full flex-col items-start rounded-lg px-3 py-2 text-left text-sm hover:bg-surface",
-                          activeModel === m.id && "bg-surface",
+                          "flex w-full flex-col items-start rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-surface-2",
+                          activeModel === m.id && "bg-surface-2",
                         )}
                       >
                         <span className="font-medium">{m.label}</span>
                         {m.note && (
-                          <span className="text-[11px] text-muted-foreground">{m.note}</span>
+                          <span className="mt-0.5 text-[11px] text-muted-foreground">{m.note}</span>
                         )}
                       </button>
                     ))}
@@ -106,22 +108,22 @@ export function Header({
             )}
             <button
               onClick={onOpenSettings}
-              className="hidden rounded-md p-2 text-muted-foreground hover:bg-surface hover:text-foreground md:inline-flex"
+              className="hidden rounded-md p-2 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground md:inline-flex"
               title="Settings"
             >
               <Settings className="h-4 w-4" />
             </button>
             <button
               onClick={() => toast.info("Publish is a preview-only affordance in this build.")}
-              className="hidden items-center gap-1.5 rounded-md bg-primary px-3.5 py-1.5 text-xs font-semibold tracking-wide text-primary-foreground shadow-[0_0_15px_rgba(255,255,255,0.12)] transition-all hover:scale-[1.02] md:inline-flex"
+              className="hidden items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary-foreground shadow-[0_0_24px_-6px_color-mix(in_oklab,white_60%,transparent)] transition-all hover:scale-[1.03] hover:shadow-[0_0_32px_-4px_color-mix(in_oklab,white_70%,transparent)] md:inline-flex"
             >
-              <Zap className="h-3.5 w-3.5 fill-current" />
-              PUBLISH
+              <Rocket className="h-3 w-3" />
+              Publish
             </button>
             {/* Right-side hamburger on mobile */}
             <button
               onClick={() => setMobileOpen(true)}
-              className="rounded-md p-2 text-muted-foreground hover:bg-surface hover:text-foreground md:hidden"
+              className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground md:hidden"
               aria-label="Open menu"
             >
               <Menu className="h-5 w-5" />
@@ -132,32 +134,58 @@ export function Header({
 
       {/* Mobile full-screen menu */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-background md:hidden">
-          <div className="flex h-14 items-center justify-between border-b border-border px-4">
-            <span className="font-mono text-sm font-semibold">MENU</span>
+        <div className="fixed inset-0 z-50 flex flex-col bg-background md:hidden animate-in-fade">
+          <div className="flex h-14 flex-none items-center justify-between border-b border-border-subtle px-4">
             <button
               onClick={() => setMobileOpen(false)}
-              className="rounded-md px-3 py-1 text-sm text-muted-foreground hover:bg-surface hover:text-foreground"
+              className="rounded-md p-2 text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+              aria-label="Close menu"
             >
-              Close
+              <X className="h-5 w-5" />
             </button>
+            <div className="flex items-center gap-2">
+              <Logo size={26} />
+              <span className="font-mono text-sm font-semibold">Builder</span>
+            </div>
+            <div className="w-9" />
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto stagger">
+            <div className="p-3">
+              <div className="mb-2 flex gap-1 rounded-lg border border-border-subtle bg-surface-1/60 p-0.5">
+                {(["chat", "preview"] as const).map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => {
+                      onViewChange(v);
+                      setMobileOpen(false);
+                    }}
+                    className={cn(
+                      "flex-1 rounded-md px-3 py-2 text-xs font-mono uppercase tracking-wider transition-all",
+                      view === v
+                        ? "bg-surface-3 text-foreground shadow-sm"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+            </div>
             <ThreadList activeThreadId={activeThreadId} onNavigate={() => setMobileOpen(false)} />
           </div>
-          <div className="border-t border-border p-3">
+          <div className="flex-none space-y-2 border-t border-border-subtle p-3">
             <button
               onClick={() => {
                 setMobileOpen(false);
                 onOpenSettings();
               }}
-              className="mb-2 flex w-full items-center gap-2 rounded-md border border-border bg-surface px-3 py-2.5 text-sm hover:bg-elevated"
+              className="flex w-full items-center gap-3 rounded-lg border border-border-subtle bg-surface-1/60 px-3 py-3 text-sm hover:bg-surface-2"
             >
               <Settings className="h-4 w-4" /> Settings
             </button>
             <button
               onClick={signOut}
-              className="flex w-full items-center gap-2 rounded-md border border-border bg-surface px-3 py-2.5 text-sm hover:bg-elevated"
+              className="flex w-full items-center gap-3 rounded-lg border border-border-subtle bg-surface-1/60 px-3 py-3 text-sm hover:bg-surface-2"
             >
               <LogOut className="h-4 w-4" /> Sign out
             </button>

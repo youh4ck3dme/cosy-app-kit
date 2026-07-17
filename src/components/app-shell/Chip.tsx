@@ -1,15 +1,15 @@
-import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 export function Chip({
   children,
-  selected,
   onClick,
+  active,
   className,
 }: {
   children: ReactNode;
-  selected?: boolean;
   onClick?: () => void;
+  active?: boolean;
   className?: string;
 }) {
   return (
@@ -17,10 +17,10 @@ export function Chip({
       type="button"
       onClick={onClick}
       className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-[13px] transition-all",
-        selected
-          ? "border-foreground/40 bg-foreground text-background shadow-sm"
-          : "border-border bg-surface/60 text-muted-foreground hover:border-border hover:bg-surface hover:text-foreground",
+        "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200",
+        active
+          ? "border-accent-primary/50 bg-accent-primary/12 text-foreground shadow-[0_0_20px_-6px_color-mix(in_oklab,var(--color-accent-primary)_60%,transparent)]"
+          : "border-border-subtle bg-surface-1/60 text-muted-foreground hover:border-border-strong hover:bg-surface-2 hover:text-foreground",
         className,
       )}
     >
@@ -30,8 +30,8 @@ export function Chip({
 }
 
 /**
- * ChipFilter: single-select chip group.
- * Clicking the currently-selected chip clears the selection (reverts to default).
+ * Single-select chip filter: clicking the currently-selected chip unselects it
+ * and reverts to the default (null value).
  */
 export function ChipFilter<T extends string>({
   options,
@@ -39,18 +39,22 @@ export function ChipFilter<T extends string>({
   onChange,
   className,
 }: {
-  options: Array<{ value: T; label: ReactNode }>;
+  options: { value: T; label: string }[];
   value: T | null;
   onChange: (v: T | null) => void;
   className?: string;
 }) {
   return (
-    <div className={cn("flex items-center gap-2 overflow-x-auto no-scrollbar", className)}>
-      {options.map((o) => {
-        const selected = value === o.value;
+    <div className={cn("flex flex-wrap gap-1.5", className)}>
+      {options.map((opt) => {
+        const active = value === opt.value;
         return (
-          <Chip key={o.value} selected={selected} onClick={() => onChange(selected ? null : o.value)}>
-            {o.label}
+          <Chip
+            key={opt.value}
+            active={active}
+            onClick={() => onChange(active ? null : opt.value)}
+          >
+            {opt.label}
           </Chip>
         );
       })}
