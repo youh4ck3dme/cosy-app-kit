@@ -78,7 +78,7 @@ function PublicArtifactPage() {
   const files = artifact.files && artifact.files.length > 0
     ? artifact.files
     : [{ path: "index.html", language: artifact.kind, content: artifact.content }];
-  const entry = files.find((f) => f.path === artifact.entry_path) ?? files[0];
+  const entry = files.find((f: { path: string }) => f.path === artifact.entry_path) ?? files[0];
   const isHtml = artifact.kind === "html" || /\.html?$/i.test(entry.path);
 
   const srcDoc = useMemo(() => (isHtml ? entry.content : null), [entry, isHtml]);
