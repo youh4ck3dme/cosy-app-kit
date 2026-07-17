@@ -158,6 +158,8 @@ function ChatPage() {
               onSend={(text) => sendMessage({ text })}
               disabled={streaming}
               streaming={streaming}
+              mode={mode}
+              onModeChange={setMode}
               suggestions={
                 messages.length === 0
                   ? [
