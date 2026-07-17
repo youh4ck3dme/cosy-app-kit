@@ -404,10 +404,19 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
           )}
 
           {artifact && view === "code" && currentFile && (
-            <pre className="w-full max-w-5xl overflow-auto rounded-2xl border border-border-subtle bg-surface-1/80 p-5 font-mono text-[12.5px] leading-relaxed text-foreground/90 shadow-elevated animate-in-fade">
-              <code>{currentFile.content}</code>
-            </pre>
+            <textarea
+              key={currentFile.path}
+              value={currentFile.content}
+              onChange={(e) => {
+                const val = e.target.value;
+                const path = currentFile.path;
+                setEdits((prev) => ({ ...prev, [path]: val }));
+              }}
+              spellCheck={false}
+              className="h-[calc(100vh-16rem)] w-full max-w-5xl resize-none overflow-auto rounded-2xl border border-border-subtle bg-surface-1/80 p-5 font-mono text-[12.5px] leading-relaxed text-foreground/90 shadow-elevated outline-none ring-0 focus:border-accent-primary/60 focus:bg-surface-1 animate-in-fade"
+            />
           )}
+
         </div>
 
         {/* Console drawer */}
