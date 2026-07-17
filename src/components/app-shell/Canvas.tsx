@@ -330,6 +330,7 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
         <div className="relative z-10 flex flex-none items-center gap-0.5 overflow-x-auto border-b border-border-subtle bg-surface-1/40 px-2 no-scrollbar">
           {files.map((f) => {
             const active = currentFile?.path === f.path;
+            const edited = edits[f.path] !== undefined;
             return (
               <button
                 key={f.path}
@@ -342,11 +343,22 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
                 )}
               >
                 {f.path}
+                {edited && <span className="ml-1.5 text-accent-primary">●</span>}
               </button>
             );
           })}
+          {isDirty && (
+            <button
+              onClick={resetEdits}
+              className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+              title="Discard edits"
+            >
+              <Undo2 className="h-3 w-3" /> Reset
+            </button>
+          )}
         </div>
       )}
+
 
       {/* Body */}
       <div className="relative z-0 flex min-h-0 flex-1 flex-col">
