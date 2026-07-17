@@ -1,25 +1,35 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { UIMessage } from "ai";
-import { FileCode2 } from "lucide-react";
+import { Check, Copy, FileCode2, RefreshCw } from "lucide-react";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput, type ToolPart } from "@/components/ai-elements/tool";
 import { Shimmer } from "@/components/ai-elements/shimmer";
+import { cn } from "@/lib/utils";
 import { Logo } from "./Logo";
 
-const ARTIFACT_RE = /```(?:html|markdown|md)\s*\n[\s\S]*?```/gi;
+const ARTIFACT_RE = /```(?:html|markdown|md)(?:\s+[^\n`]*)?\s*\n[\s\S]*?```/gi;
+const MULTI_FILE_RE = /```[^\n`]*\bpath=[^\n`]*\n[\s\S]*?```/gi;
 const SPLIT_MARK = "\u0000ARTIFACT\u0000";
 
 export function MessageList({
   messages,
   status,
+  onRegenerate,
 }: {
   messages: UIMessage[];
   status: "ready" | "submitted" | "streaming" | "error";
+  onRegenerate?: () => void;
 }) {
+  const lastAssistantId = [...messages].reverse().find((m) => m.role === "assistant")?.id;
   return (
     <div className="flex flex-col gap-6 py-4">
       {messages.map((m) => (
-        <MessageRow key={m.id} message={m} />
+        <MessageRow
+          key={m.id}
+          message={m}
+          showActions={m.id === lastAssistantId && status === "ready"}
+          onRegenerate={onRegenerate}
+        />
       ))}
       {status === "submitted" && (
         <div className="flex items-start gap-3 animate-in-fade">
@@ -32,6 +42,7 @@ export function MessageList({
     </div>
   );
 }
+
 
 function MessageRow({ message }: { message: UIMessage }) {
   const isUser = message.role === "user";
