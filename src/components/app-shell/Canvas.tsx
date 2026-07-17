@@ -15,6 +15,7 @@ import {
   Download,
   Check,
   X,
+  Undo2,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
@@ -73,10 +74,13 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
   const [showConsole, setShowConsole] = useState(false);
   const [logs, setLogs] = useState<ConsoleEntry[]>([]);
   const [sharing, setSharing] = useState(false);
+  const [edits, setEdits] = useState<Record<string, string>>({});
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const share = useServerFn(setArtifactPublic);
 
-  const files = artifact ? fileList(artifact) : [];
+  const rawFiles = artifact ? fileList(artifact) : [];
+  const files = rawFiles.map((f) => ({ ...f, content: edits[f.path] ?? f.content }));
+  const isDirty = Object.keys(edits).length > 0;
   const currentFile =
     files.find((f) => f.path === activeFile) ??
     files.find((f) => f.path === artifact?.entry_path) ??
@@ -97,11 +101,18 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
     setKey((k) => k + 1);
   };
 
+  const resetEdits = () => {
+    setEdits({});
+    setLogs([]);
+  };
+
   useEffect(() => {
     setActiveFile(null);
     setLogs([]);
+    setEdits({});
     setKey((k) => k + 1);
   }, [artifact?.id]);
+
 
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
@@ -319,6 +330,7 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
         <div className="relative z-10 flex flex-none items-center gap-0.5 overflow-x-auto border-b border-border-subtle bg-surface-1/40 px-2 no-scrollbar">
           {files.map((f) => {
             const active = currentFile?.path === f.path;
+            const edited = edits[f.path] !== undefined;
             return (
               <button
                 key={f.path}
@@ -331,11 +343,22 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
                 )}
               >
                 {f.path}
+                {edited && <span className="ml-1.5 text-accent-primary">●</span>}
               </button>
             );
           })}
+          {isDirty && (
+            <button
+              onClick={resetEdits}
+              className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+              title="Discard edits"
+            >
+              <Undo2 className="h-3 w-3" /> Reset
+            </button>
+          )}
         </div>
       )}
+
 
       {/* Body */}
       <div className="relative z-0 flex min-h-0 flex-1 flex-col">
@@ -381,10 +404,19 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
           )}
 
           {artifact && view === "code" && currentFile && (
-            <pre className="w-full max-w-5xl overflow-auto rounded-2xl border border-border-subtle bg-surface-1/80 p-5 font-mono text-[12.5px] leading-relaxed text-foreground/90 shadow-elevated animate-in-fade">
-              <code>{currentFile.content}</code>
-            </pre>
+            <textarea
+              key={currentFile.path}
+              value={currentFile.content}
+              onChange={(e) => {
+                const val = e.target.value;
+                const path = currentFile.path;
+                setEdits((prev) => ({ ...prev, [path]: val }));
+              }}
+              spellCheck={false}
+              className="h-[calc(100vh-16rem)] w-full max-w-5xl resize-none overflow-auto rounded-2xl border border-border-subtle bg-surface-1/80 p-5 font-mono text-[12.5px] leading-relaxed text-foreground/90 shadow-elevated outline-none ring-0 focus:border-accent-primary/60 focus:bg-surface-1 animate-in-fade"
+            />
           )}
+
         </div>
 
         {/* Console drawer */}
