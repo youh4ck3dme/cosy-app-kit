@@ -1,25 +1,35 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { UIMessage } from "ai";
-import { FileCode2 } from "lucide-react";
+import { Check, Copy, FileCode2, RefreshCw } from "lucide-react";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput, type ToolPart } from "@/components/ai-elements/tool";
 import { Shimmer } from "@/components/ai-elements/shimmer";
+import { cn } from "@/lib/utils";
 import { Logo } from "./Logo";
 
-const ARTIFACT_RE = /```(?:html|markdown|md)\s*\n[\s\S]*?```/gi;
+const ARTIFACT_RE = /```(?:html|markdown|md)(?:\s+[^\n`]*)?\s*\n[\s\S]*?```/gi;
+const MULTI_FILE_RE = /```[^\n`]*\bpath=[^\n`]*\n[\s\S]*?```/gi;
 const SPLIT_MARK = "\u0000ARTIFACT\u0000";
 
 export function MessageList({
   messages,
   status,
+  onRegenerate,
 }: {
   messages: UIMessage[];
   status: "ready" | "submitted" | "streaming" | "error";
+  onRegenerate?: () => void;
 }) {
+  const lastAssistantId = [...messages].reverse().find((m) => m.role === "assistant")?.id;
   return (
     <div className="flex flex-col gap-6 py-4">
       {messages.map((m) => (
-        <MessageRow key={m.id} message={m} />
+        <MessageRow
+          key={m.id}
+          message={m}
+          showActions={m.id === lastAssistantId && status === "ready"}
+          onRegenerate={onRegenerate}
+        />
       ))}
       {status === "submitted" && (
         <div className="flex items-start gap-3 animate-in-fade">
@@ -33,7 +43,16 @@ export function MessageList({
   );
 }
 
-function MessageRow({ message }: { message: UIMessage }) {
+
+function MessageRow({
+  message,
+  showActions,
+  onRegenerate,
+}: {
+  message: UIMessage;
+  showActions?: boolean;
+  onRegenerate?: () => void;
+}) {
   const isUser = message.role === "user";
   const parts = message.parts ?? [];
 
@@ -49,9 +68,10 @@ function MessageRow({ message }: { message: UIMessage }) {
 
   // Split text around artifact code blocks so we can insert the pill.
   const chunks = useMemo(() => {
-    const marked = textConcat.replace(ARTIFACT_RE, SPLIT_MARK);
+    const marked = textConcat.replace(MULTI_FILE_RE, SPLIT_MARK).replace(ARTIFACT_RE, SPLIT_MARK);
     return marked.split(SPLIT_MARK);
   }, [textConcat]);
+
 
   if (isUser) {
     return (
@@ -104,10 +124,50 @@ function MessageRow({ message }: { message: UIMessage }) {
             </Tool>
           ))}
         </MessageContent>
+        {showActions && (
+          <MessageActions text={textConcat} onRegenerate={onRegenerate} />
+        )}
       </Message>
     </div>
   );
 }
+
+function MessageActions({ text, onRegenerate }: { text: string; onRegenerate?: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      // ignore
+    }
+  };
+  return (
+    <div className="mt-1.5 ml-1 flex items-center gap-1">
+      <button
+        onClick={copy}
+        className={cn(
+          "inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground",
+        )}
+        title="Copy"
+      >
+        {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+        {copied ? "Copied" : "Copy"}
+      </button>
+      {onRegenerate && (
+        <button
+          onClick={onRegenerate}
+          className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+          title="Regenerate"
+        >
+          <RefreshCw className="h-3 w-3" /> Retry
+        </button>
+      )}
+    </div>
+  );
+}
+
 
 function ArtifactPill() {
   return (

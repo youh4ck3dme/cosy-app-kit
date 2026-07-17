@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Hammer, ListTodo, Mic, Plus, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -12,24 +11,29 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import { Button } from "@/components/ui/button";
 
+export type BuilderMode = "Build" | "Plan";
+
 export function Composer({
   onSend,
   disabled,
   streaming,
   suggestions = [],
+  mode,
+  onModeChange,
 }: {
   onSend: (text: string) => void;
   disabled?: boolean;
   streaming?: boolean;
   suggestions?: string[];
+  mode: BuilderMode;
+  onModeChange: (m: BuilderMode) => void;
 }) {
-  const [mode, setMode] = useState<"Build" | "Plan">("Build");
-
   const handleSubmit = (message: PromptInputMessage) => {
     const t = message.text?.trim();
     if (!t || disabled) return;
     onSend(t);
   };
+
 
   const status: "ready" | "submitted" | "streaming" | "error" = streaming
     ? "streaming"
@@ -89,7 +93,7 @@ export function Composer({
                   <button
                     key={key}
                     type="button"
-                    onClick={() => setMode(key)}
+                    onClick={() => onModeChange(key)}
                     className={cn(
                       "flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all",
                       active

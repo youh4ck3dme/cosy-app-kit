@@ -10,8 +10,8 @@ import { getThread, updateThreadModel } from "@/lib/threads.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/app-shell/Header";
 import { ThreadList } from "@/components/app-shell/ThreadList";
-import { Canvas } from "@/components/app-shell/Canvas";
-import { Composer } from "@/components/app-shell/Composer";
+import { Canvas, type Artifact } from "@/components/app-shell/Canvas";
+import { Composer, type BuilderMode } from "@/components/app-shell/Composer";
 import { MessageList } from "@/components/app-shell/MessageList";
 import { AppDialog } from "@/components/app-shell/AppDialog";
 import { AgentSettingsPanel } from "@/components/app-shell/AgentSettingsPanel";
@@ -21,13 +21,6 @@ export const Route = createFileRoute("/_authenticated/chat/$threadId")({
   component: ChatPage,
 });
 
-type Artifact = {
-  id: string;
-  kind: "html" | "markdown" | "code";
-  title: string;
-  content: string;
-  created_at: string;
-};
 
 function ChatPage() {
   const { threadId } = useParams({ from: "/_authenticated/chat/$threadId" });
@@ -52,6 +45,11 @@ function ChatPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [view, setView] = useState<"chat" | "preview">("chat");
   const [activeArtifactId, setActiveArtifactId] = useState<string | null>(null);
+  const [mode, setMode] = useState<BuilderMode>("Build");
+  const modeRef = useRef<BuilderMode>("Build");
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -64,7 +62,11 @@ function ChatPage() {
           const headers: Record<string, string> = {};
           if (sess.session) headers.Authorization = `Bearer ${sess.session.access_token}`;
           return {
-            body: { threadId, messages },
+            body: {
+              threadId,
+              messages,
+              mode: modeRef.current === "Plan" ? "plan" : "build",
+            },
             headers,
           };
         },
@@ -72,7 +74,7 @@ function ChatPage() {
     [threadId],
   );
 
-  const { messages, sendMessage, status } = useChat({
+  const { messages, sendMessage, status, regenerate } = useChat({
     id: threadId,
     messages: initialMessages,
     transport,
@@ -82,6 +84,7 @@ function ChatPage() {
       qc.invalidateQueries({ queryKey: ["threads"] });
     },
   });
+
 
   // Auto scroll
   useEffect(() => {
@@ -140,7 +143,7 @@ function ChatPage() {
             ) : messages.length === 0 ? (
               <EmptyPrompt onPick={(p) => sendMessage({ text: p })} />
             ) : (
-              <MessageList messages={messages} status={status} />
+              <MessageList messages={messages} status={status} onRegenerate={() => regenerate()} />
             )}
           </div>
           <div className="flex-none p-3 sm:p-4">
@@ -148,6 +151,8 @@ function ChatPage() {
               onSend={(text) => sendMessage({ text })}
               disabled={streaming}
               streaming={streaming}
+              mode={mode}
+              onModeChange={setMode}
               suggestions={
                 messages.length === 0
                   ? [

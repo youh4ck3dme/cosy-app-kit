@@ -1,4 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
+
+
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import {
@@ -166,4 +168,19 @@ export const saveAgentSettings = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+export const setArtifactPublic = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ artifactId: z.string().uuid(), isPublic: z.boolean() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    // RLS: user can only update artifacts belonging to their own thread.
+    const { error } = await context.supabase
+      .from("artifacts")
+      .update({ is_public: data.isPublic })
+      .eq("id", data.artifactId);
+    if (error) throw new Error(error.message);
+    return { ok: true, isPublic: data.isPublic };
   });

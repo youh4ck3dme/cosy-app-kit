@@ -45,7 +45,10 @@ export type Database = {
         Row: {
           content: string
           created_at: string
+          entry_path: string | null
+          files: Json
           id: string
+          is_public: boolean
           kind: string
           message_id: string | null
           thread_id: string
@@ -54,7 +57,10 @@ export type Database = {
         Insert: {
           content?: string
           created_at?: string
+          entry_path?: string | null
+          files?: Json
           id?: string
+          is_public?: boolean
           kind: string
           message_id?: string | null
           thread_id: string
@@ -63,7 +69,10 @@ export type Database = {
         Update: {
           content?: string
           created_at?: string
+          entry_path?: string | null
+          files?: Json
           id?: string
+          is_public?: boolean
           kind?: string
           message_id?: string | null
           thread_id?: string
@@ -111,6 +120,38 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      thread_memory: {
+        Row: {
+          id: string
+          key: string
+          thread_id: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          id?: string
+          key: string
+          thread_id: string
+          updated_at?: string
+          value: Json
+        }
+        Update: {
+          id?: string
+          key?: string
+          thread_id?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thread_memory_thread_id_fkey"
             columns: ["thread_id"]
             isOneToOne: false
             referencedRelation: "threads"

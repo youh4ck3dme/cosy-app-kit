@@ -1,92 +1,123 @@
+# Mega Upgrade — AI Builder (Layers 3 & 4 + polish)
 
-# Mega upgrade buildera — po vrstvách
+Ideme dokončiť builder do stavu, ktorý sa nehanbí za produkciu. Layer 1 (vizuál) a Layer 2 (AI Elements chat) sú hotové. Toto je zvyšok.
 
-Postupujeme v 4 vrstvách. Každú vrstvu implementujem, ukážeš mi feedback, potom pokračujeme ďalej. Vizuál ostáva Vercel-like dark, len doladený.
+## Ciele
 
----
-
-## Layer 1 — Vizuál & UX polish  ⬅️ **teraz**
-
-Cieľom je, aby builder pôsobil ako hotový premium produkt (Vercel/Linear/Resend feel), bez zmeny funkcionality.
-
-**Design tokens (`src/styles.css`)**
-- Doladiť oklch paletu: hlbšie `--background`, mierne teplejší `--foreground`, jasnejší `--primary` (elektrická modrá s glow variantom).
-- Pridať tokeny: `--surface-1/2/3` (elevation), `--border-subtle`, `--border-strong`, `--shadow-glow`, `--gradient-radial`, `--gradient-mesh`.
-- Grid pattern jemnejší + radial mask okolo canvasu (fade to background na okrajoch).
-
-**Header**
-- Sticky, `backdrop-blur-xl` + `bg-background/60`, tenká spodná hairline border.
-- Logo mark vľavo (nie generický Sparkles) + názov threadu inline-editable.
-- Model selector ako subtílny chip s glow pri hoveri.
-- Publish button = primary gradient s soft shadow.
-
-**Composer**
-- Väčší radius, glass surface, jemný focus ring v primary farbe.
-- Build/Plan ako segmented control (pill), nie 2 buttony.
-- Suggestion chips pod inputom s fade-in stagger animáciou.
-- Voice mic tlačidlo integrované vpravo, submit ako icon-only s gradientom.
-
-**Message list**
-- Assistant správy bez bubble (podľa chat-ui-composition), user správy = filled bubble `primary`/`primary-foreground`.
-- Streaming: shimmer "Thinking…" namiesto dots.
-- Markdown: lepšia typografia (headings, lists, inline code chip, code block s tmavým surface-2, copy button).
-- "Sent to canvas" indikátor ako mini pill s icon + názvom artefaktu.
-
-**Canvas**
-- Mac-style window chrome (traffic lights, title bar) — jemný, nie kýčovitý.
-- Device toggle (Desktop/Tablet/Mobile) ako chip segmented control v pravom hornom rohu.
-- Zoom + refresh + open-in-new icon buttons.
-- Empty state s ilustráciou + hint textom "Popíš čo chceš postaviť…".
-- Loading state: skeleton grid s shimmer.
-
-**Thread list**
-- Hover reveal delete, active thread s ľavou akcent linkou.
-- Grupovanie: Today / Yesterday / Previous 7 days / Older.
-- Search input hore.
-
-**Modals & Mobile**
-- `AppDialog` už blur pod headerom — dopilovať transition (scale-in + fade).
-- Mobile menu full-screen s stagger animáciou položiek, close button vľavo hore (hamburger vpravo pri otvorení sa mení na X).
-
-**Mikrointerakcie**
-- `hover-scale` na tool tlačidlách, `animate-fade-in` na nových messages, transition na theme tokens.
-- Focus-visible ring všade (a11y).
+1. **Canvas Power** — multi-file artefakty, tabs, live edit, console, export/share.
+2. **Agent Intelligence** — reálny tool-calling, plan/build módy s rozdielnym správaním, streaming reasoning, memory per thread.
+3. **Chat UX doladenie** — message actions (copy/retry/branch/edit), attachments, suggestions z contextu.
+4. **Production polish** — error/empty states, rate-limit UX, keyboard shortcuts, a11y, SEO metadata na leaf routes.
 
 ---
 
-## Layer 2 — Chat UX (AI Elements retrofit)  ⏭️ ďalej
+## Layer 3 — Canvas Power
 
-- Nainštalovať AI Elements (`conversation`, `message`, `prompt-input`, `shimmer`, `tool`) a retrofit `MessageList` / `Composer` na ne.
-- Message actions: copy, retry, branch.
-- Attachments (drop image → passed as multimodal input).
-- Voice input (Web Speech API alebo Lovable STT).
-- Autoscroll s "jump to bottom" pill keď scrolluješ hore.
+### Multi-file artefakty
+- Parser v `src/routes/api/chat.ts`: rozšíriť z jedného ```lang bloku na fenced bloky s `path=` meta (napr. ```tsx path=src/App.tsx). Každý blok = jeden file v artefakte.
+- DB: `artifacts.files jsonb` (`Array<{path, language, content}>`), + `entry_path text`. Migrácia + GRANT + RLS už z existujúceho vzoru.
+- Backward compat: single-block správy sa uložia ako 1-file artefakt s `path=index.html`.
 
-## Layer 3 — Canvas / Preview power
+### Canvas UI (`src/components/app-shell/Canvas.tsx` + nové submoduly)
+- **Tabs po files** (VS Code style, close nie, len switch).
+- **Editor** — `@monaco-editor/react` (lazy, `<ClientOnly>` — inak SSR crash podľa execution-model pravidiel). Edit zmení lokálny state; „Save to thread" tlačidlo persistne späť do artefaktu.
+- **Preview vs Code toggle** — segmented control v canvas hlavičke.
+- **Console panel** (spodný drawer) — zachytáva `console.*` z iframe cez `postMessage` bridge injektnutý do preview HTML.
+- **Device presets** — už existujú, pridať rotate + custom width input.
+- **Export** — download ZIP (jszip, lazy) + „Copy share link" (jednoduchý public read-only route `/a/$artifactId` s anon SELECT policy len na `is_public=true` artefakty).
 
-- Multi-file artefakty (tabs: `index.html`, `styles.css`, `script.js`).
-- Živý edit kódu (Monaco) + hot-reload iframe.
-- Console panel (zachytáva iframe `console.*`).
-- Share link (public read-only route pre artefakt).
-- Export ako ZIP.
-
-## Layer 4 — Agent inteligencia
-
-- Streaming reasoning (rozbaliteľný "Thinking…" blok).
-- Tool calling: `web_search`, `generate_image`, `run_code` (sandboxed).
-- Multi-step Plan mode: agent najprv vypíše plán, user schváli → executes.
-- Per-thread memory summary (uložené v `threads.summary`).
-- Agent settings reálne aplikované (temperature, systemPrompt, enabled tools sa posielajú do `/api/chat`).
+### Preview sandbox hardening
+- `iframe sandbox="allow-scripts"` (bez `allow-same-origin`) — už tak je, potvrdiť.
+- CSP meta v injektovanom HTML: `default-src 'self' 'unsafe-inline' data: blob:` — obmedziť sieť.
 
 ---
 
-## Technical notes (Layer 1)
+## Layer 4 — Agent Intelligence
 
-- Žiadne biznis-logic zmeny, len frontend: `src/styles.css`, `src/components/app-shell/*`, `src/routes/_authenticated/chat.$threadId.tsx`.
-- Všetky farby cez semantic tokens (`bg-surface-1`, `text-foreground`, …), žiadne `bg-black`/`text-white`.
-- Backdrop blur cez Tailwind utilities (nie ručne `-webkit-`).
-- Fonts: pridať `Geist` + `Geist Mono` cez `<link>` v `__root.tsx` head, namapovať v `@theme`.
-- Logo mark: vygenerujem malý SVG/PNG (nie Sparkles) do `src/assets/`.
-- Typecheck musí ostať clean, žiadny functionality regression.
+### Tool calling (AI SDK v6 `tools`)
+Registrovať v `src/routes/api/chat.ts` pomocou `tool({ description, inputSchema: z.object(...), execute })`:
 
-Po dokončení Layer 1 pošlem preview a spýtam sa, či ísť na Layer 2 (Chat UX / AI Elements) alebo preskočiť.
+| Tool | Účel | Execute |
+|---|---|---|
+| `create_artifact` | LLM explicitne vytvorí/updatne súbor v canvas | zapíše do `artifacts` + broadcast |
+| `web_search` | grounding | volá existujúci `websearch` gateway (fallback: DuckDuckGo HTML) |
+| `read_project_file` | čítanie predchádzajúcich artefaktov v threade | Supabase select |
+| `plan_steps` | v Plan móde vráti štruktúrovaný plán (nezapisuje kód) | čisto vracia JSON |
+
+Rendering cez už integrovaný `Tool` / `ToolHeader` (Layer 2). Streamované `toolCalls` sa zobrazia collapsed, po dokončení expandnú výsledok.
+
+### Plan vs Build mode
+- **Plan**: system prompt núti model použiť `plan_steps`, `create_artifact` je zakázaný. Výstup = kroky + otázky.
+- **Build**: plný tool set, model má „create artifacts aggressively" inštrukciu.
+- Toggle už existuje v Composer — treba prepojiť na `mode` field v request body a v API vetviť tools + system prompt.
+
+### Reasoning stream
+- `openai/gpt-5.5` cez Gateway podporuje `reasoning` parts v AI SDK v6. Renderovať cez `<Reasoning>` element z ai-elements (collapsed shimmer počas streamu).
+
+### Per-thread memory
+- Nová tabuľka `thread_memory (thread_id, key, value, updated_at)` + RLS podľa owner threadu.
+- Tool `remember(key, value)` a auto-inject top N do system promptu pri každom requeste.
+
+---
+
+## Layer 3.5 — Chat UX doladenie
+
+- `MessageActions` (copy, retry, edit, branch) pod každou assistant správou. Retry = zmaže od tejto správy dole a re-streamuje. Branch = duplikuje thread po túto správu.
+- **Attachments**: image upload → Supabase Storage bucket `chat-attachments` (private, signed URLs), pass ako `image` part do modelu.
+- **Suggestions**: po prvej odpovedi vygenerovať 3 follow-up chipy (druhý paralelný LLM call, cheap model).
+- **Keyboard**: `Cmd+K` command palette (threads + akcie), `Cmd+Enter` send, `Cmd+/` toggle Plan/Build.
+
+---
+
+## Production polish
+
+- **SEO**: pridať `head()` na `/`, `/auth`, `/a/$artifactId` (share) s unique title/description/og. Root už nemá og:image (správne).
+- **Error boundaries**: každá route s loaderom → `errorComponent` + `notFoundComponent` (pravidlo z tanstack-errors-notfound). Aktuálne chýbajú na chat routes — doplniť.
+- **Rate limit UX**: keď Gateway vráti 429, MessageList ukáže inline retry s countdown (`Retry-After` header).
+- **a11y**: focus rings na všetkých interactive, `aria-label` na icon buttons, `role="log"` na Conversation, prefers-reduced-motion respect.
+- **Empty states**: prázdny thread list, prázdny canvas, prázdny search — všetky s CTA.
+
+---
+
+## Data Model (nové migrácie)
+
+```sql
+ALTER TABLE public.artifacts
+  ADD COLUMN files jsonb NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN entry_path text,
+  ADD COLUMN is_public boolean NOT NULL DEFAULT false;
+
+CREATE TABLE public.thread_memory (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  thread_id uuid NOT NULL REFERENCES public.threads(id) ON DELETE CASCADE,
+  key text NOT NULL,
+  value jsonb NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(thread_id, key)
+);
+-- + GRANT authenticated + service_role, RLS podľa vlastníctva threadu
+```
+
+Share route dostane `GRANT SELECT ON public.artifacts TO anon` gated policy `is_public = true`.
+
+---
+
+## Handoff / poradie implementácie
+
+1. **Layer 3 base** — DB migrácia (files/entry_path/is_public) + parser + Canvas tabs + Preview/Code toggle.
+2. **Monaco editor** (lazy, ClientOnly) + save-back.
+3. **Console bridge** + Export ZIP + Share route + public artefakt page.
+4. **Layer 4 tools** — `create_artifact`, `plan_steps`, Plan/Build vetvenie, reasoning render.
+5. **Memory table + `remember` tool + `web_search` + `read_project_file`**.
+6. **Chat UX** — MessageActions (copy/retry/edit/branch), attachments, follow-up suggestions.
+7. **Polish** — SEO heads, error/notFound components, rate-limit UX, Cmd+K palette, a11y pass.
+
+Každý krok = samostatný commit, typecheck zelený, potom ďalej.
+
+## Otázky pred štartom
+
+1. **Monaco vs CodeMirror 6** pre editor? Monaco = ťažší (~2MB), lepší DX pre TS. CM6 = lightweight, modulárny. Default: Monaco (lazy loadnutý, nevadí).
+2. **Share links verejné bez auth**? Alebo len signed link s expiráciou? Default: verejné + toggle `is_public` v UI.
+3. **Attachments**: len obrázky, alebo aj PDF/text files? Default: obrázky teraz, súbory neskôr.
+
+Ak nechceš odpovedať, idem s defaultmi.
