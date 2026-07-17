@@ -86,7 +86,7 @@ export const Route = createFileRoute("/api/chat")({
           await supabase.from("messages").insert({
             thread_id: thread.id,
             role: "user",
-            parts: lastUser.parts as unknown as object,
+            parts: lastUser.parts as unknown as import("@/integrations/supabase/types").Json,
           });
           void alreadyExists;
         }
@@ -114,7 +114,7 @@ export const Route = createFileRoute("/api/chat")({
               .insert({
                 thread_id: thread.id,
                 role: "assistant",
-                parts: [{ type: "text", text }] as unknown as object,
+                parts: [{ type: "text", text }] as unknown as import("@/integrations/supabase/types").Json,
               })
               .select("id")
               .single();
