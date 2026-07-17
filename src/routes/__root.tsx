@@ -86,10 +86,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         property: "og:description",
         content:
-          "Chat with your agent, watch live HTML artifacts render in a real preview canvas.",
+          "Builder is a dark, focused AI studio. Chat with your agent, watch it ship live artifacts to a real preview canvas.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Builder — AI-first app studio" },
+      { name: "twitter:description", content: "Builder is a dark, focused AI studio. Chat with your agent, watch it ship live artifacts to a real preview canvas." },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
