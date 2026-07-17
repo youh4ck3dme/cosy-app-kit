@@ -124,10 +124,50 @@ function MessageRow({
             </Tool>
           ))}
         </MessageContent>
+        {showActions && (
+          <MessageActions text={textConcat} onRegenerate={onRegenerate} />
+        )}
       </Message>
     </div>
   );
 }
+
+function MessageActions({ text, onRegenerate }: { text: string; onRegenerate?: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      // ignore
+    }
+  };
+  return (
+    <div className="mt-1.5 ml-1 flex items-center gap-1">
+      <button
+        onClick={copy}
+        className={cn(
+          "inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground",
+        )}
+        title="Copy"
+      >
+        {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+        {copied ? "Copied" : "Copy"}
+      </button>
+      {onRegenerate && (
+        <button
+          onClick={onRegenerate}
+          className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+          title="Regenerate"
+        >
+          <RefreshCw className="h-3 w-3" /> Retry
+        </button>
+      )}
+    </div>
+  );
+}
+
 
 function ArtifactPill() {
   return (
