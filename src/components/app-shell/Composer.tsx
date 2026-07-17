@@ -93,7 +93,7 @@ export function Composer({
                   <button
                     key={key}
                     type="button"
-                    onClick={() => setMode(key)}
+                    onClick={() => onModeChange(key)}
                     className={cn(
                       "flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all",
                       active
