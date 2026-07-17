@@ -82,11 +82,15 @@ function MessageRow({ message }: { message: UIMessage }) {
           ))}
           {toolParts.map((tp, i) => (
             <Tool key={`tool-${i}`} defaultOpen={false}>
-              <ToolHeader
-                type={tp.type as `tool-${string}`}
-                state={tp.state}
-                toolName={"toolName" in tp && typeof tp.toolName === "string" ? tp.toolName : tp.type.replace(/^tool-/, "")}
-              />
+              {tp.type === "dynamic-tool" ? (
+                <ToolHeader
+                  type="dynamic-tool"
+                  state={tp.state}
+                  toolName={"toolName" in tp && typeof tp.toolName === "string" ? tp.toolName : "tool"}
+                />
+              ) : (
+                <ToolHeader type={tp.type as `tool-${string}`} state={tp.state} />
+              )}
               <ToolContent>
                 {"input" in tp && tp.input !== undefined && <ToolInput input={tp.input} />}
                 {(("output" in tp && tp.output !== undefined) ||
