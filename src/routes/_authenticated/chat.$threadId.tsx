@@ -61,11 +61,11 @@ function ChatPage() {
         api: "/api/chat",
         prepareSendMessagesRequest: async ({ messages }) => {
           const { data: sess } = await supabase.auth.getSession();
+          const headers: Record<string, string> = {};
+          if (sess.session) headers.Authorization = `Bearer ${sess.session.access_token}`;
           return {
             body: { threadId, messages },
-            headers: sess.session
-              ? { Authorization: `Bearer ${sess.session.access_token}` }
-              : {},
+            headers,
           };
         },
       }),
