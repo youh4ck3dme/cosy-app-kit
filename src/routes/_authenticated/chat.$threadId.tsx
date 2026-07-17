@@ -52,6 +52,11 @@ function ChatPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [view, setView] = useState<"chat" | "preview">("chat");
   const [activeArtifactId, setActiveArtifactId] = useState<string | null>(null);
+  const [mode, setMode] = useState<BuilderMode>("Build");
+  const modeRef = useRef<BuilderMode>("Build");
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -64,7 +69,11 @@ function ChatPage() {
           const headers: Record<string, string> = {};
           if (sess.session) headers.Authorization = `Bearer ${sess.session.access_token}`;
           return {
-            body: { threadId, messages },
+            body: {
+              threadId,
+              messages,
+              mode: modeRef.current === "Plan" ? "plan" : "build",
+            },
             headers,
           };
         },
@@ -72,7 +81,7 @@ function ChatPage() {
     [threadId],
   );
 
-  const { messages, sendMessage, status } = useChat({
+  const { messages, sendMessage, status, regenerate } = useChat({
     id: threadId,
     messages: initialMessages,
     transport,
@@ -82,6 +91,7 @@ function ChatPage() {
       qc.invalidateQueries({ queryKey: ["threads"] });
     },
   });
+
 
   // Auto scroll
   useEffect(() => {
