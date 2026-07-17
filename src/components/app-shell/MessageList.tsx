@@ -82,7 +82,11 @@ function MessageRow({ message }: { message: UIMessage }) {
           ))}
           {toolParts.map((tp, i) => (
             <Tool key={`tool-${i}`} defaultOpen={false}>
-              <ToolHeader type={tp.type as ToolPart["type"]} state={tp.state} />
+              <ToolHeader
+                type={tp.type as `tool-${string}`}
+                state={tp.state}
+                toolName={"toolName" in tp && typeof tp.toolName === "string" ? tp.toolName : tp.type.replace(/^tool-/, "")}
+              />
               <ToolContent>
                 {"input" in tp && tp.input !== undefined && <ToolInput input={tp.input} />}
                 {(("output" in tp && tp.output !== undefined) ||
