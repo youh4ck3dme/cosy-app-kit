@@ -78,7 +78,7 @@ export function AgentSettingsPanel() {
             return (
               <Chip
                 key={m.id}
-                selected={selected}
+                active={selected}
                 onClick={() => setModel(selected ? DEFAULT_MODEL : m.id)}
               >
                 {m.label}
