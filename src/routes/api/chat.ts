@@ -107,7 +107,7 @@ export const Route = createFileRoute("/api/chat")({
           model,
           system,
           temperature: Number(thread.temperature ?? 0.7),
-          messages: convertToModelMessages(body.messages as UIMessage[]),
+          messages: await convertToModelMessages(body.messages as UIMessage[]),
           onFinish: async ({ text }) => {
             const { data: inserted } = await supabase
               .from("messages")
