@@ -44,7 +44,15 @@ export function MessageList({
 }
 
 
-function MessageRow({ message }: { message: UIMessage }) {
+function MessageRow({
+  message,
+  showActions,
+  onRegenerate,
+}: {
+  message: UIMessage;
+  showActions?: boolean;
+  onRegenerate?: () => void;
+}) {
   const isUser = message.role === "user";
   const parts = message.parts ?? [];
 
@@ -60,9 +68,10 @@ function MessageRow({ message }: { message: UIMessage }) {
 
   // Split text around artifact code blocks so we can insert the pill.
   const chunks = useMemo(() => {
-    const marked = textConcat.replace(ARTIFACT_RE, SPLIT_MARK);
+    const marked = textConcat.replace(MULTI_FILE_RE, SPLIT_MARK).replace(ARTIFACT_RE, SPLIT_MARK);
     return marked.split(SPLIT_MARK);
   }, [textConcat]);
+
 
   if (isUser) {
     return (
