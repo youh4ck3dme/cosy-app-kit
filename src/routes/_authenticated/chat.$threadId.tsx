@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/app-shell/Header";
 import { ThreadList } from "@/components/app-shell/ThreadList";
 import { Canvas } from "@/components/app-shell/Canvas";
-import { Composer } from "@/components/app-shell/Composer";
+import { Composer, type BuilderMode } from "@/components/app-shell/Composer";
 import { MessageList } from "@/components/app-shell/MessageList";
 import { AppDialog } from "@/components/app-shell/AppDialog";
 import { AgentSettingsPanel } from "@/components/app-shell/AgentSettingsPanel";
