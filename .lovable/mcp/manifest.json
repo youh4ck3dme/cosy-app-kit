@@ -85,7 +85,7 @@
               "description": "Thread title."
             },
             "model": {
-              "description": "Model id, e.g. openai/gpt-5.5. Optional.",
+              "description": "Mistral model id, e.g. mistral-large-latest. Optional.",
               "type": "string"
             },
             "system_prompt": {
