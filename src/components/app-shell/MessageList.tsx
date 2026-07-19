@@ -2,7 +2,14 @@ import { useMemo, useState } from "react";
 import type { UIMessage } from "ai";
 import { Check, Copy, FileCode2, RefreshCw } from "lucide-react";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
-import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput, type ToolPart } from "@/components/ai-elements/tool";
+import {
+  Tool,
+  ToolContent,
+  ToolHeader,
+  ToolInput,
+  ToolOutput,
+  type ToolPart,
+} from "@/components/ai-elements/tool";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { cn } from "@/lib/utils";
 import { Logo } from "./Logo";
@@ -10,6 +17,20 @@ import { Logo } from "./Logo";
 const ARTIFACT_RE = /```(?:html|markdown|md)(?:\s+[^\n`]*)?\s*\n[\s\S]*?```/gi;
 const MULTI_FILE_RE = /```[^\n`]*\bpath=[^\n`]*\n[\s\S]*?```/gi;
 const SPLIT_MARK = "\u0000ARTIFACT\u0000";
+
+/** Runtime stream errors can land as errorText on non-tool parts; extract without invalid type predicates. */
+function getNonToolErrorText(part: UIMessage["parts"][number]): string | null {
+  if (typeof part !== "object" || part === null) return null;
+  if (
+    typeof part.type === "string" &&
+    (part.type.startsWith("tool-") || part.type === "dynamic-tool")
+  ) {
+    return null;
+  }
+  if (!("errorText" in part)) return null;
+  const errorText = (part as { errorText?: unknown }).errorText;
+  return typeof errorText === "string" && errorText ? errorText : null;
+}
 
 export function MessageList({
   messages,
@@ -43,7 +64,6 @@ export function MessageList({
   );
 }
 
-
 function MessageRow({
   message,
   showActions,
@@ -54,7 +74,7 @@ function MessageRow({
   onRegenerate?: () => void;
 }) {
   const isUser = message.role === "user";
-  const parts = message.parts ?? [];
+  const parts = useMemo(() => message.parts ?? [], [message.parts]);
 
   const textConcat = useMemo(
     () => parts.map((p) => (p.type === "text" ? p.text : "")).join(""),
@@ -72,12 +92,11 @@ function MessageRow({
     return marked.split(SPLIT_MARK);
   }, [textConcat]);
 
-
   if (isUser) {
     return (
       <Message from="user" className="animate-in-fade">
         <MessageContent>
-          <div className="whitespace-pre-wrap break-words text-[14.5px] leading-relaxed">
+          <div className="whitespace-pre-wrap wrap-break-word text-[14.5px] leading-relaxed">
             {textConcat}
           </div>
         </MessageContent>
@@ -93,9 +112,7 @@ function MessageRow({
           {chunks.map((chunk, i) => (
             <div key={i} className="contents">
               {chunk && (
-                <MessageResponse className="text-[14.5px] leading-relaxed">
-                  {chunk}
-                </MessageResponse>
+                <MessageResponse className="text-[14.5px] leading-relaxed">{chunk}</MessageResponse>
               )}
               {i < chunks.length - 1 && <ArtifactPill />}
             </div>
@@ -106,7 +123,9 @@ function MessageRow({
                 <ToolHeader
                   type="dynamic-tool"
                   state={tp.state}
-                  toolName={"toolName" in tp && typeof tp.toolName === "string" ? tp.toolName : "tool"}
+                  toolName={
+                    "toolName" in tp && typeof tp.toolName === "string" ? tp.toolName : "tool"
+                  }
                 />
               ) : (
                 <ToolHeader type={tp.type as `tool-${string}`} state={tp.state} />
@@ -124,33 +143,19 @@ function MessageRow({
             </Tool>
           ))}
           {parts
-            .map((p, i) => {
-              if (
-                typeof p !== "object" ||
-                p === null ||
-                !("errorText" in p) ||
-                typeof (p as { errorText?: unknown }).errorText !== "string" ||
-                !(p as { errorText: string }).errorText ||
-                (typeof p.type === "string" &&
-                  (p.type.startsWith("tool-") || p.type === "dynamic-tool"))
-              ) {
-                return null;
-              }
-              return (
-                <div
-                  key={`err-${i}`}
-                  role="alert"
-                  className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[13px] text-destructive"
-                >
-                  {(p as { errorText: string }).errorText}
-                </div>
-              );
-            })
-            .filter(Boolean)}
+            .map((p) => getNonToolErrorText(p))
+            .filter((errorText): errorText is string => errorText !== null)
+            .map((errorText, i) => (
+              <div
+                key={`err-${i}`}
+                role="alert"
+                className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[13px] text-destructive"
+              >
+                {errorText}
+              </div>
+            ))}
         </MessageContent>
-        {showActions && (
-          <MessageActions text={textConcat} onRegenerate={onRegenerate} />
-        )}
+        {showActions && <MessageActions text={textConcat} onRegenerate={onRegenerate} />}
       </Message>
     </div>
   );
@@ -191,7 +196,6 @@ function MessageActions({ text, onRegenerate }: { text: string; onRegenerate?: (
     </div>
   );
 }
-
 
 function ArtifactPill() {
   return (
