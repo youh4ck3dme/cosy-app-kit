@@ -1,0 +1,6 @@
+# Anon/publishable Supabase keys are public client config (RLS-enforced), not service_role.
+version: 2
+paths-ignore:
+  - "src/integrations/supabase/public-config.ts"
+  - "**/*.example"
+  - "**/node_modules/**"

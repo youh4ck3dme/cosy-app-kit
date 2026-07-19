@@ -3,6 +3,10 @@ import { convertToModelMessages, streamText, type UIMessage } from "ai";
 import { createClient } from "@supabase/supabase-js";
 import type { Database, Json } from "@/integrations/supabase/types";
 import {
+  PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  PUBLIC_SUPABASE_URL,
+} from "@/integrations/supabase/public-config";
+import {
   createMistralProvider,
   DEFAULT_MODEL,
   DEFAULT_SYSTEM_PROMPT,
@@ -156,13 +160,9 @@ export const Route = createFileRoute("/api/chat")({
           }
           const token = authHeader.slice("Bearer ".length);
 
-          const supabaseUrl = process.env.SUPABASE_URL;
-          const supabasePub = process.env.SUPABASE_PUBLISHABLE_KEY;
-          if (!supabaseUrl || !supabasePub) {
-            return new Response("Missing SUPABASE_URL or SUPABASE_PUBLISHABLE_KEY", {
-              status: 500,
-            });
-          }
+          const supabaseUrl = process.env.SUPABASE_URL || PUBLIC_SUPABASE_URL;
+          const supabasePub =
+            process.env.SUPABASE_PUBLISHABLE_KEY || PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
           const supabase = createClient<Database>(supabaseUrl, supabasePub, {
             global: { headers: { Authorization: `Bearer ${token}` } },

@@ -13,6 +13,8 @@ export default defineConfig({
   },
   vite: {
     plugins: [mcpPlugin()],
+    // Expose SUPABASE_* as well as VITE_* so Lovable Cloud secrets without VITE_ prefix work.
+    envPrefix: ["VITE_", "SUPABASE_"],
     server: {
       // Optional: if something still hits relative /~oauth/* on localhost,
       // proxy to the published app (Google OAuth client lives there).
