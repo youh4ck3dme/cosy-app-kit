@@ -7,6 +7,7 @@ import {
   DEFAULT_MODEL,
   DEFAULT_SYSTEM_PROMPT,
   DEFAULT_TEMPERATURE,
+  resolveKnownModelId,
 } from "@/lib/models";
 import { Chip } from "./Chip";
 import { toast } from "sonner";
@@ -34,9 +35,10 @@ export function AgentSettingsPanel() {
 
   useEffect(() => {
     if (data) {
-      setModel(data.default_model);
+      // Never show/keep GPT/Gemini ids — catalog is Mistral-only.
+      setModel(resolveKnownModelId(data.default_model));
       setTemperature(Number(data.default_temperature));
-      setSystemPrompt(data.default_system_prompt);
+      setSystemPrompt(data.default_system_prompt || DEFAULT_SYSTEM_PROMPT);
       setTools((data.tools as Record<string, boolean>) ?? {});
     }
   }, [data]);
@@ -46,7 +48,7 @@ export function AgentSettingsPanel() {
     try {
       await save({
         data: {
-          default_model: model,
+          default_model: resolveKnownModelId(model),
           default_temperature: temperature,
           default_system_prompt: systemPrompt,
           tools,
@@ -75,8 +77,8 @@ export function AgentSettingsPanel() {
       <section>
         <SectionTitle>Model</SectionTitle>
         <p className="mb-3 text-xs text-muted-foreground">
-          Default model for new chats. Change per-thread from the header. Click a selected chip to
-          reset to default.
+          Mistral only — no OpenAI / ChatGPT / Gemini. Default for new chats; change per-thread in
+          the header. Click a selected chip to reset to default.
         </p>
         <div className="flex flex-wrap gap-2">
           {AVAILABLE_MODELS.map((m) => {

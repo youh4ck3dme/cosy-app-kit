@@ -3,12 +3,12 @@ import { convertToModelMessages, streamText, type UIMessage } from "ai";
 import { createClient } from "@supabase/supabase-js";
 import type { Database, Json } from "@/integrations/supabase/types";
 import {
-  AVAILABLE_MODELS,
   createMistralProvider,
   DEFAULT_MODEL,
   DEFAULT_SYSTEM_PROMPT,
   formatAiGatewayError,
 } from "@/lib/ai-gateway.server";
+import { resolveKnownModelId } from "@/lib/models";
 
 type Mode = "build" | "plan";
 type ChatBody = {
@@ -134,13 +134,9 @@ const BUILD_SUFFIX = `\n\nWhen the user asks for a webpage or component, respond
 - A multi-file artifact using \`\`\`lang path=<relative/path>\`\`\` blocks (each file is one block). Include an \`index.html\` as the entry file when possible.
 Prefer semantic HTML, inline <style>, tasteful modern design, and accessible markup.`;
 
-const KNOWN_MODEL_IDS = new Set(AVAILABLE_MODELS.map((m) => m.id));
-
 function resolveModelId(raw: string | null | undefined): string {
-  const id = (raw ?? "").trim();
-  if (id && KNOWN_MODEL_IDS.has(id)) return id;
-  // Unknown / deprecated model ids fall back so the stream can still start.
-  return DEFAULT_MODEL;
+  // Drops openai/* google/* and any non-Mistral id → DEFAULT_MODEL
+  return resolveKnownModelId(raw);
 }
 
 export const Route = createFileRoute("/api/chat")({

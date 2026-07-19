@@ -2,7 +2,12 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import { DEFAULT_MODEL, DEFAULT_SYSTEM_PROMPT, DEFAULT_TEMPERATURE } from "./models";
+import {
+  DEFAULT_MODEL,
+  DEFAULT_SYSTEM_PROMPT,
+  DEFAULT_TEMPERATURE,
+  resolveKnownModelId,
+} from "./models";
 
 export const listThreads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -25,7 +30,7 @@ export const createThread = createServerFn({ method: "POST" })
       .eq("user_id", context.userId)
       .maybeSingle();
 
-    const model = settings.data?.default_model ?? DEFAULT_MODEL;
+    const model = resolveKnownModelId(settings.data?.default_model ?? DEFAULT_MODEL);
     const temperature = settings.data?.default_temperature ?? DEFAULT_TEMPERATURE;
     const system_prompt = settings.data?.default_system_prompt ?? DEFAULT_SYSTEM_PROMPT;
 
@@ -122,15 +127,20 @@ export const getAgentSettings = createServerFn({ method: "GET" })
       .select("*")
       .eq("user_id", context.userId)
       .maybeSingle();
-    return (
-      data ?? {
+    if (!data) {
+      return {
         user_id: context.userId,
         default_model: DEFAULT_MODEL,
         default_temperature: DEFAULT_TEMPERATURE,
         default_system_prompt: DEFAULT_SYSTEM_PROMPT,
         tools: { create_artifact: true, web_search: false, code_interpreter: false },
-      }
-    );
+      };
+    }
+    // Strip legacy OpenAI/Gemini defaults stored before Mistral-only switch.
+    return {
+      ...data,
+      default_model: resolveKnownModelId(data.default_model),
+    };
   });
 
 export const saveAgentSettings = createServerFn({ method: "POST" })
@@ -148,7 +158,7 @@ export const saveAgentSettings = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.from("agent_settings").upsert({
       user_id: context.userId,
-      default_model: data.default_model,
+      default_model: resolveKnownModelId(data.default_model),
       default_temperature: data.default_temperature,
       default_system_prompt: data.default_system_prompt,
       tools: data.tools,

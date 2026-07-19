@@ -2,7 +2,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Settings, Menu, X, ChevronDown, LogOut, Rocket } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { AVAILABLE_MODELS } from "@/lib/models";
+import { AVAILABLE_MODELS, resolveKnownModelId } from "@/lib/models";
 import { AppDialog } from "./AppDialog";
 import { ThreadList } from "./ThreadList";
 import { Logo } from "./Logo";
@@ -27,8 +27,9 @@ export function Header({
   const navigate = useNavigate();
   const [modelOpen, setModelOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const resolvedModel = resolveKnownModelId(activeModel);
   const activeLabel =
-    AVAILABLE_MODELS.find((m) => m.id === activeModel)?.label ?? activeModel ?? "Model";
+    AVAILABLE_MODELS.find((m) => m.id === resolvedModel)?.label ?? "Mistral Large";
 
   const signOut = async () => {
     await supabase.auth.signOut();

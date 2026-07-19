@@ -48,6 +48,19 @@ bun dev       # http://localhost:8080
 | Model catalog (client-safe) | `src/lib/models.ts` |
 | MCP tools | `src/lib/mcp/tools/*` |
 
+## Local auth (Google) — **no popup**
+
+| Mode | How |
+|------|-----|
+| **Email/password** | Works fully against Supabase on localhost |
+| **Google on localhost** | **Full-page** → published OAuth → lands on production `/auth` → auto-bridge back to `http://localhost:8080/auth#tokens` → session on local |
+| **Google on production** | Full-page Lovable broker (normal) |
+
+Why: Lovable broker rejects `redirect_uri=http://localhost:*` (`invalid_request`).  
+Native Supabase Google fails with `missing OAuth secret` (secret only on Lovable broker).
+
+No popup permission needed.
+
 ## Debug chat
 
 | Symptom | Cause | Fix |

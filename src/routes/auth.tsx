@@ -1,14 +1,23 @@
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
+import {
+  decodeOAuthState,
+  extractOAuthTokensFromLocation,
+  isLocalHost,
+  lovable,
+  stripOAuthParamsFromUrl,
+} from "@/integrations/lovable";
 import { toast } from "sonner";
 import { Loader2, Zap } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
   validateSearch: (s: Record<string, unknown>) => ({
-    next: typeof s.next === "string" && s.next.startsWith("/") && !s.next.startsWith("//") ? s.next : "",
+    next:
+      typeof s.next === "string" && s.next.startsWith("/") && !s.next.startsWith("//")
+        ? s.next
+        : "",
   }),
   component: AuthPage,
 });
@@ -21,23 +30,88 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [bridging, setBridging] = useState(true);
 
-  const goNext = () => {
-    if (next) {
-      window.location.href = next;
-    } else {
-      navigate({ to: "/chat" });
+  const goTo = (path: string) => {
+    if (path.startsWith("http")) {
+      window.location.href = path;
+      return;
     }
+    if (path.startsWith("/")) {
+      window.location.href = path;
+      return;
+    }
+    navigate({ to: "/chat" });
   };
 
+  // Handle OAuth return (production bridge → localhost, or direct tokens).
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        if (next) window.location.href = next;
-        else navigate({ to: "/chat" });
+    let cancelled = false;
+
+    (async () => {
+      const tokens = extractOAuthTokensFromLocation();
+      if (tokens) {
+        const st = decodeOAuthState(tokens.state);
+
+        // On published origin after Google: if login started from localhost, bounce tokens back.
+        if (
+          st?.lr &&
+          /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(st.lr) &&
+          !isLocalHost()
+        ) {
+          const target = new URL(st.lr);
+          const hash = new URLSearchParams({
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token,
+            state: tokens.state || "",
+          });
+          if (st.next) hash.set("next", st.next);
+          window.location.replace(`${target.origin}${target.pathname}#${hash.toString()}`);
+          return;
+        }
+
+        try {
+          const { error } = await supabase.auth.setSession({
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token,
+          });
+          if (error) throw error;
+          stripOAuthParamsFromUrl();
+          if (cancelled) return;
+          const dest =
+            st?.next ||
+            next ||
+            new URLSearchParams(window.location.hash.replace(/^#/, "")).get("next") ||
+            "/chat";
+          goTo(dest.startsWith("/") ? dest : "/chat");
+          return;
+        } catch (e) {
+          if (!cancelled) {
+            toast.error((e as Error).message || "Failed to apply Google session");
+            stripOAuthParamsFromUrl();
+          }
+        }
       }
-    });
-  }, [navigate, next]);
+
+      // Already signed in?
+      const { data } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (data.session) {
+        goTo(next || "/chat");
+        return;
+      }
+      setBridging(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount for OAuth hash
+  }, []);
+
+  const goNext = () => {
+    goTo(next || "/chat");
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,26 +142,39 @@ function AuthPage() {
 
   const google = async () => {
     setLoading(true);
-    const redirectUri = next
-      ? `${window.location.origin}${next}`
-      : window.location.origin;
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: redirectUri,
-    });
-    if (result.error) {
-      toast.error(result.error.message);
+    try {
+      const nextPath = next || "/chat";
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: `${window.location.origin}${nextPath}`,
+        nextPath,
+      });
+      if (result.error) {
+        toast.error(result.error.message, { duration: 8_000 });
+        setLoading(false);
+        return;
+      }
+      // Full-page redirect (local or production) — keep loading until unload.
+      if (result.redirected) return;
+      await router.invalidate();
+      goNext();
+    } catch (err) {
+      toast.error((err as Error).message || "Google sign-in failed");
       setLoading(false);
-      return;
     }
-    if (result.redirected) return;
-    await router.invalidate();
-    goNext();
   };
 
+  if (bridging) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        Completing sign-in…
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen bg-background bg-grid-pattern">
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/60 to-background pointer-events-none" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-background/60 to-background" />
       <div className="relative mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6 py-10">
         <div className="mb-8 flex items-center gap-2 font-mono text-sm font-semibold tracking-tight">
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-panel">
@@ -102,7 +189,9 @@ function AuthPage() {
           </h1>
           <p className="mb-6 text-sm text-muted-foreground">
             {mode === "signin"
-              ? "Continue where you left off."
+              ? isLocalHost()
+                ? "Google opens in this tab (no popup). Or use email."
+                : "Continue where you left off."
               : "Start building with your own AI agent."}
           </p>
 
@@ -111,7 +200,8 @@ function AuthPage() {
             disabled={loading}
             className="mb-4 flex w-full items-center justify-center gap-2 rounded-md border border-border bg-surface px-4 py-2.5 text-sm font-medium hover:bg-elevated disabled:opacity-50"
           >
-            <GoogleIcon /> Continue with Google
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
+            Continue with Google
           </button>
 
           <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
@@ -152,9 +242,7 @@ function AuthPage() {
             onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
             className="mt-4 w-full text-center text-xs text-muted-foreground hover:text-foreground"
           >
-            {mode === "signin"
-              ? "No account yet? Create one"
-              : "Already have an account? Sign in"}
+            {mode === "signin" ? "No account yet? Create one" : "Already have an account? Sign in"}
           </button>
         </div>
       </div>

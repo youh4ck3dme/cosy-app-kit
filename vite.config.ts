@@ -13,5 +13,16 @@ export default defineConfig({
   },
   vite: {
     plugins: [mcpPlugin()],
+    server: {
+      // Optional: if something still hits relative /~oauth/* on localhost,
+      // proxy to the published app (Google OAuth client lives there).
+      proxy: {
+        "/~oauth": {
+          target: "https://cosy-app-kit.lovable.app",
+          changeOrigin: true,
+          secure: true,
+        },
+      },
+    },
   },
 });
