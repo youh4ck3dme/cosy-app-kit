@@ -65,23 +65,37 @@ export const Route = createFileRoute("/a/$artifactId")({
 });
 
 type Device = "desktop" | "tablet" | "mobile";
-const WIDTHS: Record<Device, number> = { desktop: 1200, tablet: 768, mobile: 390 };
+const WIDTHS: Record<Device, number> = { desktop: 1200, tablet: 768, mobile: 420 };
 
 function PublicArtifactPage() {
   const artifact = Route.useLoaderData();
   const [device, setDevice] = useState<Device>("desktop");
+
+  const files = useMemo(() => {
+    if (!artifact) return [];
+    if (artifact.files && artifact.files.length > 0) return artifact.files;
+    return [{ path: "index.html", language: artifact.kind, content: artifact.content }];
+  }, [artifact]);
+
+  const entry = useMemo(() => {
+    if (!artifact || !files.length) return null;
+    return files.find((f: { path: string }) => f.path === artifact.entry_path) ?? files[0];
+  }, [artifact, files]);
+
+  const isHtml = Boolean(
+    artifact && entry && (artifact.kind === "html" || /\.html?$/i.test(entry.path)),
+  );
+
+  const srcDoc = useMemo(
+    () => (isHtml && entry ? entry.content : null),
+    [entry, isHtml],
+  );
+
   useEffect(() => {
     if (!artifact) throw notFound();
   }, [artifact]);
-  if (!artifact) return null;
 
-  const files = artifact.files && artifact.files.length > 0
-    ? artifact.files
-    : [{ path: "index.html", language: artifact.kind, content: artifact.content }];
-  const entry = files.find((f: { path: string }) => f.path === artifact.entry_path) ?? files[0];
-  const isHtml = artifact.kind === "html" || /\.html?$/i.test(entry.path);
-
-  const srcDoc = useMemo(() => (isHtml ? entry.content : null), [entry, isHtml]);
+  if (!artifact || !entry) return null;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -104,7 +118,9 @@ function PublicArtifactPage() {
                     onClick={() => setDevice(d)}
                     className={cn(
                       "flex items-center justify-center rounded-md p-1.5",
-                      active ? "bg-surface-3 text-foreground" : "text-muted-foreground hover:text-foreground",
+                      active
+                        ? "bg-surface-3 text-foreground"
+                        : "text-muted-foreground hover:text-foreground",
                     )}
                   >
                     <Icon className="h-3.5 w-3.5" />
@@ -138,7 +154,7 @@ function PublicArtifactPage() {
           </div>
         ) : (
           <article className="prose prose-invert prose-sm max-w-3xl rounded-2xl border border-border-subtle bg-panel px-8 py-6 shadow-elevated">
-            <h1 className="!mt-0">{artifact.title}</h1>
+            <h1 className="mt-0!">{artifact.title}</h1>
             <ReactMarkdown>{entry.content}</ReactMarkdown>
           </article>
         )}

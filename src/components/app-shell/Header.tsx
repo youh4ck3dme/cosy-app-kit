@@ -39,7 +39,7 @@ export function Header({
 
   return (
     <>
-      <header className="sticky top-0 z-40 flex-none border-b border-border-subtle glass-strong">
+      <header className="sticky top-0 z-40 flex-none border-b border-border-subtle glass-strong pt-[env(safe-area-inset-top)]">
         <div className="flex h-14 items-center justify-between px-3 sm:px-4">
           <div className="flex items-center gap-3">
             <Link to="/chat" className="group flex items-center gap-2.5">

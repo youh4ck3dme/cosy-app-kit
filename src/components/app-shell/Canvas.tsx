@@ -16,12 +16,20 @@ import {
   Check,
   X,
   Undo2,
+  Columns2,
+  Save,
+  Maximize2,
+  Network,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { cn } from "@/lib/utils";
-import { setArtifactPublic } from "@/lib/threads.functions";
+import { setArtifactPublic, updateArtifactFiles } from "@/lib/threads.functions";
+import { exportArtifactDownload } from "@/lib/export-artifact";
+import { MonacoEditor } from "@/components/canvas/MonacoEditor";
+import { MonacoDiff } from "@/components/canvas/MonacoDiff";
+import { NetworkPanel, type NetworkEntry } from "@/components/canvas/NetworkPanel";
 
 export type ArtifactFile = { path: string; language: string; content: string };
 export type Artifact = {
@@ -35,12 +43,13 @@ export type Artifact = {
 };
 
 type Device = "desktop" | "tablet" | "mobile";
-type View = "preview" | "code";
+type View = "preview" | "code" | "diff";
 type ConsoleEntry = { level: "log" | "warn" | "error"; args: string[]; ts: number };
+type ConsoleFilter = "all" | "log" | "warn" | "error";
 
-const WIDTHS: Record<Device, number> = { desktop: 1200, tablet: 768, mobile: 390 };
+const WIDTHS: Record<Device, number> = { desktop: 1200, tablet: 768, mobile: 420 };
 
-const CONSOLE_BRIDGE = `<script>(function(){
+const PREVIEW_BRIDGE = `<script>(function(){
   const send = (level, args) => {
     try { parent.postMessage({ __builder_console: true, level, args: args.map(a => {
       try { return typeof a === 'string' ? a : JSON.stringify(a); } catch(e) { return String(a); }
@@ -52,11 +61,29 @@ const CONSOLE_BRIDGE = `<script>(function(){
   });
   window.addEventListener('error', e => send('error', [e.message + ' @ ' + (e.filename||'') + ':' + e.lineno]));
   window.addEventListener('unhandledrejection', e => send('error', ['Unhandled: ' + (e.reason && e.reason.message || e.reason)]));
+  const origFetch = window.fetch.bind(window);
+  window.fetch = function() {
+    const args = arguments;
+    const input = args[0];
+    const init = args[1] || {};
+    const method = (init.method || 'GET').toUpperCase();
+    const url = typeof input === 'string' ? input : (input && input.url) || String(input);
+    const started = performance.now();
+    const id = Math.random().toString(36).slice(2);
+    try { parent.postMessage({ __builder_network: true, phase: 'start', id, method, url }, '*'); } catch(e) {}
+    return origFetch.apply(window, args).then(function(res) {
+      try { parent.postMessage({ __builder_network: true, phase: 'end', id, method, url, status: res.status, ms: Math.round(performance.now() - started) }, '*'); } catch(e) {}
+      return res;
+    }).catch(function(err) {
+      try { parent.postMessage({ __builder_network: true, phase: 'end', id, method, url, status: 0, ms: Math.round(performance.now() - started) }, '*'); } catch(e) {}
+      throw err;
+    });
+  };
 })();</script>`;
 
 function injectBridge(html: string): string {
-  if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, `${CONSOLE_BRIDGE}</body>`);
-  return `${html}\n${CONSOLE_BRIDGE}`;
+  if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, `${PREVIEW_BRIDGE}</body>`);
+  return `${html}\n${PREVIEW_BRIDGE}`;
 }
 
 function fileList(a: Artifact): ArtifactFile[] {
@@ -65,18 +92,54 @@ function fileList(a: Artifact): ArtifactFile[] {
   return [{ path, language: a.kind, content: a.content }];
 }
 
-export function Canvas({ artifact }: { artifact?: Artifact }) {
+function deviceStorageKey(threadId?: string) {
+  return threadId ? `builder:device:${threadId}` : "builder:device:global";
+}
+
+export function Canvas({ artifact, threadId }: { artifact?: Artifact; threadId?: string }) {
   const [device, setDevice] = useState<Device>("desktop");
+  const [customWidth, setCustomWidth] = useState<number | null>(null);
   const [zoom, setZoom] = useState(1);
   const [view, setView] = useState<View>("preview");
   const [activeFile, setActiveFile] = useState<string | null>(null);
   const [key, setKey] = useState(0);
   const [showConsole, setShowConsole] = useState(false);
+  const [showNetwork, setShowNetwork] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
   const [logs, setLogs] = useState<ConsoleEntry[]>([]);
+  const [consoleFilter, setConsoleFilter] = useState<ConsoleFilter>("all");
+  const [network, setNetwork] = useState<NetworkEntry[]>([]);
   const [sharing, setSharing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [edits, setEdits] = useState<Record<string, string>>({});
+  const [undoStack, setUndoStack] = useState<Record<string, string>[]>([]);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const share = useServerFn(setArtifactPublic);
+  const saveFiles = useServerFn(updateArtifactFiles);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(deviceStorageKey(threadId));
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { device?: Device; customWidth?: number | null };
+      if (parsed.device) setDevice(parsed.device);
+      if (typeof parsed.customWidth === "number") setCustomWidth(parsed.customWidth);
+    } catch {
+      /* ignore */
+    }
+  }, [threadId]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        deviceStorageKey(threadId),
+        JSON.stringify({ device, customWidth }),
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [device, customWidth, threadId]);
 
   const rawFiles = artifact ? fileList(artifact) : [];
   const files = rawFiles.map((f) => ({ ...f, content: edits[f.path] ?? f.content }));
@@ -85,6 +148,9 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
     files.find((f) => f.path === activeFile) ??
     files.find((f) => f.path === artifact?.entry_path) ??
     files[0];
+  const originalCurrent = rawFiles.find((f) => f.path === currentFile?.path);
+
+  const previewWidth = customWidth && customWidth > 0 ? customWidth : WIDTHS[device];
 
   const srcDoc = useMemo(() => {
     if (!artifact) return null;
@@ -98,21 +164,66 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
 
   const refresh = () => {
     setLogs([]);
+    setNetwork([]);
     setKey((k) => k + 1);
   };
 
+  useEffect(() => {
+    if (!isDirty || view !== "preview") return;
+    const t = window.setTimeout(() => {
+      setLogs([]);
+      setKey((k) => k + 1);
+    }, 400);
+    return () => window.clearTimeout(t);
+  }, [edits, isDirty, view]);
+
   const resetEdits = () => {
+    if (Object.keys(edits).length) setUndoStack((s) => [...s.slice(-4), edits]);
     setEdits({});
     setLogs([]);
+  };
+
+  const restoreUndo = () => {
+    const last = undoStack[undoStack.length - 1];
+    if (!last) return;
+    setUndoStack((s) => s.slice(0, -1));
+    setEdits(last);
+  };
+
+  const revertCurrentFile = async () => {
+    if (!artifact || !currentFile || !originalCurrent) return;
+    const nextEdits = { ...edits };
+    delete nextEdits[currentFile.path];
+    setEdits(nextEdits);
+    if (!Object.keys(nextEdits).length) {
+      toast.success(`Reverted ${currentFile.path}`);
+      return;
+    }
+    try {
+      const nextFiles = rawFiles.map((f) =>
+        f.path === currentFile.path ? originalCurrent : { ...f, content: nextEdits[f.path] ?? f.content },
+      );
+      await saveFiles({
+        data: {
+          artifactId: artifact.id,
+          files: nextFiles,
+          entry_path: artifact.entry_path ?? undefined,
+        },
+      });
+      toast.success(`Reverted ${currentFile.path}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Revert failed");
+    }
   };
 
   useEffect(() => {
     setActiveFile(null);
     setLogs([]);
+    setNetwork([]);
     setEdits({});
+    setUndoStack([]);
     setKey((k) => k + 1);
   }, [artifact?.id]);
-
 
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
@@ -120,10 +231,57 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
       if (d && d.__builder_console) {
         setLogs((prev) => [...prev.slice(-199), { level: d.level, args: d.args, ts: Date.now() }]);
       }
+      if (d && d.__builder_network) {
+        if (d.phase === "start") {
+          setNetwork((prev) =>
+            [
+              ...prev,
+              {
+                id: d.id,
+                method: d.method,
+                url: d.url,
+                status: null,
+                ms: null,
+                ts: Date.now(),
+              },
+            ].slice(-100),
+          );
+        } else if (d.phase === "end") {
+          setNetwork((prev) =>
+            prev.map((row) =>
+              row.id === d.id ? { ...row, status: d.status, ms: d.ms } : row,
+            ),
+          );
+        }
+      }
     };
     window.addEventListener("message", onMsg);
     return () => window.removeEventListener("message", onMsg);
   }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      const typing =
+        t &&
+        (t.tagName === "INPUT" ||
+          t.tagName === "TEXTAREA" ||
+          t.isContentEditable ||
+          t.closest(".monaco-editor"));
+      if (e.key === "Escape" && fullscreen) {
+        e.preventDefault();
+        setFullscreen(false);
+        return;
+      }
+      if (typing) return;
+      if ((e.key === "f" || e.key === "F") && srcDoc && view === "preview") {
+        e.preventDefault();
+        setFullscreen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [fullscreen, srcDoc, view]);
 
   const handleShare = async () => {
     if (!artifact) return;
@@ -132,10 +290,12 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
       const next = !artifact.is_public;
       await share({ data: { artifactId: artifact.id, isPublic: next } });
       if (next) {
+        setShowShare(true);
         const url = `${window.location.origin}/a/${artifact.id}`;
         await navigator.clipboard.writeText(url).catch(() => {});
         toast.success("Public link copied", { description: url });
       } else {
+        setShowShare(false);
         toast.success("Share link disabled");
       }
     } catch (e) {
@@ -145,61 +305,73 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
     }
   };
 
-  const handleExport = async () => {
-    if (!artifact) return;
-    if (files.length === 1) {
-      const f = files[0];
-      const blob = new Blob([f.content], { type: "text/plain;charset=utf-8" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = f.path.split("/").pop() ?? "artifact.txt";
-      a.click();
-      URL.revokeObjectURL(a.href);
-      return;
-    }
-    // Multi-file: lazy-load jszip only when needed.
+  const handleSaveEdits = async () => {
+    if (!artifact || !isDirty) return;
+    setSaving(true);
     try {
-      const { default: JSZip } = await import("jszip");
-      const zip = new JSZip();
-      for (const f of files) zip.file(f.path, f.content);
-      const blob = await zip.generateAsync({ type: "blob" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${artifact.title.replace(/\W+/g, "-").toLowerCase() || "artifact"}.zip`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      toast.error("Export failed (jszip missing?)");
+      await saveFiles({
+        data: {
+          artifactId: artifact.id,
+          files,
+          entry_path: artifact.entry_path ?? undefined,
+        },
+      });
+      setUndoStack((s) => [...s.slice(-4), edits]);
+      setEdits({});
+      toast.success("Saved to artifact");
+      refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setSaving(false);
     }
   };
 
+  const handleExport = async () => {
+    if (!artifact) return;
+    try {
+      await exportArtifactDownload(artifact, files);
+    } catch {
+      toast.error("Export failed");
+    }
+  };
+
+  const filteredLogs =
+    consoleFilter === "all" ? logs : logs.filter((l) => l.level === consoleFilter);
+
   return (
-    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[color-mix(in_oklab,var(--color-background)_94%,black)]">
+    <div
+      className={cn(
+        "relative flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[color-mix(in_oklab,var(--color-background)_94%,black)]",
+        fullscreen && "fixed inset-0 z-50 bg-background",
+      )}
+    >
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-grid-pattern bg-grid-fade opacity-70" />
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-mesh-glow opacity-40" />
 
-      {/* Top toolbar */}
       <div className="relative z-10 flex flex-none items-center justify-between gap-2 border-b border-border-subtle glass px-3 py-2">
         <div className="flex items-center gap-2">
-          {/* Preview / Code toggle */}
           <div className="flex items-center rounded-lg border border-border-subtle bg-surface-1/70 p-0.5">
-            {([
-              { key: "preview", Icon: Eye, label: "Preview" },
-              { key: "code", Icon: Code2, label: "Code" },
-            ] as const).map(({ key: k, Icon, label }) => {
+            {(
+              [
+                { key: "preview", Icon: Eye, label: "Preview" },
+                { key: "code", Icon: Code2, label: "Code" },
+                { key: "diff", Icon: Columns2, label: "Diff" },
+              ] as const
+            ).map(({ key: k, Icon, label }) => {
               const active = view === k;
               return (
                 <button
                   key={k}
                   onClick={() => setView(k)}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all",
+                    "inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all",
                     active
                       ? "bg-surface-3 text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                   title={label}
+                  aria-label={label}
                 >
                   <Icon className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">{label}</span>
@@ -214,28 +386,59 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
               <div className="hidden items-center gap-0.5 rounded-lg border border-border-subtle bg-surface-1/70 p-0.5 sm:flex">
                 {(["desktop", "tablet", "mobile"] as Device[]).map((d) => {
                   const Icon = d === "desktop" ? Monitor : d === "tablet" ? Tablet : Smartphone;
-                  const active = device === d;
+                  const active = device === d && !customWidth;
                   return (
                     <button
                       key={d}
-                      onClick={() => setDevice(d)}
+                      onClick={() => {
+                        setCustomWidth(null);
+                        setDevice(d);
+                      }}
                       className={cn(
-                        "flex items-center justify-center rounded-md p-1.5 transition-all",
-                        active ? "bg-surface-3 text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                        "flex min-h-9 min-w-9 items-center justify-center rounded-md p-1.5 transition-all",
+                        active
+                          ? "bg-surface-3 text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground",
                       )}
                       title={d}
+                      aria-label={d}
                     >
                       <Icon className="h-3.5 w-3.5" />
                     </button>
                   );
                 })}
               </div>
+              <label className="hidden items-center gap-1 font-mono text-[10px] text-muted-foreground sm:flex">
+                px
+                <input
+                  type="number"
+                  min={280}
+                  max={1600}
+                  value={customWidth ?? ""}
+                  placeholder={String(WIDTHS[device])}
+                  onChange={(e) => {
+                    const n = Number(e.target.value);
+                    setCustomWidth(Number.isFinite(n) && n > 0 ? n : null);
+                  }}
+                  className="h-8 w-16 rounded-md border border-border-subtle bg-surface-1 px-1.5 text-[11px] text-foreground"
+                  aria-label="Custom preview width"
+                />
+              </label>
               <button
                 onClick={refresh}
-                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+                className="min-h-9 min-w-9 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
                 title="Refresh preview"
+                aria-label="Refresh preview"
               >
                 <RefreshCw className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => setFullscreen((v) => !v)}
+                className="min-h-9 min-w-9 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+                title="Fullscreen (F)"
+                aria-label="Toggle fullscreen preview"
+              >
+                <Maximize2 className="h-3.5 w-3.5" />
               </button>
             </>
           )}
@@ -248,6 +451,7 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
                 onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(2)))}
                 className="rounded-md p-1.5 hover:text-foreground"
                 title="Zoom out"
+                aria-label="Zoom out"
               >
                 <ZoomOut className="h-3.5 w-3.5" />
               </button>
@@ -256,37 +460,67 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
                 onClick={() => setZoom((z) => Math.min(1.5, +(z + 0.1).toFixed(2)))}
                 className="rounded-md p-1.5 hover:text-foreground"
                 title="Zoom in"
+                aria-label="Zoom in"
               >
                 <ZoomIn className="h-3.5 w-3.5" />
               </button>
             </div>
           )}
           {artifact && srcDoc && (
-            <button
-              onClick={() => setShowConsole((s) => !s)}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
-                showConsole
-                  ? "bg-surface-3 text-foreground"
-                  : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
-              )}
-              title="Console"
-            >
-              <Terminal className="h-3.5 w-3.5" />
-              <span className="hidden md:inline">Console</span>
-              {logs.length > 0 && (
-                <span className="rounded-full bg-accent-primary/20 px-1.5 text-[10px] font-mono text-accent-primary tabular-nums">
-                  {logs.length}
-                </span>
-              )}
-            </button>
+            <>
+              <button
+                onClick={() => {
+                  setShowConsole((s) => !s);
+                  if (!showConsole) setShowNetwork(false);
+                }}
+                className={cn(
+                  "inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+                  showConsole
+                    ? "bg-surface-3 text-foreground"
+                    : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
+                )}
+                title="Console"
+                aria-label="Toggle console"
+              >
+                <Terminal className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">Console</span>
+                {logs.length > 0 && (
+                  <span className="rounded-full bg-accent-primary/20 px-1.5 text-[10px] font-mono text-accent-primary tabular-nums">
+                    {logs.length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  setShowNetwork((s) => !s);
+                  if (!showNetwork) setShowConsole(false);
+                }}
+                className={cn(
+                  "inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+                  showNetwork
+                    ? "bg-surface-3 text-foreground"
+                    : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
+                )}
+                title="Network"
+                aria-label="Toggle network panel"
+              >
+                <Network className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">Net</span>
+                {network.length > 0 && (
+                  <span className="rounded-full bg-accent-primary/20 px-1.5 text-[10px] font-mono text-accent-primary tabular-nums">
+                    {network.length}
+                  </span>
+                )}
+              </button>
+            </>
           )}
           {artifact && (
             <>
               <button
                 onClick={handleExport}
-                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+                className="min-h-9 min-w-9 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
                 title="Download"
+                aria-label="Download artifact"
               >
                 <Download className="h-3.5 w-3.5" />
               </button>
@@ -294,12 +528,13 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
                 onClick={handleShare}
                 disabled={sharing}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+                  "inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
                   artifact.is_public
                     ? "bg-accent-primary/15 text-accent-primary hover:bg-accent-primary/25"
                     : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
                 )}
                 title={artifact.is_public ? "Public — click to unshare" : "Share publicly"}
+                aria-label={artifact.is_public ? "Disable public share" : "Share publicly"}
               >
                 {artifact.is_public ? <Check className="h-3.5 w-3.5" /> : <Share2 className="h-3.5 w-3.5" />}
                 <span className="hidden sm:inline">{artifact.is_public ? "Shared" : "Share"}</span>
@@ -316,8 +551,9 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
                   w.document.close();
                 }
               }}
-              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+              className="min-h-9 min-w-9 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
               title="Open in new tab"
+              aria-label="Open in new tab"
             >
               <ExternalLink className="h-3.5 w-3.5" />
             </button>
@@ -325,8 +561,7 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
         </div>
       </div>
 
-      {/* File tabs (when multi-file OR in code view) */}
-      {artifact && (files.length > 1 || view === "code") && (
+      {artifact && (files.length > 1 || view === "code" || view === "diff") && (
         <div className="relative z-10 flex flex-none items-center gap-0.5 overflow-x-auto border-b border-border-subtle bg-surface-1/40 px-2 no-scrollbar">
           {files.map((f) => {
             const active = currentFile?.path === f.path;
@@ -336,7 +571,7 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
                 key={f.path}
                 onClick={() => setActiveFile(f.path)}
                 className={cn(
-                  "shrink-0 border-b-2 px-3 py-1.5 font-mono text-[11px] transition-colors",
+                  "min-h-11 shrink-0 border-b-2 px-3 py-1.5 font-mono text-[11px] transition-colors",
                   active
                     ? "border-accent-primary text-foreground"
                     : "border-transparent text-muted-foreground hover:text-foreground",
@@ -356,11 +591,46 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
               <Undo2 className="h-3 w-3" /> Reset
             </button>
           )}
+          {undoStack.length > 0 && (
+            <button
+              onClick={restoreUndo}
+              className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+              title="Restore previous edits"
+            >
+              Undo stack
+            </button>
+          )}
+          {view === "diff" && (
+            <>
+              <button
+                type="button"
+                onClick={() => setView("preview")}
+                className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-surface-2"
+              >
+                Accept
+              </button>
+              <button
+                type="button"
+                onClick={() => void revertCurrentFile()}
+                className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-surface-2"
+              >
+                Revert
+              </button>
+            </>
+          )}
+          {isDirty && (
+            <button
+              onClick={handleSaveEdits}
+              disabled={saving}
+              className="inline-flex shrink-0 items-center gap-1 rounded-md bg-primary px-2 py-1 text-[11px] font-semibold text-primary-foreground"
+              title="Save edits to artifact"
+            >
+              <Save className="h-3 w-3" /> {saving ? "Saving…" : "Save"}
+            </button>
+          )}
         </div>
       )}
 
-
-      {/* Body */}
       <div className="relative z-0 flex min-h-0 flex-1 flex-col">
         <div className="flex flex-1 items-start justify-center overflow-auto p-4 sm:p-8">
           {!artifact && <EmptyCanvas />}
@@ -368,7 +638,7 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
           {artifact && view === "preview" && srcDoc && (
             <div
               className="flex-none overflow-hidden rounded-2xl border border-border-subtle bg-panel shadow-elevated animate-in-scale"
-              style={{ width: WIDTHS[device] * zoom, maxWidth: "100%" }}
+              style={{ width: previewWidth * zoom, maxWidth: "100%" }}
             >
               <div className="flex h-8 items-center gap-1.5 border-b border-border-subtle bg-surface-1/60 px-3">
                 <span className="h-2 w-2 rounded-full bg-[oklch(0.65_0.20_25)]/50" />
@@ -378,7 +648,7 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
                   <span className="font-mono text-[10px] text-muted-foreground">{artifact.title}</span>
                 </div>
                 <span className="font-mono text-[10px] text-muted-foreground/60 tabular-nums">
-                  {WIDTHS[device]}px
+                  {previewWidth}px
                 </span>
               </div>
               <iframe
@@ -387,7 +657,7 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
                 srcDoc={srcDoc}
                 sandbox="allow-scripts allow-forms"
                 className="block w-full border-0 bg-white"
-                style={{ height: `${(720 * zoom).toFixed(0)}px` }}
+                style={{ height: fullscreen ? "calc(100vh - 8rem)" : `${(720 * zoom).toFixed(0)}px` }}
                 title={artifact.title}
               />
             </div>
@@ -398,35 +668,112 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
               className="prose prose-invert prose-sm max-w-3xl rounded-2xl border border-border-subtle bg-panel px-8 py-6 shadow-elevated animate-in-scale"
               style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}
             >
-              <h2 className="!mt-0">{artifact.title}</h2>
+              <h2 className="mt-0!">{artifact.title}</h2>
               <ReactMarkdown>{currentFile?.content ?? artifact.content}</ReactMarkdown>
             </article>
           )}
 
           {artifact && view === "code" && currentFile && (
-            <textarea
-              key={currentFile.path}
+            <MonacoEditor
+              path={currentFile.path}
               value={currentFile.content}
-              onChange={(e) => {
-                const val = e.target.value;
+              language={currentFile.language}
+              onChange={(val) => {
                 const path = currentFile.path;
                 setEdits((prev) => ({ ...prev, [path]: val }));
               }}
-              spellCheck={false}
-              className="h-[calc(100vh-16rem)] w-full max-w-5xl resize-none overflow-auto rounded-2xl border border-border-subtle bg-surface-1/80 p-5 font-mono text-[12.5px] leading-relaxed text-foreground/90 shadow-elevated outline-none ring-0 focus:border-accent-primary/60 focus:bg-surface-1 animate-in-fade"
             />
           )}
 
+          {artifact && view === "diff" && currentFile && (
+            <MonacoDiff
+              path={currentFile.path}
+              original={originalCurrent?.content ?? ""}
+              modified={currentFile.content}
+            />
+          )}
         </div>
 
-        {/* Console drawer */}
+        {showShare && artifact?.is_public && (
+          <div className="relative z-10 border-t border-border-subtle bg-surface-1/95 px-4 py-3 backdrop-blur">
+            <div className="mx-auto flex max-w-3xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <div className="text-xs font-semibold">Share</div>
+                <div className="truncate font-mono text-[11px] text-muted-foreground">
+                  {typeof window !== "undefined"
+                    ? `${window.location.origin}/a/${artifact.id}`
+                    : `/a/${artifact.id}`}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="min-h-11 rounded-md border border-border px-3 text-xs"
+                  onClick={async () => {
+                    const url = `${window.location.origin}/a/${artifact.id}`;
+                    await navigator.clipboard.writeText(url);
+                    toast.success("Link copied");
+                  }}
+                >
+                  Copy link
+                </button>
+                <button
+                  type="button"
+                  className="min-h-11 rounded-md border border-border px-3 text-xs"
+                  onClick={async () => {
+                    const embed = `<iframe src="${window.location.origin}/a/${artifact.id}" style="width:100%;height:640px;border:0;border-radius:12px" title="${artifact.title}"></iframe>`;
+                    await navigator.clipboard.writeText(embed);
+                    toast.success("Embed code copied");
+                  }}
+                >
+                  Copy embed
+                </button>
+                <button
+                  type="button"
+                  className="min-h-11 rounded-md border border-border px-3 text-xs"
+                  onClick={handleExport}
+                >
+                  Download ZIP
+                </button>
+                <button
+                  type="button"
+                  className="min-h-11 rounded-md px-2 text-xs text-muted-foreground"
+                  onClick={() => setShowShare(false)}
+                  aria-label="Close share panel"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {showConsole && (
           <div className="relative z-10 flex max-h-64 min-h-32 flex-none flex-col border-t border-border-subtle bg-surface-1/95 backdrop-blur">
             <div className="flex flex-none items-center justify-between border-b border-border-subtle px-3 py-1.5">
               <div className="inline-flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
                 <Terminal className="h-3 w-3" />
                 Console
-                <span className="font-mono tabular-nums text-muted-foreground/70">{logs.length}</span>
+                <span className="font-mono tabular-nums text-muted-foreground/70">
+                  {filteredLogs.length}
+                </span>
+                <div className="ml-2 flex gap-0.5">
+                  {(["all", "log", "warn", "error"] as ConsoleFilter[]).map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setConsoleFilter(f)}
+                      className={cn(
+                        "rounded px-1.5 py-0.5 font-mono text-[10px] uppercase",
+                        consoleFilter === f
+                          ? "bg-surface-3 text-foreground"
+                          : "text-muted-foreground hover:bg-surface-2",
+                      )}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="flex items-center gap-1">
                 <button
@@ -438,16 +785,19 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
                 <button
                   onClick={() => setShowConsole(false)}
                   className="rounded p-1 text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+                  aria-label="Close console"
                 >
                   <X className="h-3 w-3" />
                 </button>
               </div>
             </div>
             <div className="min-h-0 flex-1 overflow-auto px-3 py-2 font-mono text-[11.5px] leading-relaxed">
-              {logs.length === 0 && (
-                <div className="py-2 text-muted-foreground/70">No output yet — logs from the preview will appear here.</div>
+              {filteredLogs.length === 0 && (
+                <div className="py-2 text-muted-foreground/70">
+                  No output yet — logs from the preview will appear here.
+                </div>
               )}
-              {logs.map((l, i) => (
+              {filteredLogs.map((l, i) => (
                 <div
                   key={i}
                   className={cn(
@@ -463,6 +813,10 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
               ))}
             </div>
           </div>
+        )}
+
+        {showNetwork && (
+          <NetworkPanel entries={network} onClear={() => setNetwork([])} />
         )}
       </div>
     </div>
@@ -485,8 +839,8 @@ function EmptyCanvas() {
         anything.
       </h1>
       <p className="mx-auto mt-6 max-w-md text-sm text-muted-foreground">
-        Describe what you want on the left. Watch it render here — pixel-perfect,
-        instantly editable, and always in view.
+        Describe what you want on the left. Watch it render here — Monaco edit, live preview,
+        console + network.
       </p>
       <div className="mt-8 grid w-full max-w-md grid-cols-3 gap-2 text-left">
         {[
@@ -505,7 +859,7 @@ function EmptyCanvas() {
       </div>
       <div className="mt-8 inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/70">
         <Wand2 className="h-3 w-3" />
-        Try: "Design a hero for a rocket startup"
+        Try: &quot;Design a hero for a rocket startup&quot;
       </div>
     </div>
   );

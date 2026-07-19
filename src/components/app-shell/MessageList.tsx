@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { UIMessage } from "ai";
-import { Check, Copy, FileCode2, RefreshCw, Sparkles } from "lucide-react";
+import { Check, Copy, FileCode2, Pencil, RefreshCw, Sparkles } from "lucide-react";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import {
   Tool,
@@ -12,19 +12,16 @@ import {
 } from "@/components/ai-elements/tool";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { cn } from "@/lib/utils";
+import { STARTERS } from "@/lib/starters";
+import { userFacingChatError } from "@/lib/agent/error-handling";
 import { Logo } from "./Logo";
 
 const ARTIFACT_RE = /```(?:html|markdown|md)(?:\s+[^\n`]*)?\s*\n[\s\S]*?```/gi;
 const MULTI_FILE_RE = /```[^\n`]*\bpath=[^\n`]*\n[\s\S]*?```/gi;
 const SPLIT_MARK = "\u0000ARTIFACT\u0000";
 
-const EMPTY_PROMPTS = [
-  "Design a landing page for an AI note-taking app",
-  "Write a markdown README for a Rust CLI",
-  "Build an HTML dashboard mock with dark theme",
-];
+const EMPTY_PROMPTS = STARTERS.slice(0, 3).map((s) => s.prompt);
 
-/** Runtime stream errors can land as errorText on non-tool parts; extract without invalid type predicates. */
 function getNonToolErrorText(part: UIMessage["parts"][number]): string | null {
   if (typeof part !== "object" || part === null) return null;
   if (
@@ -65,12 +62,12 @@ function messageHasVisibleContent(message: UIMessage | undefined): boolean {
   return message.parts.some((p) => {
     if (p.type === "text" && p.text.trim()) return true;
     if (isToolPart(p)) return true;
+    if (p.type === "file") return true;
     return getNonToolErrorText(p) !== null;
   });
 }
 
 function splitAroundArtifacts(text: string): string[] {
-  // Clone global regexes so lastIndex never leaks across calls.
   const multi = new RegExp(MULTI_FILE_RE.source, MULTI_FILE_RE.flags);
   const artifact = new RegExp(ARTIFACT_RE.source, ARTIFACT_RE.flags);
   return text.replace(multi, SPLIT_MARK).replace(artifact, SPLIT_MARK).split(SPLIT_MARK);
@@ -80,14 +77,20 @@ export function MessageList({
   messages,
   status,
   onRegenerate,
+  onRetryFrom,
+  onEditUserMessage,
   onFocusCanvas,
   onPickPrompt,
+  errorBanner,
 }: {
   messages: UIMessage[];
   status: "ready" | "submitted" | "streaming" | "error";
   onRegenerate?: () => void;
+  onRetryFrom?: (messageId: string) => void;
+  onEditUserMessage?: (messageId: string, text: string) => void;
   onFocusCanvas?: () => void;
   onPickPrompt?: (prompt: string) => void;
+  errorBanner?: string | null;
 }) {
   const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
   const lastAssistantId = lastAssistant?.id;
@@ -114,8 +117,15 @@ export function MessageList({
       aria-relevant="additions"
       aria-busy={isSubmitted || isStreaming || undefined}
     >
+      {errorBanner && (
+        <div
+          role="alert"
+          className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[13px] text-destructive animate-in-fade"
+        >
+          {userFacingChatError(errorBanner)}
+        </div>
+      )}
       {messages.map((m) => {
-        // Waiting row already covers an empty in-flight assistant bubble.
         if (
           m.role === "assistant" &&
           m.id === lastAssistantId &&
@@ -124,17 +134,27 @@ export function MessageList({
         ) {
           return null;
         }
-        // Skip completely blank non-assistant rows (e.g. empty user parts).
         if (m.role === "user" && !messageHasVisibleContent(m)) {
           return null;
         }
+        const isLastAssistant = m.role === "assistant" && m.id === lastAssistantId;
         return (
           <MessageRow
             key={m.id}
             message={m}
             isStreaming={isStreaming && m.id === lastAssistantId}
-            showActions={m.id === lastAssistantId && status === "ready"}
-            onRegenerate={onRegenerate}
+            showActions={status === "ready" && (m.role === "user" || m.role === "assistant")}
+            isLastAssistant={isLastAssistant}
+            onRegenerate={
+              m.role === "assistant"
+                ? () => (isLastAssistant ? onRegenerate?.() : onRetryFrom?.(m.id))
+                : undefined
+            }
+            onEditUser={
+              m.role === "user" && onEditUserMessage
+                ? (text) => onEditUserMessage(m.id, text)
+                : undefined
+            }
             onFocusCanvas={onFocusCanvas}
           />
         );
@@ -190,17 +210,17 @@ function EmptyState({ onPick }: { onPick?: (prompt: string) => void }) {
         {onPick && (
           <ul className="mt-7 flex w-full list-none flex-col gap-2 p-0">
             {EMPTY_PROMPTS.map((prompt) => (
-              <li key={prompt}>
+              <li key={prompt.slice(0, 40)}>
                 <button
                   type="button"
                   onClick={() => onPick(prompt)}
-                  className="group flex w-full items-start gap-2.5 rounded-xl border border-border-subtle bg-surface-1/50 px-3.5 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-accent-primary/35 hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="group flex min-h-11 w-full items-start gap-2.5 rounded-xl border border-border-subtle bg-surface-1/50 px-3.5 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-accent-primary/35 hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <Sparkles
                     aria-hidden
                     className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent-primary/70 transition-colors group-hover:text-accent-primary"
                   />
-                  <span>{prompt}</span>
+                  <span className="line-clamp-2">{prompt}</span>
                 </button>
               </li>
             ))}
@@ -215,17 +235,23 @@ function MessageRow({
   message,
   isStreaming,
   showActions,
+  isLastAssistant,
   onRegenerate,
+  onEditUser,
   onFocusCanvas,
 }: {
   message: UIMessage;
   isStreaming?: boolean;
   showActions?: boolean;
+  isLastAssistant?: boolean;
   onRegenerate?: () => void;
+  onEditUser?: (text: string) => void;
   onFocusCanvas?: () => void;
 }) {
   const isUser = message.role === "user";
   const parts = useMemo(() => message.parts ?? [], [message.parts]);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
 
   const textConcat = useMemo(
     () => parts.map((p) => (p.type === "text" ? p.text : "")).join(""),
@@ -242,17 +268,61 @@ function MessageRow({
     [parts],
   );
 
-  // Split text around artifact code blocks so we can insert the pill.
   const chunks = useMemo(() => splitAroundArtifacts(textConcat), [textConcat]);
 
   if (isUser) {
     return (
       <Message from="user" className="min-w-0 animate-in-fade" aria-label="Your message">
         <MessageContent className="min-w-0 max-w-full">
-          <div className="max-h-[min(70vh,36rem)] min-w-0 overflow-x-auto overflow-y-auto whitespace-pre-wrap wrap-anywhere text-[14.5px] leading-relaxed">
-            {textConcat}
-          </div>
+          {editing ? (
+            <div className="space-y-2">
+              <textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                rows={4}
+                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-[14.5px] outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="min-h-11 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground"
+                  onClick={() => {
+                    onEditUser?.(draft.trim());
+                    setEditing(false);
+                  }}
+                >
+                  Save &amp; regenerate
+                </button>
+                <button
+                  type="button"
+                  className="min-h-11 rounded-md border border-border px-3 text-xs"
+                  onClick={() => setEditing(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="max-h-[min(70vh,36rem)] min-w-0 overflow-x-auto overflow-y-auto whitespace-pre-wrap wrap-anywhere text-[14.5px] leading-relaxed">
+              {textConcat}
+            </div>
+          )}
         </MessageContent>
+        {showActions && onEditUser && !editing && (
+          <div className="mt-1.5 flex justify-end" role="group" aria-label="Message actions">
+            <button
+              type="button"
+              className="inline-flex min-h-11 items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label="Edit message"
+              onClick={() => {
+                setDraft(textConcat);
+                setEditing(true);
+              }}
+            >
+              <Pencil className="h-3 w-3" aria-hidden /> Edit
+            </button>
+          </div>
+        )}
       </Message>
     );
   }
@@ -293,7 +363,7 @@ function MessageRow({
             </span>
           )}
           {toolParts.map((tp, i) => (
-            <Tool key={toolKey(tp, i)} defaultOpen={toolHasError(tp)}>
+            <Tool key={toolKey(tp, i)} defaultOpen={toolHasError(tp) || isLastAssistant}>
               {tp.type === "dynamic-tool" ? (
                 <ToolHeader
                   type="dynamic-tool"
@@ -323,17 +393,31 @@ function MessageRow({
               role="alert"
               className="wrap-anywhere rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[13px] text-destructive"
             >
-              {errorText}
+              {userFacingChatError(errorText)}
             </div>
           ))}
         </MessageContent>
-        {showActions && <MessageActions text={textConcat} onRegenerate={onRegenerate} />}
+        {showActions && (
+          <MessageActions
+            text={textConcat}
+            onRegenerate={onRegenerate}
+            regenerateLabel={isLastAssistant ? "Retry" : "Retry from here"}
+          />
+        )}
       </Message>
     </div>
   );
 }
 
-function MessageActions({ text, onRegenerate }: { text: string; onRegenerate?: () => void }) {
+function MessageActions({
+  text,
+  onRegenerate,
+  regenerateLabel = "Retry",
+}: {
+  text: string;
+  onRegenerate?: () => void;
+  regenerateLabel?: string;
+}) {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const canCopy = Boolean(text.trim());
 
@@ -355,9 +439,7 @@ function MessageActions({ text, onRegenerate }: { text: string; onRegenerate?: (
         type="button"
         onClick={copy}
         disabled={!canCopy}
-        className={cn(
-          "inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40",
-        )}
+        className="inline-flex min-h-11 items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40"
         aria-label={copyState === "copied" ? "Copied to clipboard" : "Copy message"}
       >
         {copyState === "copied" ? (
@@ -378,10 +460,10 @@ function MessageActions({ text, onRegenerate }: { text: string; onRegenerate?: (
         <button
           type="button"
           onClick={onRegenerate}
-          className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label="Regenerate response"
+          className="inline-flex min-h-11 items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label={regenerateLabel}
         >
-          <RefreshCw className="h-3 w-3" aria-hidden /> Retry
+          <RefreshCw className="h-3 w-3" aria-hidden /> {regenerateLabel}
         </button>
       )}
     </div>

@@ -133,7 +133,16 @@ export const getAgentSettings = createServerFn({ method: "GET" })
         default_model: DEFAULT_MODEL,
         default_temperature: DEFAULT_TEMPERATURE,
         default_system_prompt: DEFAULT_SYSTEM_PROMPT,
-        tools: { create_artifact: true, web_search: false, code_interpreter: false },
+        tools: {
+          create_artifact: true,
+          edit_file: true,
+          read_artifact: true,
+          remember: true,
+          plan_steps: true,
+          web_search: false,
+          fetch_url: false,
+          code_interpreter: false,
+        },
       };
     }
     // Strip legacy OpenAI/Gemini defaults stored before Mistral-only switch.
@@ -180,4 +189,184 @@ export const setArtifactPublic = createServerFn({ method: "POST" })
       .eq("id", data.artifactId);
     if (error) throw new Error(error.message);
     return { ok: true, isPublic: data.isPublic };
+  });
+
+export const listThreadMemory = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ threadId: z.uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase
+      .from("thread_memory")
+      .select("id,key,value,updated_at")
+      .eq("thread_id", data.threadId)
+      .order("updated_at", { ascending: false })
+      .limit(40);
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
+
+export const upsertThreadMemory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        threadId: z.uuid(),
+        key: z.string().min(1).max(120),
+        value: z.string().min(1).max(2000),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    // Ensure thread ownership via RLS on threads join (memory RLS should scope thread).
+    const { data: thread } = await context.supabase
+      .from("threads")
+      .select("id")
+      .eq("id", data.threadId)
+      .single();
+    if (!thread) throw new Error("Thread not found");
+
+    const { data: existing } = await context.supabase
+      .from("thread_memory")
+      .select("id")
+      .eq("thread_id", data.threadId)
+      .eq("key", data.key.trim())
+      .maybeSingle();
+
+    if (existing?.id) {
+      const { error } = await context.supabase
+        .from("thread_memory")
+        .update({ value: data.value, updated_at: new Date().toISOString() })
+        .eq("id", existing.id);
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await context.supabase.from("thread_memory").insert({
+        thread_id: data.threadId,
+        key: data.key.trim(),
+        value: data.value,
+      });
+      if (error) throw new Error(error.message);
+    }
+    return { ok: true };
+  });
+
+export const deleteThreadMemory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z.object({ threadId: z.uuid(), key: z.string().min(1) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("thread_memory")
+      .delete()
+      .eq("thread_id", data.threadId)
+      .eq("key", data.key.trim());
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/**
+ * G0 / G-P0-1: hard-delete messages from an anchor (edit/retry) so reload
+ * matches client history. Artifacts are left intact (may orphan — OK for v1).
+ *
+ * Prefer `messageId` when it exists in DB. Else use `keepCount` (first N rows
+ * to keep by created_at order) for streaming temp client ids.
+ */
+export const truncateThreadMessagesAfter = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        threadId: z.uuid(),
+        messageId: z.string().min(1).optional(),
+        mode: z.enum(["edit_user", "retry_assistant"]).default("edit_user"),
+        /** Fallback when messageId is not a DB row (e.g. useChat temp id). */
+        keepCount: z.number().int().min(0).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: rows, error: listErr } = await context.supabase
+      .from("messages")
+      .select("id,created_at")
+      .eq("thread_id", data.threadId)
+      .order("created_at", { ascending: true });
+    if (listErr) throw new Error(listErr.message);
+    const ordered = rows ?? [];
+
+    const {
+      selectMessageIdsToDelete,
+      selectMessageIdsToDeleteFromKeepCount,
+      isUuid,
+    } = await import("@/lib/agent/truncate");
+
+    let toDelete: string[] = [];
+    if (data.messageId && isUuid(data.messageId)) {
+      toDelete = selectMessageIdsToDelete(ordered, data.messageId, data.mode);
+      // If uuid not found in this thread, fall through to keepCount if provided
+      if (!toDelete.length && typeof data.keepCount === "number") {
+        toDelete = selectMessageIdsToDeleteFromKeepCount(ordered, data.keepCount);
+      } else if (!toDelete.length) {
+        // messageId claimed as uuid but missing — no-op rather than wipe
+        return { ok: true as const, deleted: 0, reason: "anchor_not_found" as const };
+      }
+    } else if (typeof data.keepCount === "number") {
+      toDelete = selectMessageIdsToDeleteFromKeepCount(ordered, data.keepCount);
+    } else if (data.messageId) {
+      // Non-uuid id: try match anyway (in case DB ever stores client ids)
+      toDelete = selectMessageIdsToDelete(ordered, data.messageId, data.mode);
+      if (!toDelete.length && typeof data.keepCount !== "number") {
+        return { ok: true as const, deleted: 0, reason: "anchor_not_found" as const };
+      }
+    } else {
+      throw new Error("messageId or keepCount is required");
+    }
+
+    if (!toDelete.length) return { ok: true as const, deleted: 0 };
+
+    const { error: delErr } = await context.supabase
+      .from("messages")
+      .delete()
+      .eq("thread_id", data.threadId)
+      .in("id", toDelete);
+    if (delErr) throw new Error(delErr.message);
+
+    await context.supabase
+      .from("threads")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", data.threadId);
+
+    return { ok: true as const, deleted: toDelete.length };
+  });
+
+export const updateArtifactFiles = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        artifactId: z.uuid(),
+        files: z.array(
+          z.object({
+            path: z.string(),
+            language: z.string(),
+            content: z.string(),
+          }),
+        ),
+        entry_path: z.string().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const entry = data.entry_path ?? data.files[0]?.path;
+    const main = data.files.find((f) => f.path === entry) ?? data.files[0];
+    if (!main) throw new Error("No files");
+    const { error } = await context.supabase
+      .from("artifacts")
+      .update({
+        files: data.files as unknown as import("@/integrations/supabase/types").Json,
+        content: main.content,
+        entry_path: entry ?? null,
+      })
+      .eq("id", data.artifactId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
