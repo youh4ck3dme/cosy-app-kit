@@ -20,7 +20,7 @@ dist-ssr
 .wrangler/
 .dev.vars
 
-# Editor directories and files
+# Editor
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -31,8 +31,7 @@ dist-ssr
 *.sln
 *.sw?
 
-# local secrets — never commit real keys
+# Env files — never commit (GitGuardian). Use Lovable Cloud Secrets + local .env
 .env
-.env.local
-.env.*.local
+.env.*
 !.env.example

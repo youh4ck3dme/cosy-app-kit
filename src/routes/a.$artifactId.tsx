@@ -7,7 +7,7 @@ import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 
 const getPublicArtifact = createServerFn({ method: "GET" })
-  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ id: z.uuid() }).parse(input))
   .handler(async ({ data }) => {
     const { createClient } = await import("@supabase/supabase-js");
     const url = process.env.SUPABASE_URL!;

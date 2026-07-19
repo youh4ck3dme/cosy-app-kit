@@ -1,8 +1,15 @@
 import { useMemo, useState } from "react";
 import type { UIMessage } from "ai";
-import { Check, Copy, FileCode2, RefreshCw } from "lucide-react";
+import { Check, Copy, FileCode2, RefreshCw, Sparkles } from "lucide-react";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
-import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput, type ToolPart } from "@/components/ai-elements/tool";
+import {
+  Tool,
+  ToolContent,
+  ToolHeader,
+  ToolInput,
+  ToolOutput,
+  type ToolPart,
+} from "@/components/ai-elements/tool";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { cn } from "@/lib/utils";
 import { Logo } from "./Logo";
@@ -11,73 +18,238 @@ const ARTIFACT_RE = /```(?:html|markdown|md)(?:\s+[^\n`]*)?\s*\n[\s\S]*?```/gi;
 const MULTI_FILE_RE = /```[^\n`]*\bpath=[^\n`]*\n[\s\S]*?```/gi;
 const SPLIT_MARK = "\u0000ARTIFACT\u0000";
 
+const EMPTY_PROMPTS = [
+  "Design a landing page for an AI note-taking app",
+  "Write a markdown README for a Rust CLI",
+  "Build an HTML dashboard mock with dark theme",
+];
+
+/** Runtime stream errors can land as errorText on non-tool parts; extract without invalid type predicates. */
+function getNonToolErrorText(part: UIMessage["parts"][number]): string | null {
+  if (typeof part !== "object" || part === null) return null;
+  if (
+    typeof part.type === "string" &&
+    (part.type.startsWith("tool-") || part.type === "dynamic-tool")
+  ) {
+    return null;
+  }
+  if (!("errorText" in part)) return null;
+  const errorText = (part as { errorText?: unknown }).errorText;
+  return typeof errorText === "string" && errorText.trim() ? errorText : null;
+}
+
+function isToolPart(part: UIMessage["parts"][number]): part is ToolPart {
+  return (
+    typeof part === "object" &&
+    part !== null &&
+    typeof part.type === "string" &&
+    (part.type.startsWith("tool-") || part.type === "dynamic-tool")
+  );
+}
+
+function toolHasError(tp: ToolPart): boolean {
+  if (tp.state === "output-error") return true;
+  const errorText = (tp as { errorText?: unknown }).errorText;
+  return typeof errorText === "string" && Boolean(errorText.trim());
+}
+
+function toolKey(tp: ToolPart, index: number): string {
+  if ("toolCallId" in tp && typeof tp.toolCallId === "string" && tp.toolCallId) {
+    return tp.toolCallId;
+  }
+  return `tool-${index}-${tp.type}`;
+}
+
+function messageHasVisibleContent(message: UIMessage | undefined): boolean {
+  if (!message?.parts?.length) return false;
+  return message.parts.some((p) => {
+    if (p.type === "text" && p.text.trim()) return true;
+    if (isToolPart(p)) return true;
+    return getNonToolErrorText(p) !== null;
+  });
+}
+
+function splitAroundArtifacts(text: string): string[] {
+  // Clone global regexes so lastIndex never leaks across calls.
+  const multi = new RegExp(MULTI_FILE_RE.source, MULTI_FILE_RE.flags);
+  const artifact = new RegExp(ARTIFACT_RE.source, ARTIFACT_RE.flags);
+  return text.replace(multi, SPLIT_MARK).replace(artifact, SPLIT_MARK).split(SPLIT_MARK);
+}
+
 export function MessageList({
   messages,
   status,
   onRegenerate,
+  onFocusCanvas,
+  onPickPrompt,
 }: {
   messages: UIMessage[];
   status: "ready" | "submitted" | "streaming" | "error";
   onRegenerate?: () => void;
+  onFocusCanvas?: () => void;
+  onPickPrompt?: (prompt: string) => void;
 }) {
-  const lastAssistantId = [...messages].reverse().find((m) => m.role === "assistant")?.id;
+  const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+  const lastAssistantId = lastAssistant?.id;
+  const isStreaming = status === "streaming";
+  const isSubmitted = status === "submitted";
+  const showWaitingRow = isSubmitted || (isStreaming && !messageHasVisibleContent(lastAssistant));
+
+  const lastAssistantHasInlineError = Boolean(
+    lastAssistant?.parts?.some(
+      (p) => getNonToolErrorText(p) !== null || (isToolPart(p) && toolHasError(p)),
+    ),
+  );
+  const showStatusError = status === "error" && !showWaitingRow && !lastAssistantHasInlineError;
+
+  if (messages.length === 0) {
+    return <EmptyState onPick={onPickPrompt} />;
+  }
+
   return (
-    <div className="flex flex-col gap-6 py-4">
-      {messages.map((m) => (
-        <MessageRow
-          key={m.id}
-          message={m}
-          showActions={m.id === lastAssistantId && status === "ready"}
-          onRegenerate={onRegenerate}
-        />
-      ))}
-      {status === "submitted" && (
-        <div className="flex items-start gap-3 animate-in-fade">
-          <Logo size={26} />
-          <div className="mt-1 flex items-center gap-2 text-sm">
-            <Shimmer>Thinking…</Shimmer>
+    <div
+      className="flex flex-col gap-6 py-4"
+      role="log"
+      aria-label="Chat messages"
+      aria-relevant="additions"
+      aria-busy={isSubmitted || isStreaming || undefined}
+    >
+      {messages.map((m) => {
+        // Waiting row already covers an empty in-flight assistant bubble.
+        if (
+          m.role === "assistant" &&
+          m.id === lastAssistantId &&
+          showWaitingRow &&
+          !messageHasVisibleContent(m)
+        ) {
+          return null;
+        }
+        // Skip completely blank non-assistant rows (e.g. empty user parts).
+        if (m.role === "user" && !messageHasVisibleContent(m)) {
+          return null;
+        }
+        return (
+          <MessageRow
+            key={m.id}
+            message={m}
+            isStreaming={isStreaming && m.id === lastAssistantId}
+            showActions={m.id === lastAssistantId && status === "ready"}
+            onRegenerate={onRegenerate}
+            onFocusCanvas={onFocusCanvas}
+          />
+        );
+      })}
+      {showWaitingRow && (
+        <div className="flex items-start gap-3 animate-in-fade" role="status" aria-live="polite">
+          <Logo size={26} decorative />
+          <div className="mt-1.5 flex flex-col gap-1">
+            <Shimmer className="text-sm">{isSubmitted ? "Thinking…" : "Writing…"}</Shimmer>
+            <span className="font-mono text-[10px] tracking-wider text-muted-foreground/70">
+              {isSubmitted ? "Preparing response" : "Streaming tokens"}
+            </span>
           </div>
+        </div>
+      )}
+      {showStatusError && (
+        <div
+          role="alert"
+          className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[13px] text-destructive animate-in-fade"
+        >
+          Something went wrong generating a response. You can retry the last message.
         </div>
       )}
     </div>
   );
 }
 
+function EmptyState({ onPick }: { onPick?: (prompt: string) => void }) {
+  return (
+    <section
+      className="relative flex h-full min-h-[280px] flex-col items-center justify-center overflow-hidden py-12 text-center animate-in-fade"
+      aria-labelledby="chat-empty-heading"
+    >
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-mesh-glow opacity-40" />
+      <div className="relative stagger flex w-full max-w-md flex-col items-center">
+        <Logo size={40} className="mb-5 shadow-elevated" />
+        <div
+          className="mb-4 inline-flex items-center gap-2 rounded-full border border-border-subtle bg-surface-1/60 px-3 py-1 font-mono text-[10px] tracking-widest text-muted-foreground"
+          aria-hidden
+        >
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent-primary" />
+          READY
+        </div>
+        <h2
+          id="chat-empty-heading"
+          className="max-w-md text-2xl font-semibold tracking-tight text-foreground"
+        >
+          What are we building?
+        </h2>
+        <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
+          Ask Builder to ship an HTML artifact, a markdown doc, or walk through an idea.
+        </p>
+        {onPick && (
+          <ul className="mt-7 flex w-full list-none flex-col gap-2 p-0">
+            {EMPTY_PROMPTS.map((prompt) => (
+              <li key={prompt}>
+                <button
+                  type="button"
+                  onClick={() => onPick(prompt)}
+                  className="group flex w-full items-start gap-2.5 rounded-xl border border-border-subtle bg-surface-1/50 px-3.5 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-accent-primary/35 hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Sparkles
+                    aria-hidden
+                    className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent-primary/70 transition-colors group-hover:text-accent-primary"
+                  />
+                  <span>{prompt}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
+  );
+}
 
 function MessageRow({
   message,
+  isStreaming,
   showActions,
   onRegenerate,
+  onFocusCanvas,
 }: {
   message: UIMessage;
+  isStreaming?: boolean;
   showActions?: boolean;
   onRegenerate?: () => void;
+  onFocusCanvas?: () => void;
 }) {
   const isUser = message.role === "user";
-  const parts = message.parts ?? [];
+  const parts = useMemo(() => message.parts ?? [], [message.parts]);
 
   const textConcat = useMemo(
     () => parts.map((p) => (p.type === "text" ? p.text : "")).join(""),
     [parts],
   );
 
-  const toolParts = parts.filter(
-    (p): p is ToolPart =>
-      typeof p.type === "string" && (p.type.startsWith("tool-") || p.type === "dynamic-tool"),
+  const toolParts = parts.filter(isToolPart);
+
+  const nonToolErrors = useMemo(
+    () =>
+      parts
+        .map((p) => getNonToolErrorText(p))
+        .filter((errorText): errorText is string => errorText !== null),
+    [parts],
   );
 
   // Split text around artifact code blocks so we can insert the pill.
-  const chunks = useMemo(() => {
-    const marked = textConcat.replace(MULTI_FILE_RE, SPLIT_MARK).replace(ARTIFACT_RE, SPLIT_MARK);
-    return marked.split(SPLIT_MARK);
-  }, [textConcat]);
-
+  const chunks = useMemo(() => splitAroundArtifacts(textConcat), [textConcat]);
 
   if (isUser) {
     return (
-      <Message from="user" className="animate-in-fade">
-        <MessageContent>
-          <div className="whitespace-pre-wrap break-words text-[14.5px] leading-relaxed">
+      <Message from="user" className="min-w-0 animate-in-fade" aria-label="Your message">
+        <MessageContent className="min-w-0 max-w-full">
+          <div className="max-h-[min(70vh,36rem)] min-w-0 overflow-x-auto overflow-y-auto whitespace-pre-wrap wrap-anywhere text-[14.5px] leading-relaxed">
             {textConcat}
           </div>
         </MessageContent>
@@ -85,28 +257,50 @@ function MessageRow({
     );
   }
 
+  const hasChunks = chunks.some((c) => c.length > 0) || chunks.length > 1;
+  const hasBody = hasChunks || toolParts.length > 0 || nonToolErrors.length > 0;
+
   return (
-    <div className="flex gap-3 animate-in-fade">
-      <Logo size={26} className="mt-0.5" />
-      <Message from="assistant" className="flex-1">
-        <MessageContent className="gap-3">
-          {chunks.map((chunk, i) => (
-            <div key={i} className="contents">
-              {chunk && (
-                <MessageResponse className="text-[14.5px] leading-relaxed">
-                  {chunk}
-                </MessageResponse>
-              )}
-              {i < chunks.length - 1 && <ArtifactPill />}
-            </div>
-          ))}
+    <div className="flex min-w-0 gap-3 animate-in-fade" aria-label="Assistant message">
+      <Logo size={26} className="mt-0.5" decorative />
+      <Message from="assistant" className="min-w-0 flex-1">
+        <MessageContent className="min-w-0 gap-3">
+          {!hasBody && !isStreaming && (
+            <p className="text-[13px] italic text-muted-foreground">No response content.</p>
+          )}
+          {hasChunks &&
+            chunks.map((chunk, i) => (
+              <div key={i} className="contents">
+                {chunk && (
+                  <MessageResponse
+                    className="min-w-0 overflow-x-auto text-[14.5px] leading-relaxed"
+                    isAnimating={Boolean(isStreaming)}
+                  >
+                    {chunk}
+                  </MessageResponse>
+                )}
+                {i < chunks.length - 1 && <ArtifactPill onFocusCanvas={onFocusCanvas} />}
+              </div>
+            ))}
+          {isStreaming && hasChunks && (
+            <span
+              className="inline-flex items-center gap-1.5 font-mono text-[10px] tracking-wider text-muted-foreground/80"
+              role="status"
+              aria-live="polite"
+            >
+              <span aria-hidden className="h-1 w-1 animate-pulse rounded-full bg-accent-primary" />
+              Streaming
+            </span>
+          )}
           {toolParts.map((tp, i) => (
-            <Tool key={`tool-${i}`} defaultOpen={false}>
+            <Tool key={toolKey(tp, i)} defaultOpen={toolHasError(tp)}>
               {tp.type === "dynamic-tool" ? (
                 <ToolHeader
                   type="dynamic-tool"
                   state={tp.state}
-                  toolName={"toolName" in tp && typeof tp.toolName === "string" ? tp.toolName : "tool"}
+                  toolName={
+                    "toolName" in tp && typeof tp.toolName === "string" ? tp.toolName : "tool"
+                  }
                 />
               ) : (
                 <ToolHeader type={tp.type as `tool-${string}`} state={tp.state} />
@@ -123,85 +317,115 @@ function MessageRow({
               </ToolContent>
             </Tool>
           ))}
-          {parts
-            .map((p, i) => {
-              if (
-                typeof p !== "object" ||
-                p === null ||
-                !("errorText" in p) ||
-                typeof (p as { errorText?: unknown }).errorText !== "string" ||
-                !(p as { errorText: string }).errorText ||
-                (typeof p.type === "string" &&
-                  (p.type.startsWith("tool-") || p.type === "dynamic-tool"))
-              ) {
-                return null;
-              }
-              return (
-                <div
-                  key={`err-${i}`}
-                  role="alert"
-                  className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[13px] text-destructive"
-                >
-                  {(p as { errorText: string }).errorText}
-                </div>
-              );
-            })
-            .filter(Boolean)}
+          {nonToolErrors.map((errorText, i) => (
+            <div
+              key={`err-${i}-${errorText.slice(0, 24)}`}
+              role="alert"
+              className="wrap-anywhere rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[13px] text-destructive"
+            >
+              {errorText}
+            </div>
+          ))}
         </MessageContent>
-        {showActions && (
-          <MessageActions text={textConcat} onRegenerate={onRegenerate} />
-        )}
+        {showActions && <MessageActions text={textConcat} onRegenerate={onRegenerate} />}
       </Message>
     </div>
   );
 }
 
 function MessageActions({ text, onRegenerate }: { text: string; onRegenerate?: () => void }) {
-  const [copied, setCopied] = useState(false);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const canCopy = Boolean(text.trim());
+
   const copy = async () => {
+    if (!canCopy) return;
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1600);
+      setCopyState("copied");
+      window.setTimeout(() => setCopyState("idle"), 1600);
     } catch {
-      // ignore
+      setCopyState("failed");
+      window.setTimeout(() => setCopyState("idle"), 2000);
     }
   };
+
   return (
-    <div className="mt-1.5 ml-1 flex items-center gap-1">
+    <div className="mt-1.5 ml-1 flex items-center gap-1" role="group" aria-label="Message actions">
       <button
+        type="button"
         onClick={copy}
+        disabled={!canCopy}
         className={cn(
-          "inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground",
+          "inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40",
         )}
-        title="Copy"
+        aria-label={copyState === "copied" ? "Copied to clipboard" : "Copy message"}
       >
-        {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-        {copied ? "Copied" : "Copy"}
+        {copyState === "copied" ? (
+          <Check className="h-3 w-3" aria-hidden />
+        ) : (
+          <Copy className="h-3 w-3" aria-hidden />
+        )}
+        {copyState === "copied" ? "Copied" : copyState === "failed" ? "Copy failed" : "Copy"}
       </button>
+      <span className="sr-only" aria-live="polite">
+        {copyState === "copied"
+          ? "Copied to clipboard"
+          : copyState === "failed"
+            ? "Copy failed"
+            : ""}
+      </span>
       {onRegenerate && (
         <button
+          type="button"
           onClick={onRegenerate}
-          className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
-          title="Regenerate"
+          className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label="Regenerate response"
         >
-          <RefreshCw className="h-3 w-3" /> Retry
+          <RefreshCw className="h-3 w-3" aria-hidden /> Retry
         </button>
       )}
     </div>
   );
 }
 
+function ArtifactPill({ onFocusCanvas }: { onFocusCanvas?: () => void }) {
+  const interactive = Boolean(onFocusCanvas);
+  const className = cn(
+    "my-1 inline-flex w-fit max-w-full items-center gap-2 rounded-lg border border-border-subtle bg-surface-1/60 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors",
+    interactive &&
+      "cursor-pointer hover:border-accent-primary/40 hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+  );
 
-function ArtifactPill() {
-  return (
-    <div className="my-1 inline-flex w-fit items-center gap-2 rounded-lg border border-border-subtle bg-surface-1/60 px-2.5 py-1.5 text-xs font-medium text-muted-foreground">
-      <span className="flex h-5 w-5 items-center justify-center rounded bg-accent-primary/15 text-accent-primary">
+  const content = (
+    <>
+      <span
+        aria-hidden
+        className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-accent-primary/15 text-accent-primary"
+      >
         <FileCode2 className="h-3 w-3" />
       </span>
-      Artifact rendered on canvas
-      <span className="h-1 w-1 rounded-full bg-accent-primary/70" />
-      <span className="text-accent-primary/90">live</span>
-    </div>
+      <span className="min-w-0 wrap-break-word">Artifact rendered on canvas</span>
+      <span aria-hidden className="h-1 w-1 shrink-0 rounded-full bg-accent-primary/70" />
+      <span className="shrink-0 text-accent-primary/90">{interactive ? "Open" : "live"}</span>
+    </>
+  );
+
+  if (!interactive) {
+    return (
+      <div className={className} role="note">
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onFocusCanvas}
+      className={className}
+      aria-label="Open artifact on canvas"
+    >
+      {content}
+    </button>
   );
 }

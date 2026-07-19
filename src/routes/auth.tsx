@@ -174,7 +174,7 @@ function AuthPage() {
 
   return (
     <div className="relative min-h-screen bg-background bg-grid-pattern">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-background/60 to-background" />
+      <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-transparent via-background/60 to-background" />
       <div className="relative mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6 py-10">
         <div className="mb-8 flex items-center gap-2 font-mono text-sm font-semibold tracking-tight">
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-panel">

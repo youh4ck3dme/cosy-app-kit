@@ -43,11 +43,11 @@ jobs:
       - name: Build
         run: bun run build
         env:
-          # Build-time placeholders only — real secrets stay on Lovable / local .env
-          SUPABASE_URL: https://hyffmlempcfmgtnqllrz.supabase.co
-          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5ZmZtbGVtcGNmbWd0bnFsbHJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzMTQzNDMsImV4cCI6MjA5OTg5MDM0M30.gm7FnP3C3ndkllmehShdAHbjtBNGcOx3qEGRwQHYcno' }}
-          VITE_SUPABASE_URL: https://hyffmlempcfmgtnqllrz.supabase.co
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5ZmZtbGVtcGNmbWd0bnFsbHJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzMTQzNDMsImV4cCI6MjA5OTg5MDM0M30.gm7FnP3C3ndkllmehShdAHbjtBNGcOx3qEGRwQHYcno' }}
-          VITE_SUPABASE_PROJECT_ID: hyffmlempcfmgtnqllrz
-          # Build must not require a real Mistral key
+          # Use GitHub Actions secrets only — never hardcode keys (GitGuardian).
+          # Repo Settings → Secrets: SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, MISTRAL_API_KEY
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://example.supabase.co' }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY || 'ci-placeholder-publishable-key' }}
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://example.supabase.co' }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY || 'ci-placeholder-publishable-key' }}
+          VITE_SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID || 'ci-placeholder' }}
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY || 'ci-placeholder-not-used-at-build' }}

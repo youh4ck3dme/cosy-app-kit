@@ -1,7 +1,16 @@
 import logoUrl from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
 
-export function Logo({ className, size = 28 }: { className?: string; size?: number }) {
+export function Logo({
+  className,
+  size = 28,
+  decorative = false,
+}: {
+  className?: string;
+  size?: number;
+  /** When true, hide from assistive tech (e.g. repeated avatars in a message list). */
+  decorative?: boolean;
+}) {
   return (
     <span
       className={cn(
@@ -9,6 +18,7 @@ export function Logo({ className, size = 28 }: { className?: string; size?: numb
         className,
       )}
       style={{ width: size, height: size }}
+      aria-hidden={decorative || undefined}
     >
       <span
         aria-hidden
@@ -20,7 +30,7 @@ export function Logo({ className, size = 28 }: { className?: string; size?: numb
       />
       <img
         src={logoUrl}
-        alt="Builder"
+        alt={decorative ? "" : "Builder"}
         width={size}
         height={size}
         className="relative h-[70%] w-[70%] object-contain"
