@@ -164,10 +164,17 @@ function ChatPage() {
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 sm:px-6">
             {isLoading ? (
               <div className="pt-10 text-center text-sm text-muted-foreground">Loading chat…</div>
-            ) : messages.length === 0 ? (
-              <EmptyPrompt onPick={(p) => sendMessage({ text: p })} />
             ) : (
-              <MessageList messages={messages} status={status} onRegenerate={() => regenerate()} />
+              <MessageList
+                messages={messages}
+                status={status}
+                onRegenerate={() => regenerate()}
+                onPickPrompt={(p) => sendMessage({ text: p })}
+                onFocusCanvas={() => {
+                  setView("preview");
+                  if (artifacts[0]) setActiveArtifactId(artifacts[0].id);
+                }}
+              />
             )}
           </div>
           <div className="flex-none p-3 sm:p-4">
@@ -231,38 +238,6 @@ function ChatPage() {
       >
         <AgentSettingsPanel />
       </AppDialog>
-    </div>
-  );
-}
-
-function EmptyPrompt({ onPick }: { onPick: (p: string) => void }) {
-  const prompts = [
-    "Design a landing page for an AI note-taking app",
-    "Write a markdown README for a Rust CLI",
-    "Build an HTML dashboard mock with dark theme",
-  ];
-  return (
-    <div className="flex h-full flex-col items-center justify-center py-10 text-center">
-      <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border bg-surface/60 px-3 py-1 font-mono text-[10px] tracking-widest text-muted-foreground">
-        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-foreground" /> READY
-      </div>
-      <h2 className="max-w-md font-mono text-2xl font-bold tracking-tight">
-        What are we building?
-      </h2>
-      <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-        Ask Builder to generate an HTML artifact, a markdown doc, or explain something.
-      </p>
-      <div className="mt-6 flex w-full max-w-md flex-col gap-2">
-        {prompts.map((p) => (
-          <button
-            key={p}
-            onClick={() => onPick(p)}
-            className="rounded-lg border border-border bg-surface/60 px-3 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:border-muted-foreground/40 hover:bg-surface hover:text-foreground"
-          >
-            {p}
-          </button>
-        ))}
-      </div>
     </div>
   );
 }

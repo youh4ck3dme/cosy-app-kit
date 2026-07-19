@@ -22,7 +22,7 @@ export const listThreads = createServerFn({ method: "GET" })
 
 export const createThread = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ title: z.string().optional() }).parse(input))
+  .validator((input: unknown) => z.object({ title: z.string().optional() }).parse(input))
   .handler(async ({ data, context }) => {
     const settings = await context.supabase
       .from("agent_settings")
@@ -51,7 +51,7 @@ export const createThread = createServerFn({ method: "POST" })
 
 export const getThread = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ threadId: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ threadId: z.uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { data: thread, error } = await context.supabase
       .from("threads")
@@ -76,8 +76,8 @@ export const getThread = createServerFn({ method: "GET" })
 
 export const renameThread = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z.object({ threadId: z.string().uuid(), title: z.string().min(1).max(200) }).parse(input),
+  .validator((input: unknown) =>
+    z.object({ threadId: z.uuid(), title: z.string().min(1).max(200) }).parse(input),
   )
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
@@ -90,10 +90,10 @@ export const renameThread = createServerFn({ method: "POST" })
 
 export const updateThreadModel = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
-        threadId: z.string().uuid(),
+        threadId: z.uuid(),
         model: z.string().optional(),
         temperature: z.number().min(0).max(2).optional(),
         system_prompt: z.string().optional(),
@@ -112,7 +112,7 @@ export const updateThreadModel = createServerFn({ method: "POST" })
 
 export const deleteThread = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ threadId: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ threadId: z.uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.from("threads").delete().eq("id", data.threadId);
     if (error) throw new Error(error.message);
@@ -145,7 +145,7 @@ export const getAgentSettings = createServerFn({ method: "GET" })
 
 export const saveAgentSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         default_model: z.string(),
@@ -169,8 +169,8 @@ export const saveAgentSettings = createServerFn({ method: "POST" })
 
 export const setArtifactPublic = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z.object({ artifactId: z.string().uuid(), isPublic: z.boolean() }).parse(input),
+  .validator((input: unknown) =>
+    z.object({ artifactId: z.uuid(), isPublic: z.boolean() }).parse(input),
   )
   .handler(async ({ data, context }) => {
     // RLS: user can only update artifacts belonging to their own thread.

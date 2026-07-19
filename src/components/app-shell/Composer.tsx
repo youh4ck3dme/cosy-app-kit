@@ -125,7 +125,7 @@ export function Composer({
               className={cn(
                 "ml-1 h-9 w-9 rounded-full",
                 !streaming &&
-                  "bg-gradient-to-b from-foreground to-foreground/85 text-primary-foreground shadow-[0_0_20px_-4px_color-mix(in_oklab,white_50%,transparent)] hover:scale-[1.05]",
+                  "bg-linear-to-b from-foreground to-foreground/85 text-primary-foreground shadow-[0_0_20px_-4px_color-mix(in_oklab,white_50%,transparent)] hover:scale-[1.05]",
               )}
             />
           </div>
