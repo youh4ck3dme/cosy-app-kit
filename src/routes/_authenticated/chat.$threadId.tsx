@@ -74,16 +74,40 @@ function ChatPage() {
     [threadId],
   );
 
-  const { messages, sendMessage, status, regenerate } = useChat({
+  const { messages, sendMessage, status, regenerate, error: chatError } = useChat({
     id: threadId,
     messages: initialMessages,
     transport,
-    onError: (err) => toast.error(err.message),
+    onError: (err) => {
+      const msg = (err.message || "Chat request failed").trim();
+      // Gateway errors (402 credits, 429 rate limit, bad key) are already humanized by
+      // formatAiGatewayError on the server — show them for longer so they're actionable.
+      const sticky = /402|429|credits|rate limit|MISTRAL_API_KEY|mistral auth|quota/i.test(msg);
+      toast.error(msg, { duration: sticky ? 10_000 : 5_000 });
+    },
     onFinish: () => {
       qc.invalidateQueries({ queryKey: ["thread", threadId] });
       qc.invalidateQueries({ queryKey: ["threads"] });
     },
   });
+
+  // Some stream failures land as errorText on the last assistant part without firing onError.
+  useEffect(() => {
+    if (status !== "error" && !chatError) return;
+    const last = [...messages].reverse().find((m) => m.role === "assistant");
+    const partErr = last?.parts?.find(
+      (p) =>
+        typeof p === "object" &&
+        p !== null &&
+        "errorText" in p &&
+        typeof (p as { errorText?: unknown }).errorText === "string" &&
+        (p as { errorText: string }).errorText.trim(),
+    ) as { errorText?: string } | undefined;
+    const msg = (partErr?.errorText || chatError?.message || "").trim();
+    if (!msg) return;
+    const sticky = /402|429|credits|rate limit|MISTRAL_API_KEY|mistral auth|quota/i.test(msg);
+    toast.error(msg, { duration: sticky ? 10_000 : 5_000, id: `chat-err-${threadId}` });
+  }, [status, chatError, messages, threadId]);
 
 
   // Auto scroll

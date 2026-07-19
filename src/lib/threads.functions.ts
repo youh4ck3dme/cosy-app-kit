@@ -1,13 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 
-
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import {
-  DEFAULT_MODEL,
-  DEFAULT_SYSTEM_PROMPT,
-  DEFAULT_TEMPERATURE,
-} from "./ai-gateway.server";
+import { DEFAULT_MODEL, DEFAULT_SYSTEM_PROMPT, DEFAULT_TEMPERATURE } from "./models";
 
 export const listThreads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -22,9 +17,7 @@ export const listThreads = createServerFn({ method: "GET" })
 
 export const createThread = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z.object({ title: z.string().optional() }).parse(input),
-  )
+  .inputValidator((input: unknown) => z.object({ title: z.string().optional() }).parse(input))
   .handler(async ({ data, context }) => {
     const settings = await context.supabase
       .from("agent_settings")
@@ -107,10 +100,7 @@ export const updateThreadModel = createServerFn({ method: "POST" })
     if (data.model) patch.model = data.model;
     if (typeof data.temperature === "number") patch.temperature = data.temperature;
     if (typeof data.system_prompt === "string") patch.system_prompt = data.system_prompt;
-    const { error } = await context.supabase
-      .from("threads")
-      .update(patch)
-      .eq("id", data.threadId);
+    const { error } = await context.supabase.from("threads").update(patch).eq("id", data.threadId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -119,10 +109,7 @@ export const deleteThread = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ threadId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
-      .from("threads")
-      .delete()
-      .eq("id", data.threadId);
+    const { error } = await context.supabase.from("threads").delete().eq("id", data.threadId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

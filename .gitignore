@@ -30,3 +30,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# local secrets — never commit real keys
+.env
+.env.local
+.env.*.local
+!.env.example

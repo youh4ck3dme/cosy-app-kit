@@ -1,85 +1,74 @@
 # AI Builder
 
-A Vercel/Resend-inspired AI Builder: a dark, minimalist workspace where a threaded
-AI chat lives on the left and a live artifact canvas renders whatever the agent
-generates on the right. Ask for a landing page, a markdown doc, or a UI mock, and
-watch it appear in a sandboxed preview with responsive device modes.
+A dark, minimalist AI Builder workspace: threaded chat on the left, live artifact
+canvas on the right. Ask for a landing page, markdown, or UI mock — watch it
+render in a sandboxed preview.
 
-Built on **TanStack Start** + **Lovable Cloud** (Supabase) + **Lovable AI Gateway**
-via the Vercel **AI SDK v6** — no external API keys, no external accounts.
+Built on **TanStack Start** + **Supabase** (Lovable Cloud for auth/DB only) +
+**Mistral API** (direct) via the Vercel **AI SDK v6**.
+
+> **AI policy:** Chat uses **only** `api.mistral.ai` with `MISTRAL_API_KEY`.  
+> No Lovable AI Gateway, no OpenAI, no ChatGPT, no Gemini.
 
 ## Features
 
 - **Threaded chat** with full server-side persistence (messages, artifacts, settings)
-- **Live artifact canvas** — HTML rendered in a sandboxed iframe, markdown rendered
-  as prose, with device presets (desktop / tablet / mobile) and zoom
-- **Agent settings modal** — model selector (chip-style), temperature slider,
-  editable system prompt, tool toggles
+- **Live artifact canvas** — HTML in a sandboxed iframe, markdown as prose
+- **Agent settings** — Mistral model chips, temperature, system prompt
 - **Per-thread model override** from the header
-- **Mobile-first**: right-side hamburger, full-screen menu, chat / preview toggle
-- **Desktop modals** with blurred backdrop (except header row)
-- **Chip-style filters** that revert to default when the selected chip is clicked
-- **Google + email/password auth** via the Lovable auth broker
-- **Streaming responses** with AI SDK's `useChat` + `DefaultChatTransport`
+- **Google + email/password auth** via Lovable auth broker (hosting only)
+- **Streaming** with AI SDK `useChat` + `DefaultChatTransport`
 - **Artifact auto-extraction** from fenced ```html / ```markdown blocks
-- **Auto-titled threads** from the first user message
+- **MCP tools** for threads/artifacts
 
 ## Stack
 
-| Layer         | Choice                                       |
-| ------------- | -------------------------------------------- |
-| Framework     | TanStack Start (React 19, Vite 7)            |
-| Styling       | Tailwind v4 + oklch design tokens            |
-| UI primitives | shadcn/ui + custom app-shell components      |
-| AI            | Vercel AI SDK v6 → Lovable AI Gateway        |
-| Backend       | Lovable Cloud (Supabase — Auth, DB, RLS)     |
-| Streaming     | `streamText` → `toUIMessageStreamResponse`   |
+| Layer         | Choice                                    |
+| ------------- | ----------------------------------------- |
+| Framework     | TanStack Start (React 19, Vite)           |
+| Styling       | Tailwind v4 + oklch tokens                |
+| UI            | shadcn/ui + app-shell                     |
+| **AI**        | **Mistral API** (`@ai-sdk/mistral`)       |
+| Backend       | Supabase (Auth, DB, RLS)                  |
+| Streaming     | `streamText` → `toUIMessageStreamResponse`|
 
 ## Default model
 
-`openai/gpt-5.5` — served through the Lovable AI Gateway. Change per-thread from
-the header or set a workspace default in **Agent settings**.
+`mistral-large-latest` — change per-thread in the header or in **Agent settings**.
+
+Other options: `mistral-small-latest`, `mistral-medium-latest`, `codestral-latest`,
+`open-mistral-nemo`, `pixtral-large-latest`.
 
 ## Routes
 
 - `/` → redirects to `/chat`
-- `/auth` → sign in / sign up (Google + email)
-- `/chat` → opens or creates your latest thread
-- `/chat/:threadId` → the builder workspace
-- `POST /api/chat` → AI SDK streaming endpoint (auth-gated, RLS-scoped)
-
-## Data model
-
-- `threads(id, user_id, title, model, temperature, system_prompt, …)`
-- `messages(id, thread_id, role, parts jsonb, …)`
-- `artifacts(id, thread_id, message_id, kind, title, content, …)`
-- `agent_settings(user_id pk, default_model, default_temperature, default_system_prompt, tools jsonb)`
-
-All tables have RLS scoped to `auth.uid()`. `service_role` has full access; the
-chat route acts as the signed-in user via a bearer token — never the admin key.
+- `/auth` → sign in / sign up
+- `/chat` → latest or new thread
+- `/chat/:threadId` → builder workspace
+- `POST /api/chat` → Mistral streaming (auth-gated, RLS-scoped)
+- `/mcp` → remote MCP (OAuth)
 
 ## Local development
 
 ```bash
 bun install
-bun dev
+cp .env.example .env
+# set SUPABASE_* + VITE_SUPABASE_* + MISTRAL_API_KEY
+bun dev                # http://localhost:8080
+bun run typecheck
 ```
 
-The dev server runs at `http://localhost:8080`. No env vars need to be set
-manually — Lovable Cloud + AI Gateway credentials are injected automatically.
+**Required for chat:** `MISTRAL_API_KEY` from [console.mistral.ai](https://console.mistral.ai/api-keys).  
+On Lovable Cloud deploy: add `MISTRAL_API_KEY` as a **secret** (do **not** enable Lovable AI connector for chat).
 
 ## Standing product rules
 
-These rules are baked into the memory file (`mem://index.md`) and apply to every
-future change:
-
-- Mobile-first by default
-- Right-side hamburger → full-screen menu
-- Desktop modals blur the background (except the header row)
-- Chip-style filters preferred over dropdowns; clicking a selected chip clears it
-- Default model `openai/gpt-5.5` via the Lovable AI Gateway
-- Every app has an Agent settings submenu with model + temperature + system prompt
+- Mobile-first; right-side hamburger
+- Desktop modals blur background (except header)
+- Chip-style filters (click selected chip to clear)
+- Default model `mistral-large-latest` via **Mistral API only**
+- Agent settings: model + temperature + system prompt
 
 ## License
 
-MIT
+Private.

@@ -1,0 +1,40 @@
+{
+  "folders": [
+    {
+      "name": "cosy-app-kit",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/.vinxi": true,
+      "**/.output": true,
+      "**/node_modules": false
+    },
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/.git": true,
+      "**/bun.lock": true,
+      "**/package-lock.json": true,
+      "**/.tanstack": true,
+      "**/.output": true
+    },
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "[typescript]": {
+      "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[typescriptreact]": {
+      "editor.defaultFormatter": "esbenp.prettier-vscode"
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "esbenp.prettier-vscode",
+      "dbaeumer.vscode-eslint",
+      "bradlc.vscode-tailwindcss",
+      "oven.bun-vscode"
+    ]
+  }
+}

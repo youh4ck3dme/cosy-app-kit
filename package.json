@@ -9,10 +9,11 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "format": "prettier --write ."
   },
   "dependencies": {
-    "@ai-sdk/openai-compatible": "^2",
+    "@ai-sdk/mistral": "2.0.40",
     "@ai-sdk/provider-utils": "^4",
     "@ai-sdk/react": "^3",
     "@fontsource-variable/inter": "^5.2.8",

@@ -123,6 +123,30 @@ function MessageRow({
               </ToolContent>
             </Tool>
           ))}
+          {parts
+            .map((p, i) => {
+              if (
+                typeof p !== "object" ||
+                p === null ||
+                !("errorText" in p) ||
+                typeof (p as { errorText?: unknown }).errorText !== "string" ||
+                !(p as { errorText: string }).errorText ||
+                (typeof p.type === "string" &&
+                  (p.type.startsWith("tool-") || p.type === "dynamic-tool"))
+              ) {
+                return null;
+              }
+              return (
+                <div
+                  key={`err-${i}`}
+                  role="alert"
+                  className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[13px] text-destructive"
+                >
+                  {(p as { errorText: string }).errorText}
+                </div>
+              );
+            })
+            .filter(Boolean)}
         </MessageContent>
         {showActions && (
           <MessageActions text={textConcat} onRegenerate={onRegenerate} />

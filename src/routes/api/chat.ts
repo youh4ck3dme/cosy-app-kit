@@ -2,7 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
 import { createClient } from "@supabase/supabase-js";
 import type { Database, Json } from "@/integrations/supabase/types";
-import { createLovableAiGatewayProvider, DEFAULT_SYSTEM_PROMPT } from "@/lib/ai-gateway.server";
+import {
+  AVAILABLE_MODELS,
+  createMistralProvider,
+  DEFAULT_MODEL,
+  DEFAULT_SYSTEM_PROMPT,
+  formatAiGatewayError,
+} from "@/lib/ai-gateway.server";
 
 type Mode = "build" | "plan";
 type ChatBody = {
@@ -128,66 +134,108 @@ const BUILD_SUFFIX = `\n\nWhen the user asks for a webpage or component, respond
 - A multi-file artifact using \`\`\`lang path=<relative/path>\`\`\` blocks (each file is one block). Include an \`index.html\` as the entry file when possible.
 Prefer semantic HTML, inline <style>, tasteful modern design, and accessible markup.`;
 
+const KNOWN_MODEL_IDS = new Set(AVAILABLE_MODELS.map((m) => m.id));
+
+function resolveModelId(raw: string | null | undefined): string {
+  const id = (raw ?? "").trim();
+  if (id && KNOWN_MODEL_IDS.has(id)) return id;
+  // Unknown / deprecated model ids fall back so the stream can still start.
+  return DEFAULT_MODEL;
+}
+
 export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const body = (await request.json()) as ChatBody;
-        if (!body.threadId || !Array.isArray(body.messages)) {
-          return new Response("Missing threadId or messages", { status: 400 });
-        }
-        const mode: Mode = body.mode === "plan" ? "plan" : "build";
+        try {
+          const body = (await request.json()) as ChatBody;
+          if (!body.threadId || !Array.isArray(body.messages)) {
+            return new Response("Missing threadId or messages", { status: 400 });
+          }
+          const mode: Mode = body.mode === "plan" ? "plan" : "build";
 
-        const authHeader = request.headers.get("authorization");
-        if (!authHeader?.startsWith("Bearer ")) {
-          return new Response("Unauthorized", { status: 401 });
-        }
-        const token = authHeader.slice("Bearer ".length);
+          const authHeader = request.headers.get("authorization");
+          if (!authHeader?.startsWith("Bearer ")) {
+            return new Response("Unauthorized", { status: 401 });
+          }
+          const token = authHeader.slice("Bearer ".length);
 
-        const supabaseUrl = process.env.SUPABASE_URL!;
-        const supabasePub = process.env.SUPABASE_PUBLISHABLE_KEY!;
-        const lovableKey = process.env.LOVABLE_API_KEY;
-        if (!lovableKey) return new Response("Missing LOVABLE_API_KEY", { status: 500 });
+          const supabaseUrl = process.env.SUPABASE_URL;
+          const supabasePub = process.env.SUPABASE_PUBLISHABLE_KEY;
+          if (!supabaseUrl || !supabasePub) {
+            return new Response("Missing SUPABASE_URL or SUPABASE_PUBLISHABLE_KEY", {
+              status: 500,
+            });
+          }
 
-        const supabase = createClient<Database>(supabaseUrl, supabasePub, {
-          global: { headers: { Authorization: `Bearer ${token}` } },
-          auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
-        });
-        const { data: userData, error: userErr } = await supabase.auth.getUser(token);
-        if (userErr || !userData.user) return new Response("Unauthorized", { status: 401 });
-
-        const { data: thread, error: tErr } = await supabase
-          .from("threads")
-          .select("id,model,temperature,system_prompt,title")
-          .eq("id", body.threadId)
-          .single();
-        if (tErr || !thread) return new Response("Thread not found", { status: 404 });
-
-        const lastUser = [...body.messages].reverse().find((m) => m.role === "user");
-        if (lastUser) {
-          await supabase.from("messages").insert({
-            thread_id: thread.id,
-            role: "user",
-            parts: lastUser.parts as unknown as Json,
+          const supabase = createClient<Database>(supabaseUrl, supabasePub, {
+            global: { headers: { Authorization: `Bearer ${token}` } },
+            auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
           });
-        }
-        if (thread.title === "New chat" && lastUser) {
-          const title = messageText(lastUser).slice(0, 60).trim();
-          if (title) await supabase.from("threads").update({ title }).eq("id", thread.id);
-        }
+          const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+          if (userErr || !userData.user) return new Response("Unauthorized", { status: 401 });
 
-        const provider = createLovableAiGatewayProvider(lovableKey);
-        const model = provider(thread.model);
-        const baseSystem = thread.system_prompt || DEFAULT_SYSTEM_PROMPT;
-        const system = mode === "plan" ? `${baseSystem}\n\n${PLAN_PROMPT}` : `${baseSystem}${BUILD_SUFFIX}`;
+          // Direct Mistral only — never LOVABLE_API_KEY / OpenAI / ChatGPT.
+          const mistralKey = process.env.MISTRAL_API_KEY;
+          if (!mistralKey) {
+            return new Response(
+              "Missing MISTRAL_API_KEY. Set it in server env (local .env or Lovable Cloud → Secrets). Do not use Lovable AI Gateway keys.",
+              { status: 500 },
+            );
+          }
 
-        const result = streamText({
-          model,
-          system,
-          temperature: Number(thread.temperature ?? 0.7),
-          messages: await convertToModelMessages(body.messages as UIMessage[]),
-          onFinish: async ({ text }) => {
-            const { data: inserted } = await supabase
+          const { data: thread, error: tErr } = await supabase
+            .from("threads")
+            .select("id,model,temperature,system_prompt,title")
+            .eq("id", body.threadId)
+            .single();
+          if (tErr || !thread) return new Response("Thread not found", { status: 404 });
+
+          const lastUser = [...body.messages].reverse().find((m) => m.role === "user");
+          if (lastUser) {
+            const { error: insErr } = await supabase.from("messages").insert({
+              thread_id: thread.id,
+              role: "user",
+              parts: lastUser.parts as unknown as Json,
+            });
+            if (insErr) {
+              console.error("[api/chat] user message insert failed", insErr);
+            }
+          }
+          if (thread.title === "New chat" && lastUser) {
+            const title = messageText(lastUser).slice(0, 60).trim();
+            if (title) await supabase.from("threads").update({ title }).eq("id", thread.id);
+          }
+
+          const modelId = resolveModelId(thread.model);
+          if (modelId !== thread.model) {
+            console.warn(`[api/chat] unknown model "${thread.model}" → fallback "${modelId}"`);
+            // Persist fix so the next turn does not repeat the fallback.
+            await supabase.from("threads").update({ model: modelId }).eq("id", thread.id);
+          }
+
+          const provider = createMistralProvider(mistralKey);
+          const baseSystem = thread.system_prompt || DEFAULT_SYSTEM_PROMPT;
+          const system =
+            mode === "plan" ? `${baseSystem}\n\n${PLAN_PROMPT}` : `${baseSystem}${BUILD_SUFFIX}`;
+          const temperature = Number(thread.temperature ?? 0.7);
+
+          let modelMessages;
+          try {
+            modelMessages = await convertToModelMessages(body.messages as UIMessage[]);
+          } catch (convErr) {
+            console.error("[api/chat] convertToModelMessages failed", convErr);
+            return new Response(`Invalid messages payload: ${formatAiGatewayError(convErr)}`, {
+              status: 400,
+            });
+          }
+
+          const persistAssistant = async (text: string, usedModelId: string) => {
+            if (!text?.trim()) {
+              console.warn("[api/chat] empty assistant text", { usedModelId });
+              return;
+            }
+            const { data: inserted, error: aErr } = await supabase
               .from("messages")
               .insert({
                 thread_id: thread.id,
@@ -196,11 +244,15 @@ export const Route = createFileRoute("/api/chat")({
               })
               .select("id")
               .single();
+            if (aErr) {
+              console.error("[api/chat] assistant insert failed", aErr);
+              return;
+            }
 
             if (mode === "build") {
               const artifacts = extractArtifacts(text);
               if (artifacts.length) {
-                await supabase.from("artifacts").insert(
+                const { error: artErr } = await supabase.from("artifacts").insert(
                   artifacts.map((a) => ({
                     thread_id: thread.id,
                     message_id: inserted?.id ?? null,
@@ -211,15 +263,51 @@ export const Route = createFileRoute("/api/chat")({
                     entry_path: a.entry_path,
                   })),
                 );
+                if (artErr) console.error("[api/chat] artifacts insert failed", artErr);
               }
             }
-            await supabase.from("threads").update({ updated_at: new Date().toISOString() }).eq("id", thread.id);
-          },
-        });
+            await supabase
+              .from("threads")
+              .update({ updated_at: new Date().toISOString(), model: usedModelId })
+              .eq("id", thread.id);
+          };
 
-        return result.toUIMessageStreamResponse({
-          originalMessages: body.messages as UIMessage[],
-        });
+          // Prefer non-streaming preflight only when we need a safe fallback path:
+          // streamText itself surfaces errors via the UI stream.
+          const runStream = (usedModelId: string) =>
+            streamText({
+              model: provider(usedModelId),
+              system,
+              temperature,
+              messages: modelMessages,
+              onError: ({ error }) => {
+                console.error("[api/chat] streamText error", {
+                  modelId: usedModelId,
+                  threadId: thread.id,
+                  error,
+                });
+              },
+              onFinish: async ({ text }) => {
+                try {
+                  await persistAssistant(text, usedModelId);
+                } catch (finishErr) {
+                  console.error("[api/chat] onFinish failed", finishErr);
+                }
+              },
+            });
+
+          const activeModelId = modelId;
+          const result = runStream(activeModelId);
+
+          return result.toUIMessageStreamResponse({
+            originalMessages: body.messages as UIMessage[],
+            // AI SDK default hides all errors as "An error occurred." — surface actionable text.
+            onError: (error) => formatAiGatewayError(error),
+          });
+        } catch (err) {
+          console.error("[api/chat] unhandled", err);
+          return new Response(formatAiGatewayError(err), { status: 500 });
+        }
       },
     },
   },

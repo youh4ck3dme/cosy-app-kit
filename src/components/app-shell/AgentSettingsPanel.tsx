@@ -2,7 +2,12 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getAgentSettings, saveAgentSettings } from "@/lib/threads.functions";
-import { AVAILABLE_MODELS, DEFAULT_MODEL, DEFAULT_SYSTEM_PROMPT, DEFAULT_TEMPERATURE } from "@/lib/ai-gateway.server";
+import {
+  AVAILABLE_MODELS,
+  DEFAULT_MODEL,
+  DEFAULT_SYSTEM_PROMPT,
+  DEFAULT_TEMPERATURE,
+} from "@/lib/models";
 import { Chip } from "./Chip";
 import { toast } from "sonner";
 import { Loader2, RotateCcw } from "lucide-react";
@@ -70,7 +75,8 @@ export function AgentSettingsPanel() {
       <section>
         <SectionTitle>Model</SectionTitle>
         <p className="mb-3 text-xs text-muted-foreground">
-          Default model for new chats. Change per-thread from the header. Click a selected chip to reset to default.
+          Default model for new chats. Change per-thread from the header. Click a selected chip to
+          reset to default.
         </p>
         <div className="flex flex-wrap gap-2">
           {AVAILABLE_MODELS.map((m) => {
