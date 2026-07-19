@@ -172,11 +172,17 @@ export const Route = createFileRoute("/api/chat")({
           if (userErr || !userData.user) return new Response("Unauthorized", { status: 401 });
 
           // Direct Mistral only — never LOVABLE_API_KEY / OpenAI / ChatGPT.
-          const mistralKey = process.env.MISTRAL_API_KEY;
+          const mistralKey = (process.env.MISTRAL_API_KEY ?? process.env.MISTRAL_KEY ?? "").trim();
           if (!mistralKey) {
             return new Response(
-              "Missing MISTRAL_API_KEY. Set it in server env (local .env or Lovable Cloud → Secrets). Do not use Lovable AI Gateway keys.",
-              { status: 500 },
+              "Missing MISTRAL_API_KEY. Lovable Cloud → Secrets → add MISTRAL_API_KEY (from console.mistral.ai). Do not use LOVABLE_API_KEY / OpenAI.",
+              {
+                status: 500,
+                headers: {
+                  "content-type": "text/plain; charset=utf-8",
+                  "x-builder-ai": "mistral-direct-1",
+                },
+              },
             );
           }
 
