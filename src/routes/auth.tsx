@@ -16,26 +16,39 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const navigate = useNavigate();
   const router = useRouter();
+  const { next } = Route.useSearch();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const goNext = () => {
+    if (next) {
+      window.location.href = next;
+    } else {
+      navigate({ to: "/chat" });
+    }
+  };
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/chat" });
+      if (data.session) {
+        if (next) window.location.href = next;
+        else navigate({ to: "/chat" });
+      }
     });
-  }, [navigate]);
+  }, [navigate, next]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       if (mode === "signup") {
+        const redirectPath = next || "/chat";
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${window.location.origin}/chat` },
+          options: { emailRedirectTo: `${window.location.origin}${redirectPath}` },
         });
         if (error) throw error;
         toast.success("Account created. You can sign in now.");
@@ -44,7 +57,7 @@ function AuthPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         await router.invalidate();
-        navigate({ to: "/chat" });
+        goNext();
       }
     } catch (err) {
       toast.error((err as Error).message);
@@ -55,8 +68,11 @@ function AuthPage() {
 
   const google = async () => {
     setLoading(true);
+    const redirectUri = next
+      ? `${window.location.origin}${next}`
+      : window.location.origin;
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+      redirect_uri: redirectUri,
     });
     if (result.error) {
       toast.error(result.error.message);
@@ -65,8 +81,9 @@ function AuthPage() {
     }
     if (result.redirected) return;
     await router.invalidate();
-    navigate({ to: "/chat" });
+    goNext();
   };
+
 
   return (
     <div className="relative min-h-screen bg-background bg-grid-pattern">
