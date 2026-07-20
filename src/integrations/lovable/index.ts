@@ -1,13 +1,17 @@
 // Local Google OAuth without popups.
-// Lovable broker rejects redirect_uri=http://localhost → full-page via published
-// origin, then /auth bridges tokens back to localhost (see auth.tsx).
+// Lovable broker rejects redirect_uri=http://localhost → stage on published
+// origin (sessionStorage), complete OAuth there, then bounce tokens home.
 
 import { createLovableAuth } from "@lovable.dev/cloud-auth-js";
 import { supabase } from "../supabase/client";
 
 export const PUBLISHED_ORIGIN = "https://cosy-app-kit.lovable.app";
 
-/** RFC1918 / loopback — used for LAN phone testing (e.g. http://192.168.0.4:8080). */
+/** sessionStorage keys on the published domain (survive OAuth round-trip). */
+export const OAUTH_SS_LR = "builder_oauth_lr";
+export const OAUTH_SS_NEXT = "builder_oauth_next";
+
+/** RFC1918 / loopback — LAN phone testing (e.g. http://192.168.0.4:8080). */
 function isPrivateOrLoopbackHost(hostname: string): boolean {
   const h = hostname.toLowerCase().replace(/^\[|\]$/g, "");
   if (h === "localhost" || h === "127.0.0.1" || h === "::1") return true;
@@ -124,14 +128,63 @@ export function stripOAuthParamsFromUrl() {
     "provider_token",
     "provider_refresh_token",
     "type",
+    "oauth_stage",
+    "lr",
+    "next",
+    "provider",
   ].forEach((k) => url.searchParams.delete(k));
   url.hash = "";
   window.history.replaceState({}, document.title, url.pathname + url.search);
 }
 
+function readStagedLocalReturn(): { lr: string; next: string } | null {
+  try {
+    const lr = sessionStorage.getItem(OAUTH_SS_LR);
+    if (!lr || !isLocalDevReturnUrl(lr)) return null;
+    const next = sessionStorage.getItem(OAUTH_SS_NEXT) || "/chat";
+    return { lr, next: next.startsWith("/") ? next : "/chat" };
+  } catch {
+    return null;
+  }
+}
+
+export function clearStagedLocalReturn() {
+  try {
+    sessionStorage.removeItem(OAUTH_SS_LR);
+    sessionStorage.removeItem(OAUTH_SS_NEXT);
+  } catch {
+    /* ignore */
+  }
+}
+
 /**
- * Full-page Google OAuth for localhost — NO popup.
- * Lands on published /auth first (allowlisted redirect_uri), then bridges home.
+ * Bounce tokens from published origin → local /auth#tokens.
+ * Used when OAuth finished on production (hash tokens or just-set session).
+ */
+export function bounceTokensToLocalDev(opts: {
+  access_token: string;
+  refresh_token: string;
+  state?: string;
+  lr: string;
+  next?: string;
+}): void {
+  const target = new URL(opts.lr);
+  // Always land on /auth on the local origin so bridge can setSession.
+  target.pathname = "/auth";
+  target.search = "";
+  const hash = new URLSearchParams({
+    access_token: opts.access_token,
+    refresh_token: opts.refresh_token,
+  });
+  if (opts.state) hash.set("state", opts.state);
+  if (opts.next) hash.set("next", opts.next);
+  clearStagedLocalReturn();
+  window.location.replace(`${target.origin}${target.pathname}#${hash.toString()}`);
+}
+
+/**
+ * Local Google: hop to published /auth to STAGE return URL in sessionStorage,
+ * then start OAuth with allowlisted redirect_uri. Survives when broker drops custom state.
  */
 function signInWithOAuthLocalFullPage(
   provider: "google" | "apple" | "microsoft" | "lovable",
@@ -142,23 +195,47 @@ function signInWithOAuthLocalFullPage(
     (opts?.redirect_uri?.startsWith(window.location.origin)
       ? opts.redirect_uri.slice(window.location.origin.length) || "/chat"
       : "/chat");
+  const lr = `${window.location.origin}/auth`;
+  const next = nextPath.startsWith("/") ? nextPath : "/chat";
+
+  const stage = new URL(`${PUBLISHED_ORIGIN}/auth`);
+  stage.searchParams.set("oauth_stage", "1");
+  stage.searchParams.set("lr", lr);
+  stage.searchParams.set("next", next);
+  stage.searchParams.set("provider", provider);
+  window.location.href = stage.toString();
+  return { error: null, redirected: true };
+}
+
+/**
+ * On published origin: after oauth_stage staging, kick broker with allowlisted redirect.
+ */
+export function startPublishedOAuthAfterStage(
+  provider: "google" | "apple" | "microsoft" | "lovable",
+  lr: string,
+  next: string,
+): void {
+  try {
+    sessionStorage.setItem(OAUTH_SS_LR, lr);
+    sessionStorage.setItem(OAUTH_SS_NEXT, next);
+  } catch {
+    /* private mode */
+  }
 
   const state = encodeOAuthState({
     v: 1,
     n: generateNonce(),
-    lr: `${window.location.origin}/auth`,
-    next: nextPath.startsWith("/") ? nextPath : "/chat",
+    lr,
+    next,
   });
 
   const params = new URLSearchParams({
     provider,
-    // Must be allowlisted production URL — not localhost
     redirect_uri: `${PUBLISHED_ORIGIN}/auth`,
     state,
   });
 
   window.location.href = `${PUBLISHED_ORIGIN}/~oauth/initiate?${params.toString()}`;
-  return { error: null, redirected: true };
 }
 
 export const lovable = {
@@ -167,13 +244,13 @@ export const lovable = {
       provider: "google" | "apple" | "microsoft" | "lovable",
       opts?: SignInOptions,
     ) => {
-      // Local Google: full-page, no popup (popups blocked / user preference).
+      // Local Google: stage on published domain first (sessionStorage survives OAuth).
       if (isLocalHost() && provider === "google") {
         return signInWithOAuthLocalFullPage(provider, opts);
       }
 
       const result = await lovableAuth.signInWithOAuth(provider, {
-        redirect_uri: opts?.redirect_uri,
+        redirect_uri: opts?.redirect_uri ?? `${window.location.origin}/auth`,
         extraParams: {
           ...opts?.extraParams,
         },
@@ -196,3 +273,5 @@ export const lovable = {
     },
   },
 };
+
+export { readStagedLocalReturn };
