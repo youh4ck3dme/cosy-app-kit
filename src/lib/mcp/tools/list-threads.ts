@@ -14,7 +14,13 @@ export default defineTool({
   title: "List chat threads",
   description: "List the signed-in user's chat threads, most recently updated first.",
   inputSchema: {
-    limit: z.number().int().min(1).max(100).optional().describe("Max threads to return. Default 20."),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .optional()
+      .describe("Max threads to return. Default 20."),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ limit }, ctx) => {

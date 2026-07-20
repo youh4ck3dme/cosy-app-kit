@@ -48,9 +48,7 @@ export function AppDialog({
         <div className="flex items-start justify-between border-b border-border-subtle px-6 py-4">
           <div>
             {title && <h2 className="text-base font-semibold tracking-tight">{title}</h2>}
-            {description && (
-              <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
-            )}
+            {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
           </div>
           <button
             onClick={onClose}

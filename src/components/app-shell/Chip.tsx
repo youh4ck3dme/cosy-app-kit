@@ -49,11 +49,7 @@ export function ChipFilter<T extends string>({
       {options.map((opt) => {
         const active = value === opt.value;
         return (
-          <Chip
-            key={opt.value}
-            active={active}
-            onClick={() => onChange(active ? null : opt.value)}
-          >
+          <Chip key={opt.value} active={active} onClick={() => onChange(active ? null : opt.value)}>
             {opt.label}
           </Chip>
         );

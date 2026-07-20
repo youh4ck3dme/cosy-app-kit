@@ -2,7 +2,7 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { useEffect, useMemo, useState } from "react";
-import { Monitor, Smartphone, Tablet, ExternalLink } from "lucide-react";
+import { Monitor, Smartphone, Tablet, ExternalLink, Check, Link2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +17,8 @@ const getPublicArtifact = createServerFn({ method: "GET" })
       global: {
         fetch: (input, init) => {
           const h = new Headers(init?.headers);
-          if (key.startsWith("sb_") && h.get("Authorization") === `Bearer ${key}`) h.delete("Authorization");
+          if (key.startsWith("sb_") && h.get("Authorization") === `Bearer ${key}`)
+            h.delete("Authorization");
           h.set("apikey", key);
           return fetch(input, { ...init, headers: h });
         },
@@ -32,9 +33,13 @@ const getPublicArtifact = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     if (!row) return null;
     return row as {
-      id: string; title: string; kind: string; content: string;
+      id: string;
+      title: string;
+      kind: string;
+      content: string;
       files: Array<{ path: string; language: string; content: string }> | null;
-      entry_path: string | null; created_at: string;
+      entry_path: string | null;
+      created_at: string;
     };
   });
 
@@ -57,7 +62,9 @@ export const Route = createFileRoute("/a/$artifactId")({
     <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
       <div className="text-center">
         <div className="font-mono text-6xl font-bold text-muted-foreground">404</div>
-        <p className="mt-3 text-sm text-muted-foreground">This artifact isn't public or doesn't exist.</p>
+        <p className="mt-3 text-sm text-muted-foreground">
+          This artifact isn't public or doesn't exist.
+        </p>
       </div>
     </div>
   ),
@@ -70,18 +77,29 @@ const WIDTHS: Record<Device, number> = { desktop: 1200, tablet: 768, mobile: 390
 function PublicArtifactPage() {
   const artifact = Route.useLoaderData();
   const [device, setDevice] = useState<Device>("desktop");
+  const [copied, setCopied] = useState(false);
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      // Clipboard can be unavailable in some contexts; the URL bar still works.
+    }
+  };
   useEffect(() => {
     if (!artifact) throw notFound();
   }, [artifact]);
   if (!artifact) return null;
 
-  const files = artifact.files && artifact.files.length > 0
-    ? artifact.files
-    : [{ path: "index.html", language: artifact.kind, content: artifact.content }];
+  const files =
+    artifact.files && artifact.files.length > 0
+      ? artifact.files
+      : [{ path: "index.html", language: artifact.kind, content: artifact.content }];
   const entry = files.find((f: { path: string }) => f.path === artifact.entry_path) ?? files[0];
   const isHtml = artifact.kind === "html" || /\.html?$/i.test(entry.path);
 
-  const srcDoc = useMemo(() => (isHtml ? entry.content : null), [entry, isHtml]);
+  const srcDoc = isHtml ? entry.content : null;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -104,7 +122,9 @@ function PublicArtifactPage() {
                     onClick={() => setDevice(d)}
                     className={cn(
                       "flex items-center justify-center rounded-md p-1.5",
-                      active ? "bg-surface-3 text-foreground" : "text-muted-foreground hover:text-foreground",
+                      active
+                        ? "bg-surface-3 text-foreground"
+                        : "text-muted-foreground hover:text-foreground",
                     )}
                   >
                     <Icon className="h-3.5 w-3.5" />
@@ -113,6 +133,18 @@ function PublicArtifactPage() {
               })}
             </div>
           )}
+          <button
+            onClick={copyLink}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-surface-1/70 px-3 py-1.5 text-xs font-medium hover:bg-surface-2"
+            aria-label={copied ? "Link copied" : "Copy link"}
+          >
+            {copied ? (
+              <Check className="h-3 w-3 text-accent-primary" />
+            ) : (
+              <Link2 className="h-3 w-3" />
+            )}
+            <span className="hidden sm:inline">{copied ? "Copied" : "Copy link"}</span>
+          </button>
           <a
             href="/"
             className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-surface-1/70 px-3 py-1.5 text-xs font-medium hover:bg-surface-2"

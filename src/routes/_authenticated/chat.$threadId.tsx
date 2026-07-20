@@ -1,12 +1,20 @@
-import { createFileRoute, useParams } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { ArrowDown } from "lucide-react";
+import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 
-import { getThread, updateThreadModel } from "@/lib/threads.functions";
+import { getThread, listThreads, updateThreadModel } from "@/lib/threads.functions";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useGlobalShortcuts } from "@/hooks/use-global-shortcuts";
+import { useCreateThread } from "@/hooks/use-thread-mutations";
+import { CommandPalette } from "@/components/app-shell/CommandPalette";
+import { ShortcutsDialog } from "@/components/app-shell/ShortcutsDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/app-shell/Header";
 import { ThreadList } from "@/components/app-shell/ThreadList";
@@ -14,16 +22,22 @@ import { Canvas, type Artifact } from "@/components/app-shell/Canvas";
 import { Composer, type BuilderMode } from "@/components/app-shell/Composer";
 import { MessageList } from "@/components/app-shell/MessageList";
 import { AppDialog } from "@/components/app-shell/AppDialog";
-import { AgentSettingsPanel } from "@/components/app-shell/AgentSettingsPanel";
 import { cn } from "@/lib/utils";
+
+// Settings are rarely opened — keep the panel out of the main chunk.
+const AgentSettingsPanel = lazy(() =>
+  import("@/components/app-shell/AgentSettingsPanel").then((m) => ({
+    default: m.AgentSettingsPanel,
+  })),
+);
 
 export const Route = createFileRoute("/_authenticated/chat/$threadId")({
   component: ChatPage,
 });
 
-
 function ChatPage() {
   const { threadId } = useParams({ from: "/_authenticated/chat/$threadId" });
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const load = useServerFn(getThread);
   const updateModel = useServerFn(updateThreadModel);
@@ -43,6 +57,8 @@ function ChatPage() {
   }, [data]);
 
   const [showSettings, setShowSettings] = useState(false);
+  const [showPalette, setShowPalette] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const [view, setView] = useState<"chat" | "preview">("chat");
   const [activeArtifactId, setActiveArtifactId] = useState<string | null>(null);
   const [mode, setMode] = useState<BuilderMode>("Build");
@@ -50,8 +66,7 @@ function ChatPage() {
   useEffect(() => {
     modeRef.current = mode;
   }, [mode]);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const isMobile = useIsMobile();
 
   const transport = useMemo(
     () =>
@@ -74,7 +89,13 @@ function ChatPage() {
     [threadId],
   );
 
-  const { messages, sendMessage, status, regenerate, error: chatError } = useChat({
+  const {
+    messages,
+    sendMessage,
+    status,
+    regenerate,
+    error: chatError,
+  } = useChat({
     id: threadId,
     messages: initialMessages,
     transport,
@@ -109,12 +130,6 @@ function ChatPage() {
     toast.error(msg, { duration: sticky ? 10_000 : 5_000, id: `chat-err-${threadId}` });
   }, [status, chatError, messages, threadId]);
 
-
-  // Auto scroll
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, status]);
-
   const artifacts = (data?.artifacts ?? []) as Artifact[];
   useEffect(() => {
     if (!activeArtifactId && artifacts.length > 0) setActiveArtifactId(artifacts[0].id);
@@ -124,10 +139,41 @@ function ChatPage() {
   // Switch to preview automatically the first time an artifact appears on mobile
   const artifactCount = artifacts.length;
   useEffect(() => {
-    if (artifactCount > 0 && window.matchMedia("(max-width: 767px)").matches) {
+    if (artifactCount > 0 && isMobile) {
       setView("preview");
     }
+    // Only react to the artifact count — a later viewport resize shouldn't hijack the view.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [artifactCount]);
+
+  // Global keyboard shortcuts + command palette
+  const listThreadsFn = useServerFn(listThreads);
+  const { data: threadListData } = useQuery({
+    queryKey: ["threads"],
+    queryFn: () => listThreadsFn(),
+  });
+  const createThreadMutation = useCreateThread();
+  const focusComposer = () => {
+    document.querySelector<HTMLTextAreaElement>("[data-composer] textarea")?.focus();
+  };
+  const goToSiblingThread = (dir: -1 | 1) => {
+    const threads = (threadListData ?? []) as { id: string }[];
+    const idx = threads.findIndex((t) => t.id === threadId);
+    const next = threads[idx + dir];
+    if (next) navigate({ to: "/chat/$threadId", params: { threadId: next.id } });
+  };
+  useGlobalShortcuts({
+    onCommandPalette: () => setShowPalette((v) => !v),
+    onNewChat: () => createThreadMutation.mutate(),
+    onFocusComposer: () => {
+      setView("chat");
+      focusComposer();
+    },
+    onToggleView: () => setView((v) => (v === "chat" ? "preview" : "chat")),
+    onPrevThread: () => goToSiblingThread(-1),
+    onNextThread: () => goToSiblingThread(1),
+    onShowShortcuts: () => setShowShortcuts(true),
+  });
 
   const handleModelChange = async (model: string) => {
     await updateModel({ data: { threadId, model } });
@@ -146,6 +192,12 @@ function ChatPage() {
         onOpenSettings={() => setShowSettings(true)}
         view={view}
         onViewChange={setView}
+        publishArtifact={
+          activeArtifact
+            ? { id: activeArtifact.id, isPublic: Boolean(activeArtifact.is_public) }
+            : null
+        }
+        onPublished={() => qc.invalidateQueries({ queryKey: ["thread", threadId] })}
       />
 
       <div className="flex min-h-0 flex-1">
@@ -156,28 +208,36 @@ function ChatPage() {
 
         {/* Chat pane */}
         <section
+          id="main-content"
           className={cn(
             "flex min-h-0 w-full flex-col border-r border-border md:w-[440px] lg:w-[520px] md:flex",
             view === "chat" ? "flex" : "hidden md:flex",
           )}
         >
-          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 sm:px-6">
-            {isLoading ? (
-              <div className="pt-10 text-center text-sm text-muted-foreground">Loading chat…</div>
-            ) : (
-              <MessageList
-                messages={messages}
-                status={status}
-                onRegenerate={() => regenerate()}
-                onPickPrompt={(p) => sendMessage({ text: p })}
-                onFocusCanvas={() => {
-                  setView("preview");
-                  if (artifacts[0]) setActiveArtifactId(artifacts[0].id);
-                }}
-              />
-            )}
-          </div>
-          <div className="flex-none p-3 sm:p-4">
+          {/* StickToBottom scrolls internally; the root stays the positioning context for the pill. */}
+          <StickToBottom className="relative min-h-0 flex-1" resize="smooth" initial="instant">
+            <StickToBottom.Content className="px-4 sm:px-6">
+              {isLoading ? (
+                <ChatSkeleton />
+              ) : (
+                <MessageList
+                  messages={messages}
+                  status={status}
+                  onRegenerate={() => regenerate()}
+                  onPickPrompt={(p) => sendMessage({ text: p })}
+                  onFocusCanvas={() => {
+                    setView("preview");
+                    if (artifacts[0]) setActiveArtifactId(artifacts[0].id);
+                  }}
+                />
+              )}
+            </StickToBottom.Content>
+            <JumpToLatest />
+          </StickToBottom>
+          <div
+            data-composer
+            className="flex-none p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4"
+          >
             <Composer
               onSend={(text) => sendMessage({ text })}
               disabled={streaming}
@@ -194,7 +254,6 @@ function ChatPage() {
                   : []
               }
             />
-            <input ref={inputRef as unknown as React.RefObject<HTMLInputElement>} className="sr-only" tabIndex={-1} aria-hidden />
           </div>
         </section>
 
@@ -236,8 +295,74 @@ function ChatPage() {
         title="Agent settings"
         description="Configure model, temperature, system prompt, and tools."
       >
-        <AgentSettingsPanel />
+        <Suspense
+          fallback={
+            <div className="space-y-4" aria-hidden>
+              <Skeleton className="h-8 w-2/3 rounded-lg" />
+              <Skeleton className="h-24 w-full rounded-lg" />
+            </div>
+          }
+        >
+          <AgentSettingsPanel />
+        </Suspense>
       </AppDialog>
+
+      <CommandPalette
+        open={showPalette}
+        onOpenChange={setShowPalette}
+        onToggleView={() => setView((v) => (v === "chat" ? "preview" : "chat"))}
+        onOpenSettings={() => setShowSettings(true)}
+        onShowShortcuts={() => setShowShortcuts(true)}
+        onPickTemplate={(prompt) => {
+          setView("chat");
+          sendMessage({ text: prompt });
+        }}
+      />
+      <ShortcutsDialog open={showShortcuts} onOpenChange={setShowShortcuts} />
     </div>
+  );
+}
+
+function ChatSkeleton() {
+  return (
+    <div className="stagger flex flex-col gap-6 py-6" aria-hidden>
+      <div className="flex justify-end">
+        <Skeleton className="h-10 w-3/5 rounded-2xl" />
+      </div>
+      <div className="flex items-start gap-3">
+        <Skeleton className="h-[26px] w-[26px] shrink-0 rounded-lg" />
+        <div className="flex-1 space-y-2">
+          <Skeleton className="h-4 w-11/12 rounded" />
+          <Skeleton className="h-4 w-4/5 rounded" />
+          <Skeleton className="h-4 w-2/3 rounded" />
+        </div>
+      </div>
+      <div className="flex justify-end">
+        <Skeleton className="h-8 w-2/5 rounded-2xl" />
+      </div>
+      <div className="flex items-start gap-3">
+        <Skeleton className="h-[26px] w-[26px] shrink-0 rounded-lg" />
+        <div className="flex-1 space-y-2">
+          <Skeleton className="h-4 w-3/4 rounded" />
+          <Skeleton className="h-4 w-1/2 rounded" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function JumpToLatest() {
+  const { isAtBottom, scrollToBottom } = useStickToBottomContext();
+  if (isAtBottom) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => scrollToBottom()}
+      className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-border-subtle bg-popover/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-elevated backdrop-blur transition-all hover:bg-surface-2 motion-safe:animate-in-scale"
+      aria-label="Jump to latest message"
+    >
+      <ArrowDown className="h-3.5 w-3.5" />
+      Latest
+    </button>
   );
 }

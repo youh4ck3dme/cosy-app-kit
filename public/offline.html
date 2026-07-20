@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Offline — Builder</title>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        background: #0e0f14;
+        color: #f4f4f6;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        text-align: center;
+        padding: 24px;
+      }
+      .mark {
+        width: 56px; height: 56px; border-radius: 16px; margin: 0 auto 20px;
+        background: linear-gradient(135deg, #6d5ef2, #8b7bff);
+        display: grid; place-items: center;
+        font: 700 22px/1 ui-monospace, monospace; color: #fff;
+      }
+      h1 { font-size: 20px; margin: 0 0 8px; letter-spacing: -0.02em; }
+      p { margin: 0 0 20px; font-size: 14px; color: #9a9aa5; max-width: 32ch; }
+      button {
+        appearance: none; border: 0; cursor: pointer;
+        background: #f4f4f6; color: #15161c;
+        font: 600 14px/1 inherit; padding: 10px 20px; border-radius: 999px;
+      }
+      button:active { transform: scale(0.97); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="mark" aria-hidden="true">&gt;_</div>
+      <h1>You're offline</h1>
+      <p>Builder needs a connection to reach your chats and artifacts. Reconnect and try again.</p>
+      <button onclick="location.reload()">Retry</button>
+    </main>
+  </body>
+</html>
