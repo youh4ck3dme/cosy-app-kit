@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "smoke": "bun scripts/smoke.ts",
     "format": "prettier --write ."
   },
   "dependencies": {

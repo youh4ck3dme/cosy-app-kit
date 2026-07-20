@@ -54,41 +54,54 @@ type ConsoleFilter = "all" | "log" | "warn" | "error";
 
 const WIDTHS: Record<Device, number> = { desktop: 1200, tablet: 768, mobile: 420 };
 
-const PREVIEW_BRIDGE = `<script>(function(){
-  const send = (level, args) => {
-    try { parent.postMessage({ __builder_console: true, level, args: args.map(a => {
+/**
+ * Sandboxed iframe uses srcDoc (opaque origin "null") so postMessage target is "*".
+ * Authenticate with a per-mount random token + event.source === iframe.contentWindow.
+ */
+function previewBridge(token: string): string {
+  const t = JSON.stringify(token);
+  return `<script>(function(){
+  var TOKEN = ${t};
+  var sendConsole = function(level, args) {
+    try { parent.postMessage({ __builder_console: TOKEN, level: level, args: args.map(function(a) {
       try { return typeof a === 'string' ? a : JSON.stringify(a); } catch(e) { return String(a); }
     }) }, '*'); } catch(e) {}
   };
-  ['log','warn','error'].forEach(l => {
-    const orig = console[l];
-    console[l] = function(){ send(l, [].slice.call(arguments)); orig.apply(console, arguments); };
+  ['log','warn','error'].forEach(function(l) {
+    var orig = console[l];
+    console[l] = function(){ sendConsole(l, [].slice.call(arguments)); orig.apply(console, arguments); };
   });
-  window.addEventListener('error', e => send('error', [e.message + ' @ ' + (e.filename||'') + ':' + e.lineno]));
-  window.addEventListener('unhandledrejection', e => send('error', ['Unhandled: ' + (e.reason && e.reason.message || e.reason)]));
-  const origFetch = window.fetch.bind(window);
+  window.addEventListener('error', function(e) {
+    sendConsole('error', [e.message + ' @ ' + (e.filename||'') + ':' + e.lineno]);
+  });
+  window.addEventListener('unhandledrejection', function(e) {
+    sendConsole('error', ['Unhandled: ' + (e.reason && e.reason.message || e.reason)]);
+  });
+  var origFetch = window.fetch.bind(window);
   window.fetch = function() {
-    const args = arguments;
-    const input = args[0];
-    const init = args[1] || {};
-    const method = (init.method || 'GET').toUpperCase();
-    const url = typeof input === 'string' ? input : (input && input.url) || String(input);
-    const started = performance.now();
-    const id = Math.random().toString(36).slice(2);
-    try { parent.postMessage({ __builder_network: true, phase: 'start', id, method, url }, '*'); } catch(e) {}
+    var args = arguments;
+    var input = args[0];
+    var init = args[1] || {};
+    var method = (init.method || 'GET').toUpperCase();
+    var url = typeof input === 'string' ? input : (input && input.url) || String(input);
+    var started = performance.now();
+    var id = Math.random().toString(36).slice(2);
+    try { parent.postMessage({ __builder_network: TOKEN, phase: 'start', id: id, method: method, url: url }, '*'); } catch(e) {}
     return origFetch.apply(window, args).then(function(res) {
-      try { parent.postMessage({ __builder_network: true, phase: 'end', id, method, url, status: res.status, ms: Math.round(performance.now() - started) }, '*'); } catch(e) {}
+      try { parent.postMessage({ __builder_network: TOKEN, phase: 'end', id: id, method: method, url: url, status: res.status, ms: Math.round(performance.now() - started) }, '*'); } catch(e) {}
       return res;
     }).catch(function(err) {
-      try { parent.postMessage({ __builder_network: true, phase: 'end', id, method, url, status: 0, ms: Math.round(performance.now() - started) }, '*'); } catch(e) {}
+      try { parent.postMessage({ __builder_network: TOKEN, phase: 'end', id: id, method: method, url: url, status: 0, ms: Math.round(performance.now() - started) }, '*'); } catch(e) {}
       throw err;
     });
   };
 })();</script>`;
+}
 
-function injectBridge(html: string): string {
-  if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, `${PREVIEW_BRIDGE}</body>`);
-  return `${html}\n${PREVIEW_BRIDGE}`;
+function injectBridge(html: string, token: string): string {
+  const bridge = previewBridge(token);
+  if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, `${bridge}</body>`);
+  return `${html}\n${bridge}`;
 }
 
 function fileList(a: Artifact): ArtifactFile[] {
@@ -130,6 +143,12 @@ export function Canvas({
   const [undoStack, setUndoStack] = useState<Record<string, string>[]>([]);
   const [diffMode, setDiffMode] = useState<"local" | "model">("local");
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  /** Per-mount token so we ignore console/network spam from other frames. */
+  const bridgeTokenRef = useRef(
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `tok-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
   const share = useServerFn(setArtifactPublic);
   const saveFiles = useServerFn(updateArtifactFiles);
 
@@ -181,14 +200,19 @@ export function Canvas({
     const entry = files.find((f) => f.path === artifact.entry_path) ?? files[0];
     if (!entry) return null;
     if (artifact.kind === "html" || /\.html?$/i.test(entry.path)) {
-      return injectBridge(entry.content);
+      return injectBridge(entry.content, bridgeTokenRef.current);
     }
     return null;
-  }, [artifact, files]);
+  }, [artifact, files, key]);
 
   const refresh = () => {
     setLogs([]);
     setNetwork([]);
+    // New token on hard refresh so stale iframe messages cannot land.
+    bridgeTokenRef.current =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `tok-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     setKey((k) => k + 1);
   };
 
@@ -246,16 +270,24 @@ export function Canvas({
     setNetwork([]);
     setEdits({});
     setUndoStack([]);
+    bridgeTokenRef.current =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `tok-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     setKey((k) => k + 1);
   }, [artifact?.id]);
 
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
+      // Only accept messages from our preview iframe + matching mount token.
+      if (iframeRef.current && e.source !== iframeRef.current.contentWindow) return;
       const d = e.data;
-      if (d && d.__builder_console) {
+      if (!d || typeof d !== "object") return;
+      const token = bridgeTokenRef.current;
+      if (d.__builder_console === token) {
         setLogs((prev) => [...prev.slice(-199), { level: d.level, args: d.args, ts: Date.now() }]);
       }
-      if (d && d.__builder_network) {
+      if (d.__builder_network === token) {
         if (d.phase === "start") {
           setNetwork((prev) =>
             [

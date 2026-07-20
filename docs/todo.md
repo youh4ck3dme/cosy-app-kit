@@ -44,12 +44,14 @@
 
 ---
 
-## Human next
+## Human next — **kedy** (detail: [`HUMAN_NOW.md`](./HUMAN_NOW.md))
 
-1. `git push origin developeredit` (write credentials)  
-2. Apply [`migrations.md`](./migrations.md) — `20260720120000_artifact_versions.sql`  
-3. [`smoke-checklist.md`](./smoke-checklist.md)  
-4. Optional: BPI samples → `progress.md`  
+| # | Akcia | Kedy |
+|---|--------|------|
+| 1 | `git push origin developeredit` | Hneď (agent push často 403) |
+| 2 | SQL `20260720120000` | Pred restore versions |
+| 3 | Smoke checklist | Pred demom |
+| 4 | BPI samples | Keď chceš skóre v progress.md |
 
 ---
 

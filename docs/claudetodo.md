@@ -5,7 +5,7 @@
 > **Claude source:** `origin/claude/app-quality-overhaul-y6cv3u` (already on remote history — we **port slices**, we do not re-merge whole PR).  
 > **Sister boards:** [`todo.md`](./todo.md) · [`groktodo.md`](./groktodo.md) · [`cursortodo.md`](./cursortodo.md)  
 > **Inventory:** [`claude-pr3-port.md`](./claude-pr3-port.md) · **Merge sim:** [`merge-sim-report.md`](./merge-sim-report.md)  
-> **Last sync:** 2026-07-20 — S1 PWA + S2 haptics done; S3 optimistic threads in progress
+> **Last sync:** 2026-07-20 — S1–S4 + S6 done; S5/S7 remain
 
 ---
 
@@ -27,9 +27,9 @@
 | **S1** | PWA (manifest, sw, offline, icons, register-sw) | ✅ | Grok |
 | **S2** | haptics + motion libs; haptic on send | ✅ | Grok |
 | **S3** | optimistic thread create/delete + AlertDialog | ✅ / this session | Grok |
-| **S4** | MessageList stick-to-bottom / Latest pill | ☐ | Cursor or Grok |
+| **S4** | MessageList stick-to-bottom / Latest pill | ✅ | Cursor |
 | **S5** | Canvas postMessage token (console bridge) | ☐ | Grok careful |
-| **S6** | Shortcut **gaps only** (not full Claude palette) | ☐ | Cursor |
+| **S6** | Shortcut **gaps only** (not full Claude palette) | ✅ | Cursor |
 | **S7** | `scripts/smoke.ts` + selected `__tests__` | ☐ | Grok |
 | **S8** | Close loop: push developeredit, freeze extra Claude PRs | ☐ | Human |
 
@@ -71,15 +71,16 @@ Do NOT merge any Claude branch.
 bunx tsc --noEmit when done. Update docs/claudetodo.md S4/S6 status.
 ```
 
-### Prompt C — Human (ops, 10 min)
+### Prompt C — Human (ops) — **kedy a čo**
 
-```
-1. git push origin developeredit  (account with write access)
-2. Apply SQL: docs/migrations.md → 20260720120000_artifact_versions.sql
-3. Smoke: docs/smoke-checklist.md
-4. Do not open merge of Claude branches into developeredit as a whole
-5. Draft/ignore follow-up Claude light-mode work until S3–S7 done on developeredit
-```
+Full checklist: **[`docs/HUMAN_NOW.md`](./HUMAN_NOW.md)**
+
+| # | Čo | Kedy |
+|---|-----|------|
+| 1 | `git push origin developeredit` | Hneď keď chceš CI / share / deploy z GH |
+| 2 | SQL `20260720120000` | Pred testom **Versions restore** v Canvase |
+| 3 | `smoke-checklist.md` | Pred demom / “je to OK” |
+| 4 | No full Claude merge | Vždy |
 
 ---
 
@@ -88,6 +89,8 @@ bunx tsc --noEmit when done. Update docs/claudetodo.md S4/S6 status.
 - [x] PWA on developeredit  
 - [x] Haptics available + used on send  
 - [x] Optimistic threads  
-- [ ] S4–S7 as needed  
+- [x] S4 stick-to-bottom / Latest pill  
+- [x] S6 Esc closes shortcuts/palette (via use-hotkeys)  
+- [ ] S5, S7 as needed  
 - [ ] developeredit pushed + CI green  
 - [ ] No full Claude branch merge  
