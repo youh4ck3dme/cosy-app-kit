@@ -1,5 +1,6 @@
-# CI for cosy-app-kit — Node 24 (avoids Node 20 deprecation warnings on GHA runners)
-# Green gate for developeredit; main stays locked (PR only, no auto-merge).
+# CI for cosy-app-kit — Bun + Node 24
+# Green gate for developeredit / PR into main. Main stays locked (PR only, no force-push).
+# Typecheck is a HARD gate (no continue-on-error).
 name: CI
 
 on:
@@ -27,7 +28,6 @@ jobs:
         with:
           bun-version: latest
 
-      # Node 24 for any tooling that shells out to node (not Node 20 — deprecation)
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
@@ -36,22 +36,16 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # Vitest only (package.json "test" / "test:unit") — not bare `bun test` (breaks vi mocks)
       - name: Unit tests
-        run: bun run test
+        run: bun run test:unit
 
-      # Hard gate (no continue-on-error): tsc is green on developeredit; soft-fail hid real breaks.
       - name: Typecheck
         run: bun run typecheck
-
-      - name: Unit tests
-        run: bun test
 
       - name: Build
         run: bun run build
         env:
-          # Build-time placeholders only — this job does not call live Supabase/Mistral.
-          # Do not commit real keys. Wire repo Actions secrets here only if a future
-          # step needs live credentials (and the secrets exist in Settings → Secrets).
           SUPABASE_URL: https://example.supabase.co
           SUPABASE_PUBLISHABLE_KEY: ci-placeholder-publishable-key
           VITE_SUPABASE_URL: https://example.supabase.co
