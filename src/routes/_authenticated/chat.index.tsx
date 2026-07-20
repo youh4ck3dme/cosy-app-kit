@@ -34,15 +34,34 @@ function ChatIndex() {
 
   useEffect(() => {
     if (isLoading) return;
+    let cancelled = false;
     (async () => {
-      if (data && data.length > 0) {
-        navigate({ to: "/chat/$threadId", params: { threadId: data[0].id }, replace: true });
-      } else {
-        const { id } = await create({ data: {} });
-        await qc.invalidateQueries({ queryKey: ["threads"] });
-        navigate({ to: "/chat/$threadId", params: { threadId: id }, replace: true });
+      try {
+        let threadId: string | undefined;
+        if (data && data.length > 0) {
+          threadId = data[0]!.id;
+        } else {
+          const { id } = await create({ data: {} });
+          threadId = id;
+          await qc.invalidateQueries({ queryKey: ["threads"] });
+        }
+        if (cancelled || !threadId) return;
+        // Defer past Transitioner mount — avoids "state update on not-yet-mounted" in DEV.
+        requestAnimationFrame(() => {
+          if (cancelled) return;
+          navigate({
+            to: "/chat/$threadId",
+            params: { threadId },
+            replace: true,
+          });
+        });
+      } catch {
+        /* error boundary / retry */
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [data, isLoading, navigate, create, qc]);
 
   return (

@@ -45,6 +45,8 @@ import {
   type PreviewMode,
 } from "@/lib/preview-frame";
 import { analyzeResponsiveHtml, type ResponsiveReport } from "@/lib/agent/responsive-gate";
+import { buildPreviewBridgeScript } from "@/lib/preview-bridge";
+import { resolvePreviewNavTarget } from "@/lib/preview-nav";
 import { injectScriptIntoHtmlHead } from "@/lib/preview-storage-polyfill";
 
 export type ArtifactFile = { path: string; language: string; content: string };
@@ -69,82 +71,13 @@ type ConsoleFilter = "all" | "log" | "warn" | "error";
  * Do NOT add allow-same-origin to sandbox — untrusted agent HTML must not share parent origin.
  * Instead we polyfill localStorage/sessionStorage in-memory so dashboards don't SecurityError.
  */
-function previewBridge(token: string): string {
-  const t = JSON.stringify(token);
-  return `<script>(function(){
-  /* In-memory Storage for sandboxed srcdoc (no allow-same-origin). Must run first. */
-  function makeMemoryStorage() {
-    var map = Object.create(null);
-    var keys = [];
-    function rekey() { keys = Object.keys(map); }
-    return {
-      get length() { return keys.length; },
-      key: function(i) { return keys[i] != null ? keys[i] : null; },
-      getItem: function(k) { k = String(k); return Object.prototype.hasOwnProperty.call(map, k) ? map[k] : null; },
-      setItem: function(k, v) { k = String(k); if (!Object.prototype.hasOwnProperty.call(map, k)) { map[k] = String(v); rekey(); } else { map[k] = String(v); } },
-      removeItem: function(k) { k = String(k); if (Object.prototype.hasOwnProperty.call(map, k)) { delete map[k]; rekey(); } },
-      clear: function() { map = Object.create(null); keys = []; }
-    };
-  }
-  function needsStoragePolyfill() {
-    try {
-      var x = '__builder_ls__';
-      window.localStorage.setItem(x, '1');
-      window.localStorage.removeItem(x);
-      return false;
-    } catch (e) { return true; }
-  }
-  if (needsStoragePolyfill()) {
-    var ls = makeMemoryStorage();
-    var ss = makeMemoryStorage();
-    try {
-      Object.defineProperty(window, 'localStorage', { configurable: true, enumerable: true, value: ls });
-      Object.defineProperty(window, 'sessionStorage', { configurable: true, enumerable: true, value: ss });
-    } catch (e2) {
-      try { window.localStorage = ls; window.sessionStorage = ss; } catch (e3) {}
-    }
-  }
-
-  var TOKEN = ${t};
-  var sendConsole = function(level, args) {
-    try { parent.postMessage({ __builder_console: TOKEN, level: level, args: args.map(function(a) {
-      try { return typeof a === 'string' ? a : JSON.stringify(a); } catch(e) { return String(a); }
-    }) }, '*'); } catch(e) {}
-  };
-  ['log','warn','error'].forEach(function(l) {
-    var orig = console[l];
-    console[l] = function(){ sendConsole(l, [].slice.call(arguments)); orig.apply(console, arguments); };
-  });
-  window.addEventListener('error', function(e) {
-    sendConsole('error', [e.message + ' @ ' + (e.filename||'') + ':' + e.lineno]);
-  });
-  window.addEventListener('unhandledrejection', function(e) {
-    sendConsole('error', ['Unhandled: ' + (e.reason && e.reason.message || e.reason)]);
-  });
-  var origFetch = window.fetch.bind(window);
-  window.fetch = function() {
-    var args = arguments;
-    var input = args[0];
-    var init = args[1] || {};
-    var method = (init.method || 'GET').toUpperCase();
-    var url = typeof input === 'string' ? input : (input && input.url) || String(input);
-    var started = performance.now();
-    var id = Math.random().toString(36).slice(2);
-    try { parent.postMessage({ __builder_network: TOKEN, phase: 'start', id: id, method: method, url: url }, '*'); } catch(e) {}
-    return origFetch.apply(window, args).then(function(res) {
-      try { parent.postMessage({ __builder_network: TOKEN, phase: 'end', id: id, method: method, url: url, status: res.status, ms: Math.round(performance.now() - started) }, '*'); } catch(e) {}
-      return res;
-    }).catch(function(err) {
-      try { parent.postMessage({ __builder_network: TOKEN, phase: 'end', id: id, method: method, url: url, status: 0, ms: Math.round(performance.now() - started) }, '*'); } catch(e) {}
-      throw err;
-    });
-  };
-})();</script>`;
-}
-
 function injectBridge(html: string, token: string): string {
   // Polyfill MUST run before artifact scripts (localStorage in init).
-  return injectScriptIntoHtmlHead(html, previewBridge(token));
+  return injectScriptIntoHtmlHead(html, buildPreviewBridgeScript(token));
+}
+
+function isHtmlPath(path: string): boolean {
+  return /\.html?$/i.test(path);
 }
 
 function fileList(a: Artifact): ArtifactFile[] {
@@ -175,6 +108,8 @@ export function Canvas({
   const [zoom, setZoom] = useState(1);
   const [view, setView] = useState<View>("preview");
   const [activeFile, setActiveFile] = useState<string | null>(null);
+  /** Which HTML file the preview iframe is showing (multi-file nav). */
+  const [previewPath, setPreviewPath] = useState<string | null>(null);
   const [key, setKey] = useState(0);
   const [showConsole, setShowConsole] = useState(false);
   const [showNetwork, setShowNetwork] = useState(false);
@@ -204,6 +139,13 @@ export function Canvas({
   const saveFiles = useServerFn(updateArtifactFiles);
   const [deviceHydrated, setDeviceHydrated] = useState(false);
   const responsiveToastFor = useRef<string | null>(null);
+  /** Skip artifact-reset setState storm on initial mount / Strict Mode remount. */
+  const prevArtifactIdRef = useRef<string | null | undefined>(undefined);
+  const navCtxRef = useRef({
+    entryPath: null as string | null,
+    resolvedPreviewPath: null as string | null,
+    filePaths: [] as string[],
+  });
 
   useEffect(() => {
     try {
@@ -249,19 +191,37 @@ export function Canvas({
     if (!el || typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect.width;
-      if (typeof w === "number" && w > 0) setHostWidth(Math.round(w));
+      if (typeof w !== "number" || w <= 0) return;
+      const next = Math.round(w);
+      setHostWidth((prev) => (prev === next ? prev : next));
     });
     ro.observe(el);
-    setHostWidth(Math.round(el.clientWidth) || hostWidth);
+    const initial = Math.round(el.clientWidth);
+    if (initial > 0) setHostWidth((prev) => (prev === initial ? prev : initial));
     return () => ro.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- seed once; RO owns updates
   }, []);
 
   const rawFiles = artifact ? fileList(artifact) : [];
   const files = rawFiles.map((f) => ({ ...f, content: edits[f.path] ?? f.content }));
   const isDirty = Object.keys(edits).length > 0;
+  const filePathsKey = rawFiles.map((f) => f.path).join("\0");
+  const filePaths = useMemo(
+    () => (filePathsKey ? filePathsKey.split("\0") : []),
+    [filePathsKey],
+  );
+  const entryPath =
+    (artifact?.entry_path && files.some((f) => f.path === artifact.entry_path)
+      ? artifact.entry_path
+      : null) ??
+    files.find((f) => isHtmlPath(f.path))?.path ??
+    files[0]?.path ??
+    null;
+  const resolvedPreviewPath =
+    (previewPath && files.some((f) => f.path === previewPath) ? previewPath : null) ?? entryPath;
+  navCtxRef.current = { entryPath, resolvedPreviewPath, filePaths };
   const currentFile =
     files.find((f) => f.path === activeFile) ??
+    files.find((f) => f.path === resolvedPreviewPath) ??
     files.find((f) => f.path === artifact?.entry_path) ??
     files[0];
   const originalCurrent = rawFiles.find((f) => f.path === currentFile?.path);
@@ -290,22 +250,22 @@ export function Canvas({
   );
 
   const srcDoc = useMemo(() => {
-    if (!artifact) return null;
-    const entry = files.find((f) => f.path === artifact.entry_path) ?? files[0];
+    if (!artifact || !resolvedPreviewPath) return null;
+    const entry = files.find((f) => f.path === resolvedPreviewPath);
     if (!entry) return null;
-    if (artifact.kind === "html" || /\.html?$/i.test(entry.path)) {
+    if (artifact.kind === "html" || isHtmlPath(entry.path)) {
       return injectBridge(entry.content, bridgeTokenRef.current);
     }
     return null;
-  }, [artifact, files, key]);
+  }, [artifact, files, key, resolvedPreviewPath]);
 
   const entryHtml = useMemo(() => {
-    if (!artifact) return null;
-    const entry = files.find((f) => f.path === artifact.entry_path) ?? files[0];
+    if (!artifact || !resolvedPreviewPath) return null;
+    const entry = files.find((f) => f.path === resolvedPreviewPath);
     if (!entry) return null;
-    if (artifact.kind === "html" || /\.html?$/i.test(entry.path)) return entry.content;
+    if (artifact.kind === "html" || isHtmlPath(entry.path)) return entry.content;
     return null;
-  }, [artifact, files]);
+  }, [artifact, files, resolvedPreviewPath]);
 
   const responsiveReport: ResponsiveReport | null = useMemo(() => {
     if (!entryHtml) return null;
@@ -382,7 +342,16 @@ export function Canvas({
   };
 
   useEffect(() => {
+    const id = artifact?.id ?? null;
+    // Initial mount (incl. Strict Mode remount with same id): do not reset / bump iframe key.
+    if (prevArtifactIdRef.current === undefined) {
+      prevArtifactIdRef.current = id;
+      return;
+    }
+    if (prevArtifactIdRef.current === id) return;
+    prevArtifactIdRef.current = id;
     setActiveFile(null);
+    setPreviewPath(null);
     setLogs([]);
     setNetwork([]);
     setEdits({});
@@ -401,6 +370,26 @@ export function Canvas({
       const d = e.data;
       if (!d || typeof d !== "object") return;
       const token = bridgeTokenRef.current;
+      if (d.__builder_navigate === token && typeof d.href === "string") {
+        const { entryPath: ep, resolvedPreviewPath: rp, filePaths: fps } = navCtxRef.current;
+        const current = rp ?? ep ?? "index.html";
+        const target = resolvePreviewNavTarget(d.href, {
+          filePaths: fps,
+          currentPath: current,
+        });
+        if (target.kind === "internal") {
+          setPreviewPath(target.path);
+          setActiveFile(target.path);
+          setLogs([]);
+          setNetwork([]);
+          bridgeTokenRef.current =
+            typeof crypto !== "undefined" && crypto.randomUUID
+              ? crypto.randomUUID()
+              : `tok-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+          setKey((k) => k + 1);
+        }
+        return;
+      }
       if (d.__builder_console === token) {
         setLogs((prev) => [...prev.slice(-199), { level: d.level, args: d.args, ts: Date.now() }]);
       }
@@ -752,7 +741,19 @@ export function Canvas({
             return (
               <button
                 key={f.path}
-                onClick={() => setActiveFile(f.path)}
+                onClick={() => {
+                  setActiveFile(f.path);
+                  if (isHtmlPath(f.path)) {
+                    setPreviewPath(f.path);
+                    setLogs([]);
+                    setNetwork([]);
+                    bridgeTokenRef.current =
+                      typeof crypto !== "undefined" && crypto.randomUUID
+                        ? crypto.randomUUID()
+                        : `tok-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+                    setKey((k) => k + 1);
+                  }
+                }}
                 className={cn(
                   "min-h-11 shrink-0 border-b-2 px-3 py-1.5 font-mono text-[11px] transition-colors",
                   active
@@ -987,7 +988,9 @@ export function Canvas({
                   {srcDoc ? (
                     <iframe
                       srcDoc={srcDoc}
-                      sandbox=""
+                      // Same as main preview — empty sandbox logs "allow-scripts is not set"
+                      // and confuses debugging (thumbnail is pointer-events-none only).
+                      sandbox="allow-scripts allow-forms"
                       className="pointer-events-none h-[200%] w-[200%] origin-top-left scale-50 border-0 bg-white"
                       title="Share preview"
                       tabIndex={-1}
