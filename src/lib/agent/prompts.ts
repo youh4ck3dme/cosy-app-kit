@@ -1,7 +1,7 @@
 import { DEFAULT_SYSTEM_PROMPT } from "@/lib/models";
 
 /** Bump when system craft rules change (logged in composeSystem). */
-export const PROMPT_REV = "2026-07-20-b";
+export const PROMPT_REV = "2026-07-20-c";
 
 export const SYSTEM_SHARED_STYLE = `## Output craft
 - Prefer distinctive visual direction over generic AI dashboards.

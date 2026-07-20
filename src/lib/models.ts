@@ -31,12 +31,14 @@ When the user asks for a webpage, UI, or visual design:
 Hard quality rules for HTML artifacts:
 - Prefer inline <style> (self-contained). Use Tailwind CDN only if the user explicitly asks for Tailwind.
 - Include <meta name="viewport" content="width=device-width, initial-scale=1">.
-- Include a mobile layout via @media (max-width: 768px) — collapsible/hamburger nav when there is a sidebar.
+- **Mobile-first layout (required):** write base styles for ~360–430px phones first, then enhance with @media (min-width: 768px) and @media (min-width: 1024px). Do NOT ship a desktop-only grid that merely squeezes on small screens.
+- On small screens: single column; sidebar/nav collapsed behind a hamburger (closed by default); no horizontal page scroll; avoid fixed min-width on body/main/wrapper wider than 100%.
+- At max-width 767px: stack KPI cards, full-width charts, readable type (≥14px body), primary controls ≥44px touch targets.
 - Semantic HTML; icon-only buttons need aria-label.
 - Avoid cliché “AI SaaS” looks: no default purple-on-dark (#6c5ce7 / indigo-600) unless the user asks for purple. Pick a distinctive palette (earth, ink, forest, coral, slate+gold, etc.) with CSS variables.
 - Avoid Inter / system-ui / Segoe as the only typography story — use a distinctive font stack or a well-known Google Font that fits the brand.
 - For dashboards/charts: use Chart.js (CDN) with real numeric datasets, not static SVG fake charts. Week/Month/Year controls should update chart data.
-- Touch targets ≥ 44px on primary controls; focus-visible outlines.
+- focus-visible outlines on interactive controls.
 - If the request is not visual, just chat normally — no empty fences.`;
 
 const KNOWN = new Set(AVAILABLE_MODELS.map((m) => m.id));

@@ -20,6 +20,7 @@ import {
   Save,
   Maximize2,
   Network,
+  Scaling,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
@@ -35,6 +36,15 @@ import {
   latestSnippetForFile,
   type EditFileSnippet,
 } from "@/lib/edit-snippets";
+import {
+  computeFrame,
+  defaultPreviewModeForHost,
+  formatFrameBadge,
+  isPreviewMode,
+  migrateLegacyDevice,
+  type PreviewMode,
+} from "@/lib/preview-frame";
+import { analyzeResponsiveHtml, type ResponsiveReport } from "@/lib/agent/responsive-gate";
 
 export type ArtifactFile = { path: string; language: string; content: string };
 export type Artifact = {
@@ -47,12 +57,9 @@ export type Artifact = {
   is_public?: boolean | null;
 };
 
-type Device = "desktop" | "tablet" | "mobile";
 type View = "preview" | "code" | "diff";
 type ConsoleEntry = { level: "log" | "warn" | "error"; args: string[]; ts: number };
 type ConsoleFilter = "all" | "log" | "warn" | "error";
-
-const WIDTHS: Record<Device, number> = { desktop: 1200, tablet: 768, mobile: 420 };
 
 /**
  * Sandboxed iframe uses srcDoc (opaque origin "null") so postMessage target is "*".
@@ -124,7 +131,7 @@ export function Canvas({
   /** From chat tool parts — enables Diff “Show model change”. */
   editSnippets?: EditFileSnippet[];
 }) {
-  const [device, setDevice] = useState<Device>("desktop");
+  const [previewMode, setPreviewMode] = useState<PreviewMode>(() => defaultPreviewModeForHost());
   const [customWidth, setCustomWidth] = useState<number | null>(null);
   const [zoom, setZoom] = useState(1);
   const [view, setView] = useState<View>("preview");
@@ -142,7 +149,12 @@ export function Canvas({
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [undoStack, setUndoStack] = useState<Record<string, string>[]>([]);
   const [diffMode, setDiffMode] = useState<"local" | "model">("local");
+  /** Width of the scrollable canvas host (for fluid + fit scale). */
+  const [hostWidth, setHostWidth] = useState<number>(() =>
+    typeof window !== "undefined" ? Math.min(window.innerWidth, 1200) : 800,
+  );
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const paneRef = useRef<HTMLDivElement | null>(null);
   /** Per-mount token so we ignore console/network spam from other frames. */
   const bridgeTokenRef = useRef(
     typeof crypto !== "undefined" && crypto.randomUUID
@@ -151,29 +163,60 @@ export function Canvas({
   );
   const share = useServerFn(setArtifactPublic);
   const saveFiles = useServerFn(updateArtifactFiles);
+  const [deviceHydrated, setDeviceHydrated] = useState(false);
+  const responsiveToastFor = useRef<string | null>(null);
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(deviceStorageKey(threadId));
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as { device?: Device; customWidth?: number | null };
-      if (parsed.device) setDevice(parsed.device);
-      if (typeof parsed.customWidth === "number") setCustomWidth(parsed.customWidth);
+      if (!raw) {
+        setPreviewMode(defaultPreviewModeForHost());
+        setCustomWidth(null);
+      } else {
+        const parsed = JSON.parse(raw) as {
+          mode?: string;
+          device?: string;
+          customWidth?: number | null;
+        };
+        if (isPreviewMode(parsed.mode)) {
+          setPreviewMode(parsed.mode);
+        } else {
+          const legacy = migrateLegacyDevice(parsed.device);
+          setPreviewMode(legacy ?? defaultPreviewModeForHost());
+        }
+        if (typeof parsed.customWidth === "number") setCustomWidth(parsed.customWidth);
+      }
     } catch {
-      /* ignore */
+      setPreviewMode(defaultPreviewModeForHost());
     }
+    setDeviceHydrated(true);
   }, [threadId]);
 
   useEffect(() => {
+    if (!deviceHydrated) return;
     try {
       localStorage.setItem(
         deviceStorageKey(threadId),
-        JSON.stringify({ device, customWidth }),
+        JSON.stringify({ mode: previewMode, customWidth }),
       );
     } catch {
       /* ignore */
     }
-  }, [device, customWidth, threadId]);
+  }, [previewMode, customWidth, threadId, deviceHydrated]);
+
+  // Host width for fluid + scale-to-fit simulation
+  useEffect(() => {
+    const el = paneRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width;
+      if (typeof w === "number" && w > 0) setHostWidth(Math.round(w));
+    });
+    ro.observe(el);
+    setHostWidth(Math.round(el.clientWidth) || hostWidth);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seed once; RO owns updates
+  }, []);
 
   const rawFiles = artifact ? fileList(artifact) : [];
   const files = rawFiles.map((f) => ({ ...f, content: edits[f.path] ?? f.content }));
@@ -193,7 +236,19 @@ export function Canvas({
     if (diffMode === "model" && !modelSnippet) setDiffMode("local");
   }, [diffMode, modelSnippet]);
 
-  const previewWidth = customWidth && customWidth > 0 ? customWidth : WIDTHS[device];
+  const iframeBaseHeight = fullscreen ? Math.max(480, (typeof window !== "undefined" ? window.innerHeight : 800) - 160) : 720;
+
+  const frame = useMemo(
+    () =>
+      computeFrame({
+        mode: previewMode,
+        hostWidth: Math.max(280, hostWidth - 32),
+        zoom,
+        customWidth,
+        iframeHeight: iframeBaseHeight,
+      }),
+    [previewMode, hostWidth, zoom, customWidth, iframeBaseHeight],
+  );
 
   const srcDoc = useMemo(() => {
     if (!artifact) return null;
@@ -204,6 +259,29 @@ export function Canvas({
     }
     return null;
   }, [artifact, files, key]);
+
+  const entryHtml = useMemo(() => {
+    if (!artifact) return null;
+    const entry = files.find((f) => f.path === artifact.entry_path) ?? files[0];
+    if (!entry) return null;
+    if (artifact.kind === "html" || /\.html?$/i.test(entry.path)) return entry.content;
+    return null;
+  }, [artifact, files]);
+
+  const responsiveReport: ResponsiveReport | null = useMemo(() => {
+    if (!entryHtml) return null;
+    return analyzeResponsiveHtml(entryHtml);
+  }, [entryHtml]);
+
+  useEffect(() => {
+    if (!artifact?.id || !responsiveReport || responsiveReport.ok) return;
+    if (responsiveToastFor.current === artifact.id) return;
+    responsiveToastFor.current = artifact.id;
+    toast.message(`Mobile score ${responsiveReport.score}/100`, {
+      description: responsiveReport.hints[0] ?? "Layout may not be mobile-friendly.",
+      duration: 4500,
+    });
+  }, [artifact?.id, responsiveReport]);
 
   const refresh = () => {
     setLogs([]);
@@ -439,16 +517,24 @@ export function Canvas({
           {view === "preview" && srcDoc && (
             <>
               <div className="hidden h-4 w-px bg-border-subtle sm:block" />
-              <div className="hidden items-center gap-0.5 rounded-lg border border-border-subtle bg-surface-1/70 p-0.5 sm:flex">
-                {(["desktop", "tablet", "mobile"] as Device[]).map((d) => {
-                  const Icon = d === "desktop" ? Monitor : d === "tablet" ? Tablet : Smartphone;
-                  const active = device === d && !customWidth;
+              {/* M1: fluid + real device sim (scale) — visible on phone too */}
+              <div className="flex items-center gap-0.5 rounded-lg border border-border-subtle bg-surface-1/70 p-0.5">
+                {(
+                  [
+                    { mode: "fluid" as const, Icon: Scaling, label: "Fluid (host width)" },
+                    { mode: "mobile" as const, Icon: Smartphone, label: "Mobile 390" },
+                    { mode: "tablet" as const, Icon: Tablet, label: "Tablet 768" },
+                    { mode: "desktop" as const, Icon: Monitor, label: "Desktop 1200" },
+                  ] as const
+                ).map(({ mode, Icon, label }) => {
+                  const active = previewMode === mode && !customWidth;
                   return (
                     <button
-                      key={d}
+                      key={mode}
+                      type="button"
                       onClick={() => {
                         setCustomWidth(null);
-                        setDevice(d);
+                        setPreviewMode(mode);
                       }}
                       className={cn(
                         "flex min-h-9 min-w-9 items-center justify-center rounded-md p-1.5 transition-all",
@@ -456,8 +542,8 @@ export function Canvas({
                           ? "bg-surface-3 text-foreground shadow-sm"
                           : "text-muted-foreground hover:text-foreground",
                       )}
-                      title={d}
-                      aria-label={`${d} preview width`}
+                      title={label}
+                      aria-label={label}
                       aria-pressed={active}
                     >
                       <Icon className="h-3.5 w-3.5" />
@@ -472,7 +558,7 @@ export function Canvas({
                   min={280}
                   max={1600}
                   value={customWidth ?? ""}
-                  placeholder={String(WIDTHS[device])}
+                  placeholder={String(frame.mediaWidth)}
                   onChange={(e) => {
                     const n = Number(e.target.value);
                     setCustomWidth(Number.isFinite(n) && n > 0 ? n : null);
@@ -708,38 +794,87 @@ export function Canvas({
       )}
 
       <div className="relative z-0 flex min-h-0 flex-1 flex-col">
-        <div className="flex flex-1 items-start justify-center overflow-auto p-4 sm:p-8">
+        <div
+          ref={paneRef}
+          className="flex flex-1 items-start justify-center overflow-auto p-4 sm:p-8"
+        >
           {!artifact && <EmptyCanvas />}
 
           {artifact && view === "preview" && srcDoc && (
             <div
-              className="flex-none overflow-hidden rounded-2xl border border-border-subtle bg-panel shadow-elevated animate-in-scale"
-              style={{ width: previewWidth * zoom, maxWidth: "100%" }}
+              className="flex-none animate-in-scale"
+              style={{
+                width: frame.outerWidth,
+                height: 32 + frame.outerIframeHeight,
+                maxWidth: "100%",
+              }}
             >
-              <div className="flex h-8 items-center gap-1.5 border-b border-border-subtle bg-surface-1/60 px-3">
-                <span className="h-2 w-2 rounded-full bg-[oklch(0.65_0.20_25)]/50" />
-                <span className="h-2 w-2 rounded-full bg-[oklch(0.80_0.16_85)]/50" />
-                <span className="h-2 w-2 rounded-full bg-[oklch(0.72_0.18_150)]/50" />
-                <div className="ml-3 flex flex-1 items-center gap-2 truncate">
-                  <span className="font-mono text-[10px] text-muted-foreground">{artifact.title}</span>
-                </div>
-                <span className="font-mono text-[10px] text-muted-foreground/60 tabular-nums">
-                  {previewWidth}px
-                </span>
-              </div>
               {/*
-                Sandbox: scripts+forms only — no same-origin, no top-nav, no downloads.
-                Preview is untrusted user/agent HTML; keep capabilities minimal.
+                Outer size = scaled footprint. Inner keeps full mediaWidth so
+                iframe CSS media queries see desktop/tablet targets (M1).
               */}
-              <iframe
-                key={key}
-                ref={iframeRef}
-                srcDoc={srcDoc}
-                sandbox="allow-scripts allow-forms"
-                className="block w-full border-0 bg-white"
-                style={{ height: fullscreen ? "calc(100vh - 8rem)" : `${(720 * zoom).toFixed(0)}px` }}
-                title={artifact.title}
-              />
+              <div
+                className="overflow-hidden rounded-2xl border border-border-subtle bg-panel shadow-elevated"
+                style={{
+                  width: frame.mediaWidth,
+                  height: 32 + frame.iframeHeight,
+                  transform: `scale(${frame.scale})`,
+                  transformOrigin: "top left",
+                }}
+              >
+                <div className="flex h-8 items-center gap-1.5 border-b border-border-subtle bg-surface-1/60 px-3">
+                  <span className="h-2 w-2 rounded-full bg-[oklch(0.65_0.20_25)]/50" />
+                  <span className="h-2 w-2 rounded-full bg-[oklch(0.80_0.16_85)]/50" />
+                  <span className="h-2 w-2 rounded-full bg-[oklch(0.72_0.18_150)]/50" />
+                  <div className="ml-3 flex min-w-0 flex-1 items-center gap-2 truncate">
+                    <span className="truncate font-mono text-[10px] text-muted-foreground">
+                      {artifact.title}
+                    </span>
+                    {responsiveReport && (
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[9px] font-semibold tabular-nums",
+                          responsiveReport.ok
+                            ? "bg-emerald-500/15 text-emerald-400"
+                            : "bg-amber-500/15 text-amber-300",
+                        )}
+                        title={
+                          responsiveReport.hints[0] ??
+                          (responsiveReport.ok
+                            ? "Responsive gate OK"
+                            : "Responsive gate warnings")
+                        }
+                      >
+                        m{responsiveReport.score}
+                      </span>
+                    )}
+                  </div>
+                  <span
+                    className="shrink-0 font-mono text-[10px] text-muted-foreground/60 tabular-nums"
+                    title={
+                      frame.simulated
+                        ? `Simulated ${frame.mode}: media queries see ${frame.mediaWidth}px, scaled ×${frame.fitScale.toFixed(2)} to fit host`
+                        : `Media width ${frame.mediaWidth}px (${frame.mode})`
+                    }
+                  >
+                    {formatFrameBadge(frame)}
+                    {frame.simulated ? " sim" : ""}
+                  </span>
+                </div>
+                {/*
+                  Sandbox: scripts+forms only — no same-origin, no top-nav, no downloads.
+                  Preview is untrusted user/agent HTML; keep capabilities minimal.
+                */}
+                <iframe
+                  key={key}
+                  ref={iframeRef}
+                  srcDoc={srcDoc}
+                  sandbox="allow-scripts allow-forms"
+                  className="block w-full border-0 bg-white"
+                  style={{ height: frame.iframeHeight, width: frame.mediaWidth }}
+                  title={artifact.title}
+                />
+              </div>
             </div>
           )}
 

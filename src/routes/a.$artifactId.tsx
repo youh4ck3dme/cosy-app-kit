@@ -69,7 +69,12 @@ const WIDTHS: Record<Device, number> = { desktop: 1200, tablet: 768, mobile: 420
 
 function PublicArtifactPage() {
   const artifact = Route.useLoaderData();
-  const [device, setDevice] = useState<Device>("desktop");
+  const [device, setDevice] = useState<Device>(() => {
+    if (typeof window === "undefined") return "desktop";
+    if (window.innerWidth < 640) return "mobile";
+    if (window.innerWidth < 1024) return "tablet";
+    return "desktop";
+  });
 
   const files = useMemo(() => {
     if (!artifact) return [];
@@ -108,7 +113,7 @@ function PublicArtifactPage() {
         </div>
         <div className="flex items-center gap-2">
           {isHtml && (
-            <div className="hidden items-center gap-0.5 rounded-lg border border-border-subtle bg-surface-1/70 p-0.5 sm:flex">
+            <div className="flex items-center gap-0.5 rounded-lg border border-border-subtle bg-surface-1/70 p-0.5">
               {(["desktop", "tablet", "mobile"] as Device[]).map((d) => {
                 const Icon = d === "desktop" ? Monitor : d === "tablet" ? Tablet : Smartphone;
                 const active = device === d;
