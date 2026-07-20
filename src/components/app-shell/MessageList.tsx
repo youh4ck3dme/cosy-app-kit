@@ -455,7 +455,9 @@ function MessageRow({
                 {chunk && (
                   <MessageResponse
                     className="min-w-0 overflow-x-auto text-[14.5px] leading-relaxed"
-                    isAnimating={Boolean(isStreaming)}
+                    // Streamdown animate + rapid streaming causes removeChild DOM errors
+                    // on rehype Text nodes. Keep off until streamdown fixes it.
+                    isAnimating={false}
                   >
                     {chunk}
                   </MessageResponse>
