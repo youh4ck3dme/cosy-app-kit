@@ -35,6 +35,7 @@ function ChatIndex() {
   useEffect(() => {
     if (isLoading) return;
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     (async () => {
       try {
         let threadId: string | undefined;
@@ -46,21 +47,22 @@ function ChatIndex() {
           await qc.invalidateQueries({ queryKey: ["threads"] });
         }
         if (cancelled || !threadId) return;
-        // Defer past Transitioner mount — avoids "state update on not-yet-mounted" in DEV.
-        requestAnimationFrame(() => {
+        // Macrotask after commit — navigate must not race Transitioner first paint.
+        timer = setTimeout(() => {
           if (cancelled) return;
-          navigate({
+          void navigate({
             to: "/chat/$threadId",
             params: { threadId },
             replace: true,
           });
-        });
+        }, 0);
       } catch {
         /* error boundary / retry */
       }
     })();
     return () => {
       cancelled = true;
+      if (timer !== undefined) clearTimeout(timer);
     };
   }, [data, isLoading, navigate, create, qc]);
 

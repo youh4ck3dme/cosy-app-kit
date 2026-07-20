@@ -146,8 +146,12 @@ function RootComponent() {
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") {
-        router.invalidate();
-        if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
+        // Defer past current React commit so router.invalidate does not hit
+        // Transitioner setState before mount (React 19 DEV warning).
+        window.setTimeout(() => {
+          void router.invalidate();
+          if (event !== "SIGNED_OUT") void queryClient.invalidateQueries();
+        }, 0);
       }
     });
     return () => sub.subscription.unsubscribe();
