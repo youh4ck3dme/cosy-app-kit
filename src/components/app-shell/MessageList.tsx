@@ -26,16 +26,8 @@ import { cn } from "@/lib/utils";
 import { STARTERS } from "@/lib/starters";
 import { userFacingChatError } from "@/lib/agent/error-handling";
 import { Logo } from "./Logo";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  formatBuildProgress,
-  partitionAssistantText,
-} from "@/lib/message-artifacts";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { formatBuildProgress, partitionAssistantText } from "@/lib/message-artifacts";
 
 const EMPTY_PROMPTS = STARTERS.slice(0, 3);
 
@@ -218,9 +210,7 @@ function ThinkingWorkPanel({
   return (
     <div className="mt-1.5 flex min-w-0 max-w-md flex-col gap-2">
       <div className="flex flex-col gap-0.5">
-        <Shimmer className="text-sm">
-          {phase === "submitted" ? "Thinking…" : "Working…"}
-        </Shimmer>
+        <Shimmer className="text-sm">{phase === "submitted" ? "Thinking…" : "Working…"}</Shimmer>
         <p className="text-[13px] leading-snug text-muted-foreground">
           <span className="font-medium text-foreground/90">{active.title}</span>
           <span className="text-muted-foreground/80"> — {active.thought}</span>
@@ -335,10 +325,7 @@ export function MessageList({
   );
   const showStatusError = status === "error" && !showWaitingRow && !lastAssistantHasInlineError;
   const showFollowups =
-    status === "ready" &&
-    Boolean(lastAssistantId) &&
-    !showWaitingRow &&
-    Boolean(onFillComposer);
+    status === "ready" && Boolean(lastAssistantId) && !showWaitingRow && Boolean(onFillComposer);
 
   if (messages.length === 0) {
     return <EmptyState onPick={onPickPrompt} />;
@@ -396,11 +383,7 @@ export function MessageList({
         );
       })}
       {showFollowups && (
-        <div
-          className="ml-9 flex flex-wrap gap-2"
-          role="group"
-          aria-label="Suggested follow-ups"
-        >
+        <div className="ml-9 flex flex-wrap gap-2" role="group" aria-label="Suggested follow-ups">
           {FOLLOWUP_CHIPS.map((chip) => (
             <button
               key={chip.label}
@@ -674,11 +657,7 @@ function MessageRow({
                     title={label}
                   />
                 ) : (
-                  <ToolHeader
-                    type={tp.type as `tool-${string}`}
-                    state={tp.state}
-                    title={label}
-                  />
+                  <ToolHeader type={tp.type as `tool-${string}`} state={tp.state} title={label} />
                 )}
                 <ToolContent>
                   {"input" in tp && tp.input !== undefined && <ToolInput input={tp.input} />}
@@ -842,13 +821,10 @@ function BuildingArtifactCard({
             </span>
           </div>
           <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
-            Streaming code without freezing the chat. When ready, tap the Artifact card or use Chat |
-            Preview in the header.
+            Streaming code without freezing the chat. When ready, tap the Artifact card or use Chat
+            | Preview in the header.
           </p>
-          <div
-            className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-border-subtle"
-            aria-hidden
-          >
+          <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-border-subtle" aria-hidden>
             <div
               className="h-full rounded-full bg-accent-primary/70 transition-[width] duration-300 ease-out"
               style={{
@@ -881,7 +857,9 @@ function ArtifactPill({ onFocusCanvas }: { onFocusCanvas?: () => void }) {
       </span>
       <span className="min-w-0 wrap-break-word">Artifact ready on canvas</span>
       <span aria-hidden className="h-1 w-1 shrink-0 rounded-full bg-accent-primary/70" />
-      <span className="shrink-0 text-accent-primary/90">{interactive ? "Open preview" : "live"}</span>
+      <span className="shrink-0 text-accent-primary/90">
+        {interactive ? "Open preview" : "live"}
+      </span>
     </>
   );
 
