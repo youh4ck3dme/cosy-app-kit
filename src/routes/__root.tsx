@@ -12,6 +12,7 @@ import { Toaster } from "sonner";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { registerServiceWorker } from "../lib/register-sw";
 import { supabase } from "@/integrations/supabase/client";
 
 function NotFoundComponent() {
@@ -89,6 +90,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Builder is a dark, focused AI studio. Chat with your agent, watch it ship live artifacts to a real preview canvas.",
       },
       { property: "og:type", content: "website" },
+      { name: "theme-color", content: "#0e0f14" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Builder — AI-first app studio" },
       { name: "twitter:description", content: "Builder is a dark, focused AI studio. Chat with your agent, watch it ship live artifacts to a real preview canvas." },
@@ -96,6 +98,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
     ],
   }),
   shellComponent: RootShell,
@@ -121,6 +125,11 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
+
+  // PWA: prod-only service worker (ported from Claude PR #3 — never caches /api or Supabase)
+  useEffect(() => {
+    registerServiceWorker();
+  }, []);
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {

@@ -79,6 +79,6 @@ Billing · collab · voice · public API · lint-as-CI · Playwright in CI · Mo
 
 | Who | Start | First task now |
 |-----|--------|----------------|
-| **Human** | [migrations.md](./migrations.md) + [smoke-checklist.md](./smoke-checklist.md) | SQL + browser smoke |
-| **Grok** | [groktodo.md](./groktodo.md) | BPI samples after smoke; no Cursor UI rewrites |
-| **Cursor** | [cursortodo.md](./cursortodo.md) | **C★ done** — polish only if human asks; no mega re-run |
+| **Human** | [migrations.md](./migrations.md) + [smoke-checklist.md](./smoke-checklist.md) | SQL + smoke; **do not merge PR #3 raw** |
+| **Grok** | [claude-pr3-port.md](./claude-pr3-port.md) | Port Claude slices (PWA done); BPI after smoke |
+| **Cursor** | [cursortodo.md](./cursortodo.md) | **C★ done** — polish only if human asks |

@@ -19,6 +19,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { haptic } from "@/lib/haptics";
 
 export type BuilderMode = "Build" | "Plan";
 
@@ -138,6 +139,7 @@ export function Composer({
   const handleSubmit = (message: PromptInputMessage) => {
     const t = message.text?.trim();
     if ((!t && attachments.length === 0) || disabled) return;
+    haptic(12);
     onSend({ text: t || "(image)", attachments: attachments.length ? attachments : undefined });
     setAttachments([]);
     draftRef.current = "";
