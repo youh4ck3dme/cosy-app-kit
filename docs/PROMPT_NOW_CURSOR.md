@@ -4,27 +4,32 @@
 Pracuj v /Users/erikbabcan/lovable-builder-cosyapp na branch developeredit.
 git pull origin developeredit
 
-Prečítaj a dodrž:
+Prečítaj:
 - docs/MEGA_PROMPT_CURSOR.md
 - docs/LAUNCH_MULTIAGENT.md
 - docs/agent-tools.md (launch_site)
+- src/components/app-shell/Canvas.tsx (už má multi-file strip + console wand)
 
-## Mission B — Multi-page canvas polish (LMAP už je na branchi)
+## Mission B — Multi-page canvas polish (P0)
 
-Grok shipped launch_site (src/lib/launch/**, tool launch_site). Nerób backend pipeline.
+Context (už na branchi):
+- LMAP launch_site + 156 unit tests (991c02f+)
+- Console real + Fix in chat wand (e42998d)
+- Monaco Diff dispose fix (8f56dad)
+- Grok LMAP harden: dead-link sanitize + mobile nav prompts (pull latest)
 
-Tvoja úloha (UI only):
-1) Canvas: keď artifact má viac HTML súborov (index/about/contact/pricing), jasnú file list / tabs / picker na mobile
-2) Aktívny previewPath zvýrazniť; klik na súbor → preview swap (Phase 1 nav už existuje)
-3) Single-file artifact sa nesmie regredovať
-4) Voliteľne: jemný status ak tool result má timings/filesCount (len display, žiadne fake progress)
-5) docs/smoke-checklist.md — sekcia multi-page smoke (3–5 checkboxov)
-6) bunx tsc --noEmit; relevant unit/e2e ak siahneš na preview-nav
+Tvoja úloha (UI only — Canvas/Header/shell):
+1) Multi-file artifact (4 HTML): jasné tabs / horizontal chip list / mobile picker
+2) Active file = resolvedPreviewPath (preview) zvýraznený; klik → setPreviewPath + setActiveFile
+3) Single-file artifact: žiadny zbytočný chrome
+4) Optional: ak filesCount>1, jemný label „4 pages“ pri artifact tabs
+5) docs/smoke-checklist.md — checkboxy multi-page + Console Fix in chat
+6) bunx tsc --noEmit; bun test ak siahneš na pure helpers
 7) Commit + push origin developeredit
-8) Krátky report: súbory, SHA, čo ešte musí otestovať human
+8) Report: SHA, súbory, čo human overí
 
 MUST NOT:
-- src/lib/agent/** execute, src/lib/launch/** pipeline, api/chat core
-- Launch mode chip / /api/launch
+- src/lib/agent/**, src/lib/launch/** pipeline
+- /api/chat, Launch mode chip
 - main / force-push
 ```

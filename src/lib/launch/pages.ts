@@ -1,7 +1,7 @@
 import { BUILD_CODE_MODEL } from "@/lib/models";
 import type { GenerateTextFn } from "./blueprint";
 import { PAGE_SYSTEM, buildPageUserPrompt } from "./prompts";
-import type { LaunchBlueprint, PageId } from "./schema";
+import { PAGE_PATHS, type LaunchBlueprint, type PageId } from "./schema";
 import { placeholderPageHtml, type SharedShell } from "./shell";
 
 function stripHtmlFences(raw: string): string {
@@ -11,6 +11,29 @@ function stripHtmlFences(raw: string): string {
   return t;
 }
 
+const DEFAULT_ALLOWED_HREFS = new Set(Object.values(PAGE_PATHS));
+
+/**
+ * Soft post-process: drop a11y-hostile viewport locks and rewrite unknown *.html
+ * links to contact.html (common model hallucination: team.html).
+ */
+export function sanitizeGeneratedPageHtml(
+  html: string,
+  allowedHrefs: Iterable<string> = DEFAULT_ALLOWED_HREFS,
+): string {
+  const allowed = new Set(allowedHrefs);
+  let out = html;
+  out = out.replace(/\s*user-scalable\s*=\s*no/gi, "");
+  out = out.replace(/\s*,?\s*maximum-scale\s*=\s*1(\.0)?/gi, "");
+  out = out.replace(/href\s*=\s*(["'])([^"']+\.html(?:\?[^"']*)?)\1/gi, (full, q, href) => {
+    const pathOnly = String(href).split("?")[0] ?? href;
+    if (allowed.has(pathOnly)) return full;
+    if (/^https?:\/\//i.test(pathOnly) || pathOnly.startsWith("//")) return full;
+    return `href=${q}contact.html${q}`;
+  });
+  return out;
+}
+
 export function ensureHtmlDocument(raw: string): string {
   const html = stripHtmlFences(raw).trim();
   if (!html) throw new Error("Empty HTML from page worker");
@@ -18,7 +41,7 @@ export function ensureHtmlDocument(raw: string): string {
   if (!lower.includes("<!doctype") && !lower.includes("<html")) {
     throw new Error("Page worker output is not an HTML document");
   }
-  return html;
+  return sanitizeGeneratedPageHtml(html);
 }
 
 export async function generatePage(
