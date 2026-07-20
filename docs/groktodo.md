@@ -4,7 +4,7 @@
 > **Sister board:** [`cursortodo.md`](./cursortodo.md) · **Hub:** [`todo.md`](./todo.md) · **Scores:** [`progress.md`](./progress.md)  
 > **Branch:** `developeredit` only · **Never** push `main`  
 > **AI rule:** Mistral only — no OpenAI / Lovable AI Gateway / Gemini for product chat  
-> **Last sync:** 2026-07-20 EOD — G0–G2 + Vitest 54; Cursor A–G done; next human smoke + SQL
+> **Last sync:** 2026-07-20 post-C★ — Grok G0–G2 ✅; Cursor **C★** ✅; human: SQL + smoke + BPI
 
 ---
 
@@ -320,14 +320,14 @@ docs/samples/2026-07/{id}.meta.md  # time_s, model, mode, tool_calls, score
 
 Grok track is **done for parallel milestone G★** when:
 
-- [ ] G-P0-1, G-P1-1, G-P1-2 closed  
-- [ ] Live 4-prompt suite scored in `progress.md`  
-- [ ] ≥ 20 unit tests green  
-- [ ] `create_artifact` / `edit_file` write `artifact_versions`  
-- [ ] `web_search`/`fetch_url` either shipped behind flag or explicitly deferred in this file  
-- [ ] `/api/ai-status` green on prod after deploy  
-- [ ] No OpenAI/Gateway regression  
-- [ ] Cursor can call list/restore versions without touching tool execute code  
+- [x] G-P0-1, G-P1-1, G-P1-2 closed  
+- [ ] Live 4-prompt suite scored in `progress.md` (**human + Grok G3**)  
+- [x] ≥ 20 unit tests green (**54**)  
+- [x] `create_artifact` / `edit_file` write `artifact_versions` (code; SQL apply human)  
+- [x] `web_search`/`fetch_url` behind flags (+ Tavily key optional)  
+- [ ] `/api/ai-status` green on **prod** after deploy  
+- [x] No OpenAI/Gateway regression  
+- [x] Cursor can call list/restore versions (C★ UI landed)  
 
 ---
 

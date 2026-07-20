@@ -30,6 +30,7 @@ import { exportArtifactDownload } from "@/lib/export-artifact";
 import { MonacoEditor } from "@/components/canvas/MonacoEditor";
 import { MonacoDiff } from "@/components/canvas/MonacoDiff";
 import { NetworkPanel, type NetworkEntry } from "@/components/canvas/NetworkPanel";
+import { VersionTimeline } from "@/components/canvas/VersionTimeline";
 import {
   latestSnippetForFile,
   type EditFileSnippet,
@@ -540,6 +541,7 @@ export function Canvas({
           )}
           {artifact && (
             <>
+              <VersionTimeline artifactId={artifact.id} threadId={threadId} />
               <button
                 onClick={handleExport}
                 className="min-h-9 min-w-9 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
@@ -693,6 +695,10 @@ export function Canvas({
                   {previewWidth}px
                 </span>
               </div>
+              {/*
+                Sandbox: scripts+forms only — no same-origin, no top-nav, no downloads.
+                Preview is untrusted user/agent HTML; keep capabilities minimal.
+              */}
               <iframe
                 key={key}
                 ref={iframeRef}
@@ -754,13 +760,31 @@ export function Canvas({
 
         {showShare && artifact?.is_public && (
           <div className="relative z-10 border-t border-border-subtle bg-surface-1/95 px-4 py-3 backdrop-blur">
-            <div className="mx-auto flex max-w-3xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <div className="text-xs font-semibold">Share</div>
-                <div className="truncate font-mono text-[11px] text-muted-foreground">
-                  {typeof window !== "undefined"
-                    ? `${window.location.origin}/a/${artifact.id}`
-                    : `/a/${artifact.id}`}
+            <div className="mx-auto flex max-w-3xl flex-col gap-3">
+              <div className="flex gap-3">
+                <div className="hidden h-16 w-24 shrink-0 overflow-hidden rounded-lg border border-border-subtle bg-surface-2 sm:block">
+                  {srcDoc ? (
+                    <iframe
+                      srcDoc={srcDoc}
+                      sandbox=""
+                      className="pointer-events-none h-[200%] w-[200%] origin-top-left scale-50 border-0 bg-white"
+                      title="Share preview"
+                      tabIndex={-1}
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center font-mono text-[10px] text-muted-foreground">
+                      {artifact.kind}
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-semibold">Share</div>
+                  <div className="truncate text-sm">{artifact.title}</div>
+                  <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground">
+                    {typeof window !== "undefined"
+                      ? `${window.location.origin}/a/${artifact.id}`
+                      : `/a/${artifact.id}`}
+                  </div>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -779,7 +803,7 @@ export function Canvas({
                   type="button"
                   className="min-h-11 rounded-md border border-border px-3 text-xs"
                   onClick={async () => {
-                    const embed = `<iframe src="${window.location.origin}/a/${artifact.id}" style="width:100%;height:640px;border:0;border-radius:12px" title="${artifact.title}"></iframe>`;
+                    const embed = `<iframe src="${window.location.origin}/a/${artifact.id}/embed" style="width:100%;height:640px;border:0;border-radius:12px" title="${artifact.title}"></iframe>`;
                     await navigator.clipboard.writeText(embed);
                     toast.success("Embed code copied");
                   }}

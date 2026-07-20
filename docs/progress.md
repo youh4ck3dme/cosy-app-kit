@@ -76,3 +76,4 @@ Artefakt skóre: _ / 10
 |-------|----|
 | 2026-07-20 | Baseline + BPI |
 | 2026-07-20 | M1–M6 implementation pass logged |
+| 2026-07-20 | Cursor **C★** (A–Z) + Grok G0–G2 on `developeredit`; BPI live suite still pending |

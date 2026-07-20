@@ -25,6 +25,7 @@ import { MessageList } from "@/components/app-shell/MessageList";
 import { AppDialog } from "@/components/app-shell/AppDialog";
 import { AgentSettingsPanel } from "@/components/app-shell/AgentSettingsPanel";
 import { CommandPalette, ShortcutsHelp } from "@/components/app-shell/CommandPalette";
+import { Tour } from "@/components/onboarding/Tour";
 import { useHotkey } from "@/hooks/use-hotkeys";
 import { userFacingChatError } from "@/lib/agent/error-handling";
 import { exportArtifactDownload } from "@/lib/export-artifact";
@@ -123,6 +124,17 @@ function ChatPage() {
     setComposerFill({ id: Date.now(), text, mode });
     setView("chat");
   }, []);
+
+  useEffect(() => {
+    try {
+      const seeded = sessionStorage.getItem("builder:template-prompt");
+      if (!seeded) return;
+      sessionStorage.removeItem("builder:template-prompt");
+      fillComposer(seeded, "replace");
+    } catch {
+      /* ignore */
+    }
+  }, [fillComposer]);
   const modeRef = useRef<BuilderMode>("Build");
   useEffect(() => {
     modeRef.current = mode;
@@ -504,6 +516,7 @@ function ChatPage() {
         }
       />
       <ShortcutsHelp open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+      <Tour enabled={!isLoading} />
     </div>
   );
 }

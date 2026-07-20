@@ -247,8 +247,10 @@ Do not wait for permission between letters. Drive A→Z (or H→C★) to complet
 
 ## Status snapshot (for human)
 
-| Letters | Status EOD 2026-07-20 |
-|---------|------------------------|
-| A–G | Done |
-| H–L | Remaining (mega-prompt will finish these) |
-| C★ | Not yet |
+| Letters | Status |
+|---------|--------|
+| A–G | ✅ (earlier sessions) |
+| H–L | ✅ mega-prompt run (VersionTimeline, templates, embed, e2e local) |
+| **C★** | ✅ |
+| Blocked for live restore | Apply SQL `20260720120000_artifact_versions.sql` — see `docs/migrations.md` |
+| Hub | `docs/todo.md` updated post-C★ |

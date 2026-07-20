@@ -430,12 +430,12 @@ If DB errors about missing table, note that migration 20260720120000 must be app
 | E | Chat UX depth | ✅ | 2026-07-20 | quote, tool labels, chips fill, DnD images, Branch stub |
 | F | Monaco | ✅ | 2026-07-20 | lazy + mount gate; edits/Save/400ms kept |
 | G | DiffEditor | ✅ | 2026-07-20 | local undo + edit_file before/after snippets |
-| H | Versions UI | ☐ **NEXT** (after SQL) | | listArtifactVersions ready |
-| I | Console/Network | ☐ partial in tree | | NetworkPanel exists; polish later |
-| J | Templates/Tour | ☐ | | |
-| K | Share/a11y | ☐ | | |
-| L | Playwright local | ☐ | | |
-| **C★** | Done | ☐ | | |
+| H | Versions UI | ✅ | 2026-07-20 | timeline + restore; graceful if SQL missing |
+| I | Console/Network | ✅ | 2026-07-20 | filters, NetworkPanel, F/Esc, device LS, sandbox note |
+| J | Templates/Tour | ✅ | 2026-07-20 | seed + routes + tour + landing Made with Builder |
+| K | Share/a11y | ✅ | 2026-07-20 | share panel + `/a/$id/embed` + Made with Builder |
+| L | Playwright local | ✅ | 2026-07-20 | e2e specs + README; not CI — install @playwright/test locally |
+| **C★** | Done | ✅ | 2026-07-20 | mega-prompt H→L complete; build green |
 
 ---
 

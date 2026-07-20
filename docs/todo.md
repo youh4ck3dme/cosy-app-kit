@@ -1,127 +1,84 @@
 # Builder roadmap hub (OmniOps · Mistral)
 
-> **Status 2026-07-20 EOD:** Pipeline on `developeredit` — Grok G0–G2 + Cursor A–G shipped & CI green.  
-> Roadmap: parallel worlds [`groktodo.md`](./groktodo.md) / [`cursortodo.md`](./cursortodo.md).  
-> **main** untouched. Next session: SQL migration apply + human smoke + Cursor **H** (or I/J).
+> **Status 2026-07-20 post-C★:**  
+> **Grok G0–G2** + **Cursor A→Z (C★)** are in code on **`developeredit`**.  
+> CI was green before H–L land; re-run after commit. **`main` untouched.**  
+> Boards: [`groktodo.md`](./groktodo.md) · [`cursortodo.md`](./cursortodo.md) · mega-prompt: [`CURSOR_MEGA_PROMPT.md`](./CURSOR_MEGA_PROMPT.md)
 
 ---
 
-## Parallel worlds (read your file only)
+## Parallel worlds
 
-| World | File | Owner | Focus |
+| World | File | Owner | Status |
 |-------|------|-------|--------|
-| **A** | **[`groktodo.md`](./groktodo.md)** | **Grok** | `/api/chat`, tools, prompts, memory, migrations, Vitest agent, BPI samples, P0 persist bugs |
-| **B** | **[`cursortodo.md`](./cursortodo.md)** | **Cursor** | **A→Z plan** (B tidy → Monaco → templates → share). Start at letter **A**. |
+| **A** | [`groktodo.md`](./groktodo.md) | **Grok** | G0–G2 ✅ · G3 BPI ⏳ human live samples |
+| **B** | [`cursortodo.md`](./cursortodo.md) | **Cursor** | **C★ ✅** (A–L done) |
 
-**Shared scoreboard:** [`progress.md`](./progress.md)  
-**Architecture:** [`architecture.md`](./architecture.md)  
-**Keyboard:** [`keyboard.md`](./keyboard.md)  
-**Samples:** [`samples/2026-07/`](./samples/2026-07/)
+**Scoreboard:** [`progress.md`](./progress.md) · **Architecture:** [`architecture.md`](./architecture.md)  
+**Tools/versions:** [`agent-tools.md`](./agent-tools.md) · **SQL:** [`migrations.md`](./migrations.md)  
+**Smoke:** [`smoke-checklist.md`](./smoke-checklist.md) · **Samples:** [`samples/2026-07/`](./samples/2026-07/)
 
 ---
 
 ## Rules of engagement
 
-1. **One world per agent session** — do not “helpfully” implement the other half.  
-2. **Hard file boundaries** are listed in each world file § Ownership boundary.  
-3. **Shared files** (`chat.$threadId.tsx`, `MessageList.tsx`, `threads.functions.ts`):  
-   - Grok adds server contracts first when both need them.  
-   - Cursor consumes via `useServerFn` / stream data parts.  
-4. **Branch:** `developeredit` only. **`main` locked** — PR + human merge order.  
-5. **AI:** product chat = **Mistral only** (no OpenAI / Lovable Gateway / Gemini).  
-6. **Secrets:** never commit keys.  
-7. After prod deploy: smoke `/api/ai-status` + `/chat`.
+1. One world per agent session (unless human says otherwise).  
+2. File boundaries in each board § Ownership.  
+3. Shared files: Grok owns server contracts; Cursor consumes.  
+4. Branch **`developeredit`** only · **`main` locked** (PR + human merge).  
+5. Product AI: **Mistral only**.  
+6. Never commit secrets.  
+7. After prod: smoke `/api/ai-status` + `/chat`.
 
 ---
 
-## Where we stand (both worlds)
+## Where we stand
 
-### Done (platform slice M1–M6)
+### Shipped on `developeredit`
 
-- Auth, threads, messages, artifacts, `thread_memory`, agent_settings  
-- Streaming chat via **direct Mistral** + hybrid tools + fence fallback  
-- Plan vs Build tool split; Codestral Build routing; anti-cliché prompts  
-- Canvas preview/code/simple diff, ZIP, share+embed, device 420, undo local  
-- Cmd+K palette, starters (4), image attach, memory UI, skeletons  
-- Chat error/notFound, safe-area, reduced-motion  
-- Vitest 9 tests, expanded `/api/ai-status`
+| Area | Detail |
+|------|--------|
+| Agent | Hybrid tools + fence, Codestral Build, truncate, stream data-parts |
+| G2 | `artifact_versions` migration + list/restore fns (SQL **must apply** for restore) |
+| Tests | Vitest **54** pass · suggestFollowups API |
+| Canvas | Monaco code + Diff, VersionTimeline, Network/console polish |
+| Chat UX | Palette, quote/chips/DnD, artifact focus |
+| Growth | Templates routes + seed, Tour, landing “Made with Builder” |
+| Share | Share panel + `/a/$id/embed` |
+| E2E | Local Playwright specs only (not CI) |
 
-### Open P0 (coordinate)
+### Human blockers (do these next)
 
-| ID | Issue | Primary | Secondary |
-|----|-------|---------|-----------|
-| G-P0-1 | Edit/retry does not delete DB messages | ✅ G0 shipped (`truncateThreadMessagesAfter`) | wired in chat page |
-| G-P1-1 | Fence + tool double artifact | ✅ G0 shipped (`shouldFenceArtifacts`) | — |
-| G-P1-2 | Tool-only empty assistant persist | ✅ G0 shipped (tool summary fallback) | — |
-| C-P1-1 | Monaco / real DiffEditor | Cursor | — |
-| Live BPI | Sample regen + real scores | Grok process | Human browser |
+| # | Action | Why |
+|---|--------|-----|
+| 1 | Apply `supabase/migrations/20260720120000_artifact_versions.sql` | Live version **restore** |
+| 2 | Run [`smoke-checklist.md`](./smoke-checklist.md) | Edit/retry, Plan/Build, canvas |
+| 3 | Optional BPI suite → `docs/samples/2026-07/` + real scores in `progress.md` | Grok G★ |
+| 4 | Optional `bun add -d @playwright/test && bunx playwright install` | Local L e2e |
+| 5 | PR `developeredit` → `main` when you want | Ship |
 
-### Backlog themes (see world files for sprints)
+### Post-1.0 backlog (either world, human prioritizes)
 
-| Theme | World |
-|-------|--------|
-| Truncate + web/fetch + stream parts | ✅ Grok G0–G1 |
-| artifact_versions list/restore | ✅ Grok G2 (apply migration) |
-| BPI samples | Grok G3 + human |
-| Monaco Canvas Pro + network panel | Cursor C1 |
-| Templates + tour + landing gallery | Cursor C3 |
-| Share embed route + a11y + Playwright | Cursor C4 |
-| Public API / billing / collab / voice | Post-1.0 (either, human prioritizes) |
+Billing · collab · voice · public API · lint-as-CI · Playwright in CI · Monaco format-on-save · user templates
 
 ---
 
-## Suggested parallel schedule
+## Definition of “Builder 1.0-ready”
 
-```text
-Week N
-  Grok:  G0 stabilize (truncate, de-dupe fence, persist tools) → commit M1–M6
-  Cursor: C0 polish (420 unify, palette, wire truncate when ready)
-
-Week N+1
-  Grok:  G1 tool depth + optional web/fetch flags + stream data parts
-  Cursor: C1 Monaco + DiffEditor + console filters
-
-Week N+2
-  Grok:  G2 artifact_versions migration + list/restore fns + live samples BPI
-  Cursor: C2 message actions + suggestions UI + tool toasts
-
-Week N+3
-  Grok:  G3 tests ≥20 + health + prompt_rev
-  Cursor: C3 templates + tour + landing
-
-Week N+4
-  Grok:  prod smoke / docs/agent-tools.md
-  Cursor: C4 share v2 + Playwright + a11y pass
-```
-
----
-
-## Definition of “Builder 1.0-ready” (both worlds green)
-
-- [ ] Grok **G★** acceptance (`groktodo.md` §5)  
-- [ ] Cursor **C★** acceptance (`cursortodo.md` §5)  
+- [x] Cursor **C★** (`cursortodo.md` tracker)  
+- [x] Grok hybrid tools + versions **code** (G0–G2)  
+- [ ] SQL migration **applied** on project  
+- [ ] Live smoke checklist green  
 - [ ] BPI measured (not estimated) in `progress.md`  
-- [ ] `developeredit` committed; PR reviewed; human merges `main`  
-- [ ] Prod `/api/ai-status` ok + manual chat smoke  
+- [ ] PR reviewed; human merges `main`  
+- [ ] Prod `/api/ai-status` + `/chat` smoke  
 
 ---
 
-## Obsolete content removed from this hub
+## Quick links
 
-The previous mega-prompt archive and OpenAI/Gemini-oriented phase text lived in the old monolithic `todo.md`.  
-**Source of truth for work is now only:**
-
-- `docs/groktodo.md`  
-- `docs/cursortodo.md`  
-
-If you need the historical phase essays, recover from git history before this split.
-
----
-
-## Quick links for agents
-
-| If you are… | Start here | First task |
-|-------------|------------|------------|
-| **Grok** | [groktodo.md](./groktodo.md) | G0–G2 + tests shipped; next: BPI after smoke |
-| **Cursor** | [cursortodo.md](./cursortodo.md) | A–G ✅ → next **H** (after SQL) or **I/J** |
-| **Human** | [smoke-checklist.md](./smoke-checklist.md) · [migrations.md](./migrations.md) | Apply SQL + live smoke + BPI |
+| Who | Start | First task now |
+|-----|--------|----------------|
+| **Human** | [migrations.md](./migrations.md) + [smoke-checklist.md](./smoke-checklist.md) | SQL + browser smoke |
+| **Grok** | [groktodo.md](./groktodo.md) | BPI samples after smoke; no Cursor UI rewrites |
+| **Cursor** | [cursortodo.md](./cursortodo.md) | **C★ done** — polish only if human asks; no mega re-run |
