@@ -430,8 +430,8 @@ If DB errors about missing table, note that migration 20260720120000 must be app
 | E | Chat UX depth | ✅ | 2026-07-20 | quote, tool labels, chips fill, DnD images, Branch stub |
 | F | Monaco | ✅ | 2026-07-20 | lazy + mount gate; edits/Save/400ms kept |
 | G | DiffEditor | ✅ | 2026-07-20 | local undo + edit_file before/after snippets |
-| H | Versions UI | ☐ READY | | needs migration apply |
-| I | Console/Network | ☐ | | |
+| H | Versions UI | ☐ **NEXT** (after SQL) | | listArtifactVersions ready |
+| I | Console/Network | ☐ partial in tree | | NetworkPanel exists; polish later |
 | J | Templates/Tour | ☐ | | |
 | K | Share/a11y | ☐ | | |
 | L | Playwright local | ☐ | | |
