@@ -1,8 +1,8 @@
 # Builder roadmap hub (OmniOps · Mistral)
 
-> **Status 2026-07-20:** Happy-path pipeline works (chat → Mistral → canvas).  
-> M1–M6 hybrid agent is **in code** on `developeredit` (mostly uncommitted at last audit).  
-> Roadmap is split into **two parallel worlds** so Grok and Cursor agents do not collide.
+> **Status 2026-07-20 EOD:** Pipeline on `developeredit` — Grok G0–G2 + Cursor A–G shipped & CI green.  
+> Roadmap: parallel worlds [`groktodo.md`](./groktodo.md) / [`cursortodo.md`](./cursortodo.md).  
+> **main** untouched. Next session: SQL migration apply + human smoke + Cursor **H** (or I/J).
 
 ---
 
