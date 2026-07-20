@@ -95,7 +95,10 @@ try {
   await ap.goto(`${BASE}/auth`, { waitUntil: "networkidle" });
   await ap.keyboard.press("Tab");
   const focused = await ap.evaluate(() => document.activeElement?.textContent?.trim());
-  check(focused === "Skip to content", `first Tab focuses skip link (got: ${JSON.stringify(focused)})`);
+  check(
+    focused === "Skip to content",
+    `first Tab focuses skip link (got: ${JSON.stringify(focused)})`,
+  );
   await a11y.close();
 
   await browser.close();

@@ -20,12 +20,7 @@ describe("groupThreads", () => {
       ],
       NOW,
     );
-    expect(groups.map((g) => g.label)).toEqual([
-      "Today",
-      "Yesterday",
-      "Previous 7 days",
-      "Older",
-    ]);
+    expect(groups.map((g) => g.label)).toEqual(["Today", "Yesterday", "Previous 7 days", "Older"]);
     expect(groups.map((g) => g.items[0].id)).toEqual(["today", "yesterday", "this-week", "older"]);
   });
 

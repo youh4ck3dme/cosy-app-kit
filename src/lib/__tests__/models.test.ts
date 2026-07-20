@@ -1,10 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  AVAILABLE_MODELS,
-  DEFAULT_MODEL,
-  isMistralModelId,
-  resolveKnownModelId,
-} from "../models";
+import { AVAILABLE_MODELS, DEFAULT_MODEL, isMistralModelId, resolveKnownModelId } from "../models";
 
 describe("resolveKnownModelId", () => {
   test("keeps every catalog model id as-is", () => {
