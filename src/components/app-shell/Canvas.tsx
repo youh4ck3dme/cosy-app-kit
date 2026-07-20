@@ -64,10 +64,46 @@ type ConsoleFilter = "all" | "log" | "warn" | "error";
 /**
  * Sandboxed iframe uses srcDoc (opaque origin "null") so postMessage target is "*".
  * Authenticate with a per-mount random token + event.source === iframe.contentWindow.
+ *
+ * Do NOT add allow-same-origin to sandbox — untrusted agent HTML must not share parent origin.
+ * Instead we polyfill localStorage/sessionStorage in-memory so dashboards don't SecurityError.
  */
 function previewBridge(token: string): string {
   const t = JSON.stringify(token);
   return `<script>(function(){
+  /* In-memory Storage for sandboxed srcdoc (no allow-same-origin). Must run first. */
+  function makeMemoryStorage() {
+    var map = Object.create(null);
+    var keys = [];
+    function rekey() { keys = Object.keys(map); }
+    return {
+      get length() { return keys.length; },
+      key: function(i) { return keys[i] != null ? keys[i] : null; },
+      getItem: function(k) { k = String(k); return Object.prototype.hasOwnProperty.call(map, k) ? map[k] : null; },
+      setItem: function(k, v) { k = String(k); if (!Object.prototype.hasOwnProperty.call(map, k)) { map[k] = String(v); rekey(); } else { map[k] = String(v); } },
+      removeItem: function(k) { k = String(k); if (Object.prototype.hasOwnProperty.call(map, k)) { delete map[k]; rekey(); } },
+      clear: function() { map = Object.create(null); keys = []; }
+    };
+  }
+  function needsStoragePolyfill() {
+    try {
+      var x = '__builder_ls__';
+      window.localStorage.setItem(x, '1');
+      window.localStorage.removeItem(x);
+      return false;
+    } catch (e) { return true; }
+  }
+  if (needsStoragePolyfill()) {
+    var ls = makeMemoryStorage();
+    var ss = makeMemoryStorage();
+    try {
+      Object.defineProperty(window, 'localStorage', { configurable: true, enumerable: true, value: ls });
+      Object.defineProperty(window, 'sessionStorage', { configurable: true, enumerable: true, value: ss });
+    } catch (e2) {
+      try { window.localStorage = ls; window.sessionStorage = ss; } catch (e3) {}
+    }
+  }
+
   var TOKEN = ${t};
   var sendConsole = function(level, args) {
     try { parent.postMessage({ __builder_console: TOKEN, level: level, args: args.map(function(a) {
@@ -107,8 +143,14 @@ function previewBridge(token: string): string {
 
 function injectBridge(html: string, token: string): string {
   const bridge = previewBridge(token);
-  if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, `${bridge}</body>`);
-  return `${html}\n${bridge}`;
+  // Polyfill MUST run before artifact scripts (localStorage in init).
+  if (/<head[^>]*>/i.test(html)) {
+    return html.replace(/<head[^>]*>/i, (open) => `${open}\n${bridge}`);
+  }
+  if (/<html[^>]*>/i.test(html)) {
+    return html.replace(/<html[^>]*>/i, (open) => `${open}\n${bridge}`);
+  }
+  return `${bridge}\n${html}`;
 }
 
 function fileList(a: Artifact): ArtifactFile[] {

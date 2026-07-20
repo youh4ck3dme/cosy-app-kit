@@ -32,6 +32,7 @@ Hard quality rules for HTML artifacts:
 - Prefer inline <style> (self-contained). Use Tailwind CDN only if the user explicitly asks for Tailwind.
 - Include <meta name="viewport" content="width=device-width, initial-scale=1">.
 - **Mobile-first layout (required):** write base styles for ~360–430px phones first, then enhance with @media (min-width: 768px) and @media (min-width: 1024px). Do NOT ship a desktop-only grid that merely squeezes on small screens.
+- **Storage:** wrap localStorage/sessionStorage in try/catch with an in-memory fallback object. Preview canvas is a sandboxed iframe without same-origin storage — bare localStorage throws SecurityError.
 - On small screens: single column; sidebar/nav collapsed behind a hamburger (closed by default); no horizontal page scroll; avoid fixed min-width on body/main/wrapper wider than 100%.
 - At max-width 767px: stack KPI cards, full-width charts, readable type (≥14px body), primary controls ≥44px touch targets.
 - Semantic HTML; icon-only buttons need aria-label.

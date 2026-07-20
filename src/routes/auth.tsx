@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   decodeOAuthState,
   extractOAuthTokensFromLocation,
+  isLocalDevReturnUrl,
   isLocalHost,
   lovable,
   stripOAuthParamsFromUrl,
@@ -60,12 +61,9 @@ function AuthPage() {
       if (tokens) {
         const st = decodeOAuthState(tokens.state);
 
-        // On published origin after Google: if login started from localhost, bounce tokens back.
-        if (
-          st?.lr &&
-          /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(st.lr) &&
-          !isLocalHost()
-        ) {
+        // On published origin after Google: if login started from local/LAN, bounce tokens back.
+        // Allows localhost AND private Wi‑Fi IPs (phone testing via http://192.168.x.x:8080).
+        if (st?.lr && isLocalDevReturnUrl(st.lr) && !isLocalHost()) {
           const target = new URL(st.lr);
           const hash = new URLSearchParams({
             access_token: tokens.access_token,
