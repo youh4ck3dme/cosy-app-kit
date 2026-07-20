@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { analyzeResponsiveHtml } from "./responsive-gate";
 
 const GOOD = `<!DOCTYPE html>
@@ -25,6 +27,8 @@ const NO_MEDIA = `<html><head>
 </head><body><div class="sidebar">Nav</div></body></html>`;
 
 const EMPTY = "";
+
+const samplesDir = join(process.cwd(), "docs/samples/2026-07/mobile-gate");
 
 describe("analyzeResponsiveHtml", () => {
   it("scores good mobile-first high", () => {
@@ -54,5 +58,19 @@ describe("analyzeResponsiveHtml", () => {
     const r = analyzeResponsiveHtml(EMPTY);
     expect(r.score).toBe(0);
     expect(r.ok).toBe(false);
+  });
+
+  it("golden good fixture passes", () => {
+    const html = readFileSync(join(samplesDir, "good-mobile-first.html"), "utf8");
+    const r = analyzeResponsiveHtml(html);
+    expect(r.ok).toBe(true);
+    expect(r.hardFails).toEqual([]);
+  });
+
+  it("golden bad fixture fails hard", () => {
+    const html = readFileSync(join(samplesDir, "bad-desktop-only.html"), "utf8");
+    const r = analyzeResponsiveHtml(html);
+    expect(r.ok).toBe(false);
+    expect(r.hardFails.length).toBeGreaterThan(0);
   });
 });

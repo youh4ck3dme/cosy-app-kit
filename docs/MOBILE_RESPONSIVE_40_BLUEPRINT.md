@@ -7,7 +7,7 @@
 **Owner split:** Grok (agent/prompt/gate) · Cursor (Canvas UX) · Human (smoke on real phone)  
 **Depends on:** already landed defaults (phone → mobile device, visible switcher, honest width label, `prompt_rev 2026-07-20-c`)  
 
-**Progress:** **M1 ✅ · M2 ✅** (2026-07-20) · M3/M4 pending
+**Progress:** **M1 ✅ · M2 ✅ · M3 ✅ · M4 ✅** (2026-07-20)
 
 ---
 

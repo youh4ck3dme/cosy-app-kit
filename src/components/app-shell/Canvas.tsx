@@ -125,11 +125,14 @@ export function Canvas({
   artifact,
   threadId,
   editSnippets = [],
+  onPolishMobile,
 }: {
   artifact?: Artifact;
   threadId?: string;
   /** From chat tool parts — enables Diff “Show model change”. */
   editSnippets?: EditFileSnippet[];
+  /** One-tap “Make mobile-first” → parent sends polish prompt (MR-40 M3). */
+  onPolishMobile?: () => void;
 }) {
   const [previewMode, setPreviewMode] = useState<PreviewMode>(() => defaultPreviewModeForHost());
   const [customWidth, setCustomWidth] = useState<number | null>(null);
@@ -847,6 +850,21 @@ export function Canvas({
                       >
                         m{responsiveReport.score}
                       </span>
+                    )}
+                    {onPolishMobile && entryHtml && (
+                      <button
+                        type="button"
+                        onClick={onPolishMobile}
+                        className={cn(
+                          "shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-semibold transition-colors",
+                          responsiveReport && !responsiveReport.ok
+                            ? "bg-amber-500/20 text-amber-200 hover:bg-amber-500/30"
+                            : "bg-surface-2 text-muted-foreground hover:bg-surface-3 hover:text-foreground",
+                        )}
+                        title="Ask Builder to rewrite layout mobile-first"
+                      >
+                        Mobile-first
+                      </button>
                     )}
                   </div>
                   <span

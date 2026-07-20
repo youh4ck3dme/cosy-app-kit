@@ -20,7 +20,7 @@ import {
 } from "@/lib/ai-gateway.server";
 import { resolveModelForMode } from "@/lib/models";
 import { extractArtifacts } from "@/lib/agent/artifacts";
-import { composeSystem } from "@/lib/agent/prompts";
+import { composeSystem, formatClientContext, type ClientPreviewContext } from "@/lib/agent/prompts";
 import { formatMemoryBlock, loadThreadMemory } from "@/lib/agent/memory";
 import { buildTools, type ToolFlags } from "@/lib/agent/tools";
 import {
@@ -38,6 +38,8 @@ type ChatBody = {
   threadId?: string;
   messages?: UIMessage[];
   mode?: Mode;
+  /** Optional host viewport hint for mobile-first generation (MR-40 M3). */
+  clientContext?: ClientPreviewContext;
 };
 
 /** Keep last N UI messages to reduce latency/cost (M4 context trim). */
@@ -129,10 +131,12 @@ export const Route = createFileRoute("/api/chat")({
 
           const memoryRows = await loadThreadMemory(supabase, thread.id);
           const memoryBlock = formatMemoryBlock(memoryRows);
+          const clientBlock = formatClientContext(body.clientContext);
           const system = composeSystem(
             mode,
             thread.system_prompt || DEFAULT_SYSTEM_PROMPT,
             memoryBlock,
+            clientBlock,
           );
           const temperature = Number(thread.temperature ?? 0.7);
 

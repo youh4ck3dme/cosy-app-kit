@@ -11,7 +11,12 @@ import {
   DEFAULT_MODEL,
   resolveModelForMode,
 } from "@/lib/models";
-import { PROMPT_REV, composeSystem } from "@/lib/agent/prompts";
+import {
+  PROMPT_REV,
+  composeSystem,
+  formatClientContext,
+  MOBILE_FIRST_POLISH_PROMPT,
+} from "@/lib/agent/prompts";
 
 describe("sanitizeRelativePath", () => {
   it("accepts nested relative paths", () => {
@@ -110,5 +115,15 @@ describe("prompt_rev", () => {
   it("embeds rev in composeSystem", () => {
     expect(PROMPT_REV).toMatch(/2026/);
     expect(composeSystem("build", "Base", "")).toContain(PROMPT_REV);
+  });
+
+  it("appends client viewport context", () => {
+    const block = formatClientContext({ hostWidth: 390, previewMode: "fluid" });
+    expect(block).toMatch(/390px/);
+    expect(composeSystem("build", "Base", "", block)).toContain("Client viewport");
+  });
+
+  it("exports mobile polish prompt", () => {
+    expect(MOBILE_FIRST_POLISH_PROMPT).toMatch(/mobile-first/i);
   });
 });

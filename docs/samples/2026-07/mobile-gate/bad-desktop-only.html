@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <!-- missing viewport -->
+  <title>Bad desktop-only fixture</title>
+  <style>
+    body { margin: 0; min-width: 1200px; font-family: Inter, system-ui, sans-serif; }
+    .sidebar { width: 280px; float: left; height: 100vh; background: #111; color: #fff; }
+    .main { margin-left: 280px; display: flex; gap: 24px; padding: 24px; }
+    .card { width: 360px; height: 200px; background: #eee; }
+  </style>
+</head>
+<body>
+  <div class="sidebar">Always open sidebar · no hamburger</div>
+  <div class="main">
+    <div class="card">KPI 1</div>
+    <div class="card">KPI 2</div>
+    <div class="card">KPI 3</div>
+  </div>
+</body>
+</html>

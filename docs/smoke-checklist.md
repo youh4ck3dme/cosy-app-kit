@@ -45,6 +45,16 @@
 - [ ] Viewport ~420: composer safe-area, touch targets OK
 - [ ] Artifact → preview view on small screen
 
+## 7. Mobile preview (MR-40 M1–M3)
+
+- [ ] Narrow viewport: default preview mode **Fluid** (or phone)
+- [ ] Device toggles visible: Fluid · Mobile · Tablet · Desktop
+- [ ] **Desktop** on phone shows scaled layout + badge with `media 1200` / `sim`
+- [ ] **Fluid** uses real host width (honest phone MQ)
+- [ ] HTML chrome shows **m##** responsive score badge
+- [ ] Low score → toast once; **Mobile-first** chip sends polish turn (Build mode)
+- [ ] New gen dashboard: no horizontal scroll; sidebar/hamburger closed by default @390
+
 ## Record (paste into progress.md)
 
 ```

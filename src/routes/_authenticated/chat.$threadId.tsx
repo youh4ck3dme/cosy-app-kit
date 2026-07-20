@@ -35,6 +35,8 @@ import { truncateThreadMessagesClient } from "@/lib/truncate-messages";
 import { extractEditFileSnippets } from "@/lib/edit-snippets";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { MOBILE_FIRST_POLISH_PROMPT } from "@/lib/agent/prompts";
+import { isPreviewMode, type PreviewMode } from "@/lib/preview-frame";
 
 export const Route = createFileRoute("/_authenticated/chat/$threadId")({
   component: ChatPage,
@@ -150,11 +152,30 @@ function ChatPage() {
           const { data: sess } = await supabase.auth.getSession();
           const headers: Record<string, string> = {};
           if (sess.session) headers.Authorization = `Bearer ${sess.session.access_token}`;
+
+          // MR-40 M3: host width + canvas preview mode (no PII)
+          let previewMode: PreviewMode | undefined;
+          try {
+            const raw = localStorage.getItem(`builder:device:${threadId}`);
+            if (raw) {
+              const parsed = JSON.parse(raw) as { mode?: string };
+              if (isPreviewMode(parsed.mode)) previewMode = parsed.mode;
+            }
+          } catch {
+            /* ignore */
+          }
+          const hostWidth =
+            typeof window !== "undefined" ? Math.round(window.innerWidth) : undefined;
+
           return {
             body: {
               threadId,
               messages,
               mode: modeRef.current === "Plan" ? "plan" : "build",
+              clientContext: {
+                hostWidth,
+                previewMode,
+              },
             },
             headers,
           };
@@ -504,7 +525,17 @@ function ChatPage() {
               <Skeleton className="h-[60%] w-[80%] rounded-2xl" />
             </div>
           ) : (
-            <Canvas artifact={activeArtifact} threadId={threadId} editSnippets={editSnippets} />
+            <Canvas
+              artifact={activeArtifact}
+              threadId={threadId}
+              editSnippets={editSnippets}
+              onPolishMobile={() => {
+                // One-tap mobile-first rewrite (MR-40 M3)
+                setMode("Build");
+                void sendMessage({ text: MOBILE_FIRST_POLISH_PROMPT });
+                setView("preview");
+              }}
+            />
           )}
         </section>
       </div>
