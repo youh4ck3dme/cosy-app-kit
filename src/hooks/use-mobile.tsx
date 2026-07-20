@@ -1,19 +1,25 @@
 import * as React from "react";
 
-const MOBILE_BREAKPOINT = 768;
-
-export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined);
+/** SSR-safe media-query hook: false on the server, live-updating on the client. */
+export function useBreakpoint(query: string) {
+  const [matches, setMatches] = React.useState(false);
 
   React.useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
-    const onChange = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
-    };
+    const mql = window.matchMedia(query);
+    const onChange = () => setMatches(mql.matches);
     mql.addEventListener("change", onChange);
-    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+    setMatches(mql.matches);
     return () => mql.removeEventListener("change", onChange);
-  }, []);
+  }, [query]);
 
-  return !!isMobile;
+  return matches;
+}
+
+export function useIsMobile() {
+  return useBreakpoint("(max-width: 767px)");
+}
+
+/** Below the lg breakpoint — sidebar and canvas compete for space. */
+export function useIsCompact() {
+  return useBreakpoint("(max-width: 1023px)");
 }

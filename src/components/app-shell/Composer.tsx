@@ -1,5 +1,6 @@
-import { Hammer, ListTodo, Mic, Plus, Sparkles } from "lucide-react";
+import { Hammer, ListTodo, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { haptic } from "@/lib/haptics";
 import {
   PromptInput,
   PromptInputBody,
@@ -9,7 +10,6 @@ import {
   PromptInputTools,
   type PromptInputMessage,
 } from "@/components/ai-elements/prompt-input";
-import { Button } from "@/components/ui/button";
 
 export type BuilderMode = "Build" | "Plan";
 
@@ -31,13 +31,11 @@ export function Composer({
   const handleSubmit = (message: PromptInputMessage) => {
     const t = message.text?.trim();
     if (!t || disabled) return;
+    haptic();
     onSend(t);
   };
 
-
-  const status: "ready" | "submitted" | "streaming" | "error" = streaming
-    ? "streaming"
-    : "ready";
+  const status: "ready" | "submitted" | "streaming" | "error" = streaming ? "streaming" : "ready";
 
   return (
     <div className="w-full">
@@ -67,6 +65,8 @@ export function Composer({
         <PromptInputBody>
           <PromptInputTextarea
             disabled={disabled && !streaming}
+            aria-label="Message"
+            aria-keyshortcuts="Enter"
             placeholder="Ask Builder to design, code, or explain…"
             className="max-h-[240px] min-h-[52px] bg-transparent px-4 pt-3 text-[15px] leading-relaxed placeholder:text-muted-foreground/70"
           />
@@ -74,26 +74,42 @@ export function Composer({
 
         <PromptInputFooter className="px-2 pb-2">
           <PromptInputTools>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="text-muted-foreground hover:text-foreground"
-              title="Attach"
+            <div
+              role="radiogroup"
+              aria-label="Builder mode"
+              className="flex items-center rounded-full border border-border-subtle bg-surface-1/70 p-0.5 text-[12px] font-medium"
             >
-              <Plus className="h-4 w-4" />
-            </Button>
-            <div className="ml-1 flex items-center rounded-full border border-border-subtle bg-surface-1/70 p-0.5 text-[12px] font-medium">
-              {([
-                { key: "Build", Icon: Hammer },
-                { key: "Plan", Icon: ListTodo },
-              ] as const).map(({ key, Icon }) => {
+              {(
+                [
+                  { key: "Build", Icon: Hammer },
+                  { key: "Plan", Icon: ListTodo },
+                ] as const
+              ).map(({ key, Icon }) => {
                 const active = mode === key;
                 return (
                   <button
                     key={key}
                     type="button"
-                    onClick={() => onModeChange(key)}
+                    role="radio"
+                    aria-checked={active}
+                    // Roving tabindex: one tab stop for the group, arrows switch modes.
+                    tabIndex={active ? 0 : -1}
+                    onKeyDown={(e) => {
+                      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+                      e.preventDefault();
+                      const next = key === "Build" ? "Plan" : "Build";
+                      haptic(5);
+                      onModeChange(next);
+                      const sibling =
+                        e.currentTarget.parentElement?.querySelector<HTMLButtonElement>(
+                          `[role="radio"]:not([aria-checked="true"])`,
+                        );
+                      sibling?.focus();
+                    }}
+                    onClick={() => {
+                      haptic(5);
+                      onModeChange(key);
+                    }}
                     className={cn(
                       "flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all",
                       active
@@ -110,15 +126,6 @@ export function Composer({
           </PromptInputTools>
 
           <div className="flex items-center gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="text-muted-foreground hover:text-foreground"
-              title="Voice"
-            >
-              <Mic className="h-4 w-4" />
-            </Button>
             <PromptInputSubmit
               status={status}
               disabled={disabled && !streaming}

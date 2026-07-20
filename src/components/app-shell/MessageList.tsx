@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { UIMessage } from "ai";
-import { Check, Copy, FileCode2, RefreshCw, Sparkles } from "lucide-react";
+import { Check, Copy, FileCode2, RefreshCw } from "lucide-react";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import {
   Tool,
@@ -12,17 +12,12 @@ import {
 } from "@/components/ai-elements/tool";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { cn } from "@/lib/utils";
+import { STARTER_TEMPLATES } from "@/lib/templates";
 import { Logo } from "./Logo";
 
 const ARTIFACT_RE = /```(?:html|markdown|md)(?:\s+[^\n`]*)?\s*\n[\s\S]*?```/gi;
 const MULTI_FILE_RE = /```[^\n`]*\bpath=[^\n`]*\n[\s\S]*?```/gi;
 const SPLIT_MARK = "\u0000ARTIFACT\u0000";
-
-const EMPTY_PROMPTS = [
-  "Design a landing page for an AI note-taking app",
-  "Write a markdown README for a Rust CLI",
-  "Build an HTML dashboard mock with dark theme",
-];
 
 /** Runtime stream errors can land as errorText on non-tool parts; extract without invalid type predicates. */
 function getNonToolErrorText(part: UIMessage["parts"][number]): string | null {
@@ -188,19 +183,24 @@ function EmptyState({ onPick }: { onPick?: (prompt: string) => void }) {
           Ask Builder to ship an HTML artifact, a markdown doc, or walk through an idea.
         </p>
         {onPick && (
-          <ul className="mt-7 flex w-full list-none flex-col gap-2 p-0">
-            {EMPTY_PROMPTS.map((prompt) => (
-              <li key={prompt}>
+          <ul className="mt-7 grid w-full list-none grid-cols-1 gap-2 p-0 sm:grid-cols-2">
+            {STARTER_TEMPLATES.map((t) => (
+              <li key={t.id} className={t.id === "landing" ? "sm:col-span-2" : undefined}>
                 <button
                   type="button"
-                  onClick={() => onPick(prompt)}
-                  className="group flex w-full items-start gap-2.5 rounded-xl border border-border-subtle bg-surface-1/50 px-3.5 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-accent-primary/35 hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={() => onPick(t.prompt)}
+                  className="group flex w-full items-start gap-2.5 rounded-xl border border-border-subtle bg-surface-1/50 px-3.5 py-3 text-left transition-all hover:-translate-y-0.5 hover:border-accent-primary/35 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:hover:translate-y-0"
                 >
-                  <Sparkles
+                  <t.icon
                     aria-hidden
                     className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent-primary/70 transition-colors group-hover:text-accent-primary"
                   />
-                  <span>{prompt}</span>
+                  <span className="min-w-0">
+                    <span className="block text-sm text-foreground">{t.title}</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      {t.description}
+                    </span>
+                  </span>
                 </button>
               </li>
             ))}

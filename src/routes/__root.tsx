@@ -12,6 +12,7 @@ import { Toaster } from "sonner";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { registerServiceWorker } from "../lib/register-sw";
 import { supabase } from "@/integrations/supabase/client";
 
 function NotFoundComponent() {
@@ -74,7 +75,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "Builder — AI-first app studio" },
       {
         name: "description",
@@ -89,13 +90,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Builder is a dark, focused AI studio. Chat with your agent, watch it ship live artifacts to a real preview canvas.",
       },
       { property: "og:type", content: "website" },
+      { name: "theme-color", content: "#0e0f14" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Builder — AI-first app studio" },
-      { name: "twitter:description", content: "Builder is a dark, focused AI studio. Chat with your agent, watch it ship live artifacts to a real preview canvas." },
+      {
+        name: "twitter:description",
+        content:
+          "Builder is a dark, focused AI studio. Chat with your agent, watch it ship live artifacts to a real preview canvas.",
+      },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
     ],
   }),
   shellComponent: RootShell,
@@ -111,6 +119,12 @@ function RootShell({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body className="bg-background text-foreground">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded-lg focus:border focus:border-border-strong focus:bg-popover focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground focus:shadow-elevated"
+        >
+          Skip to content
+        </a>
         {children}
         <Scripts />
       </body>
@@ -121,6 +135,10 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
+
+  useEffect(() => {
+    registerServiceWorker();
+  }, []);
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {

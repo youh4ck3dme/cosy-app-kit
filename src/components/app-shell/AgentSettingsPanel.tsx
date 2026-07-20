@@ -10,6 +10,7 @@ import {
   resolveKnownModelId,
 } from "@/lib/models";
 import { Chip } from "./Chip";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Loader2, RotateCcw } from "lucide-react";
 
@@ -65,8 +66,23 @@ export function AgentSettingsPanel() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+      <div className="stagger space-y-6" aria-hidden>
+        <div className="space-y-3">
+          <Skeleton className="h-3 w-16 rounded" />
+          <div className="flex gap-2">
+            <Skeleton className="h-8 w-28 rounded-full" />
+            <Skeleton className="h-8 w-24 rounded-full" />
+            <Skeleton className="h-8 w-32 rounded-full" />
+          </div>
+        </div>
+        <div className="space-y-3">
+          <Skeleton className="h-3 w-24 rounded" />
+          <Skeleton className="h-2 w-full rounded-full" />
+        </div>
+        <div className="space-y-3">
+          <Skeleton className="h-3 w-28 rounded" />
+          <Skeleton className="h-32 w-full rounded-lg" />
+        </div>
       </div>
     );
   }
@@ -114,6 +130,8 @@ export function AgentSettingsPanel() {
           step={0.05}
           value={temperature}
           onChange={(e) => setTemperature(Number(e.target.value))}
+          aria-label="Temperature"
+          aria-valuetext={`${temperature.toFixed(2)} — ${temperature < 0.7 ? "more deterministic" : temperature > 1.3 ? "more creative" : "balanced"}`}
           className="w-full accent-foreground"
         />
         <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
@@ -144,9 +162,7 @@ export function AgentSettingsPanel() {
       {/* Tools */}
       <section>
         <SectionTitle>Tools &amp; capabilities</SectionTitle>
-        <p className="mb-3 text-xs text-muted-foreground">
-          Turn agent capabilities on or off. Only wired capabilities take effect today.
-        </p>
+        <p className="mb-3 text-xs text-muted-foreground">Turn agent capabilities on or off.</p>
         <div className="space-y-2">
           <ToolRow
             id="create_artifact"
@@ -155,20 +171,6 @@ export function AgentSettingsPanel() {
             checked={tools.create_artifact}
             wired
             onChange={(v) => setTools({ ...tools, create_artifact: v })}
-          />
-          <ToolRow
-            id="web_search"
-            title="Web search"
-            description="Let the agent fetch pages. (Coming soon.)"
-            checked={tools.web_search}
-            onChange={(v) => setTools({ ...tools, web_search: v })}
-          />
-          <ToolRow
-            id="code_interpreter"
-            title="Code interpreter"
-            description="Sandboxed code execution. (Coming soon.)"
-            checked={tools.code_interpreter}
-            onChange={(v) => setTools({ ...tools, code_interpreter: v })}
           />
         </div>
       </section>

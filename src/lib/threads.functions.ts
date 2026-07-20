@@ -181,3 +181,78 @@ export const setArtifactPublic = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true, isPublic: data.isPublic };
   });
+
+export const listArtifactVersions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ artifactId: z.uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase
+      .from("artifact_versions")
+      .select("id, artifact_id, entry_path, label, created_at")
+      .eq("artifact_id", data.artifactId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
+
+export const getArtifactVersion = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ versionId: z.uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: row, error } = await context.supabase
+      .from("artifact_versions")
+      .select("id, artifact_id, content, files, entry_path, created_at")
+      .eq("id", data.versionId)
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
+export const restoreArtifactVersion = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ versionId: z.uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: version, error: vErr } = await context.supabase
+      .from("artifact_versions")
+      .select("artifact_id, content, files, entry_path")
+      .eq("id", data.versionId)
+      .single();
+    if (vErr) throw new Error(vErr.message);
+    // The snapshot trigger records the current state first, so restore is undoable.
+    const { error } = await context.supabase
+      .from("artifacts")
+      .update({
+        content: version.content,
+        files: version.files ?? [],
+        entry_path: version.entry_path,
+      })
+      .eq("id", version.artifact_id);
+    if (error) throw new Error(error.message);
+    return { ok: true, artifactId: version.artifact_id };
+  });
+
+export const updateArtifactContent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        artifactId: z.uuid(),
+        content: z.string().optional(),
+        files: z
+          .array(z.object({ path: z.string(), language: z.string(), content: z.string() }))
+          .optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const patch: { content?: string; files?: typeof data.files } = {};
+    if (data.content !== undefined) patch.content = data.content;
+    if (data.files !== undefined) patch.files = data.files;
+    if (data.content === undefined && data.files === undefined) return { ok: true };
+    const { error } = await context.supabase
+      .from("artifacts")
+      .update(patch)
+      .eq("id", data.artifactId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

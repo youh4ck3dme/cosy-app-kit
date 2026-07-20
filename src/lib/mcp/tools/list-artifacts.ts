@@ -12,10 +12,17 @@ function supabaseForUser(ctx: ToolContext) {
 export default defineTool({
   name: "list_artifacts",
   title: "List artifacts",
-  description: "List artifacts generated in the signed-in user's threads. Optionally filter by thread_id.",
+  description:
+    "List artifacts generated in the signed-in user's threads. Optionally filter by thread_id.",
   inputSchema: {
     thread_id: z.string().uuid().optional().describe("Optional thread UUID filter."),
-    limit: z.number().int().min(1).max(100).optional().describe("Max artifacts to return. Default 20."),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .optional()
+      .describe("Max artifacts to return. Default 20."),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ thread_id, limit }, ctx) => {

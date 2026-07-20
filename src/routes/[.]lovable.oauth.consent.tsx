@@ -30,14 +30,15 @@ export const Route = createFileRoute("/.lovable/oauth/consent")({
   errorComponent: ({ error }) => (
     <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center p-6 text-center">
       <h1 className="mb-3 text-xl font-semibold">Authorization error</h1>
-      <p className="text-sm text-muted-foreground">
-        {String((error as Error)?.message ?? error)}
-      </p>
+      <p className="text-sm text-muted-foreground">{String((error as Error)?.message ?? error)}</p>
     </main>
   ),
 });
 
-type OAuthResult = { data?: { redirect_url?: string; redirect_to?: string }; error?: { message: string } | null };
+type OAuthResult = {
+  data?: { redirect_url?: string; redirect_to?: string };
+  error?: { message: string } | null;
+};
 type OAuthDetails = {
   data?: {
     client?: { name?: string; client_uri?: string } | null;
@@ -86,14 +87,18 @@ function Consent() {
       <div className="w-full rounded-2xl border border-border bg-panel/80 p-6 shadow-2xl backdrop-blur">
         <h1 className="mb-2 text-xl font-semibold">Connect {clientName} to your account</h1>
         <p className="mb-1 text-sm text-muted-foreground">
-          This lets <span className="font-medium text-foreground">{clientName}</span> use AI Builder as you.
+          This lets <span className="font-medium text-foreground">{clientName}</span> use AI Builder
+          as you.
         </p>
         <p className="mb-6 text-xs text-muted-foreground">
-          It can read your chat threads, messages, and artifacts, and create new threads. This does not
-          bypass this app's permissions — row-level security still applies.
+          It can read your chat threads, messages, and artifacts, and create new threads. This does
+          not bypass this app's permissions — row-level security still applies.
         </p>
         {error && (
-          <p role="alert" className="mb-4 rounded-md border border-red-500/40 bg-red-500/10 p-2 text-xs text-red-300">
+          <p
+            role="alert"
+            className="mb-4 rounded-md border border-red-500/40 bg-red-500/10 p-2 text-xs text-red-300"
+          >
             {error}
           </p>
         )}
