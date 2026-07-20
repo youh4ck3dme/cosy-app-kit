@@ -16,7 +16,7 @@
 | Full merge Claude → developeredit | ❌ |
 | PR #3 / main raw onto product | ❌ |
 | Cherry-pick valuable slices | ✅ done for S1–S7 |
-| Light mode from `1707f67` | 🟡 **NEXT optional** (isolated TAKE) |
+| Light mode from `1707f67` | ✅ ported (S10) |
 
 ---
 
@@ -50,8 +50,8 @@
 | Claude `templates.ts` | SKIP | seed + routes (C★) |
 | Claude versions SQL `…090000…` | SKIP | Keep Grok `20260720120000_*` |
 | Claude Canvas mass rewrite | SKIP | Monaco + MR-40 ours |
-| Light mode `src/lib/theme.ts` + styles + Header | **NEXT** | Not ported yet |
-| theme.test.ts (CodeRabbit) | NEXT | With light mode |
+| Light mode `src/lib/theme.ts` + styles + Header | TAKE | ✅ S10 ported 2026-07-20 |
+| theme.test.ts (CodeRabbit) | TAKE | ✅ vitest `src/lib/theme.test.ts` |
 | group-threads tests path | OK | We have group-threads usage |
 | Mass ai-elements prettier | SKIP | Noise |
 

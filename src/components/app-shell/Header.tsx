@@ -1,13 +1,37 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Settings, Menu, X, ChevronDown, LogOut, Rocket } from "lucide-react";
+import { Settings, Menu, X, ChevronDown, LogOut, Rocket, Sun, Moon, Monitor } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AVAILABLE_MODELS, resolveKnownModelId } from "@/lib/models";
+import { useTheme, type Theme } from "@/lib/theme";
 import { AppDialog } from "./AppDialog";
 import { ThreadList } from "./ThreadList";
 import { Logo } from "./Logo";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+
+const THEME_CYCLE: Record<Theme, Theme> = { system: "light", light: "dark", dark: "system" };
+const THEME_META: Record<Theme, { Icon: typeof Sun; label: string }> = {
+  light: { Icon: Sun, label: "Theme: light" },
+  dark: { Icon: Moon, label: "Theme: dark" },
+  system: { Icon: Monitor, label: "Theme: system" },
+};
+
+function ThemeToggle({ className }: { className?: string }) {
+  const { theme, setTheme } = useTheme();
+  const { Icon, label } = THEME_META[theme];
+  return (
+    <button
+      type="button"
+      onClick={() => setTheme(THEME_CYCLE[theme])}
+      className={className}
+      aria-label={`${label} — switch to ${THEME_CYCLE[theme]}`}
+      title={label}
+    >
+      <Icon className="h-4 w-4" />
+    </button>
+  );
+}
 
 export function Header({
   activeThreadId,
@@ -114,6 +138,7 @@ export function Header({
                 )}
               </div>
             )}
+            <ThemeToggle className="hidden rounded-md p-2 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground md:inline-flex" />
             <button
               type="button"
               onClick={onOpenSettings}
@@ -189,6 +214,7 @@ export function Header({
             <ThreadList activeThreadId={activeThreadId} onNavigate={() => setMobileOpen(false)} />
           </div>
           <div className="flex-none space-y-2 border-t border-border-subtle p-3">
+            <ThemeToggle className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm text-muted-foreground hover:bg-surface-2 hover:text-foreground" />
             <button
               onClick={() => {
                 setMobileOpen(false);

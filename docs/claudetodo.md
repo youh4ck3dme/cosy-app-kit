@@ -32,7 +32,7 @@
 | **S7** | smoke + pwa/haptics vitest | ✅ | Grok |
 | **S8** | Push + SQL + manual smoke | 🟡 push ✅ · SQL/smoke **TY** | Human |
 | **S9** | iOS viewport lock shell | ✅ | finalize session |
-| **S10** | Light mode (`theme.ts`) | ☐ optional NEXT | see inventory |
+| **S10** | Light mode (`theme.ts`) | ✅ | Claude `1707f67` hand-port |
 
 ---
 

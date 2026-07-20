@@ -13,6 +13,7 @@ import { Toaster } from "sonner";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { registerServiceWorker } from "../lib/register-sw";
+import { THEME_BOOTSTRAP_SCRIPT, useTheme } from "../lib/theme";
 import { supabase } from "@/integrations/supabase/client";
 
 function NotFoundComponent() {
@@ -93,7 +94,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "theme-color", content: "#0e0f14" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Builder — AI-first app studio" },
-      { name: "twitter:description", content: "Builder is a dark, focused AI studio. Chat with your agent, watch it ship live artifacts to a real preview canvas." },
+      {
+        name: "twitter:description",
+        content:
+          "Builder is a dark, focused AI studio. Chat with your agent, watch it ship live artifacts to a real preview canvas.",
+      },
+    ],
+    scripts: [
+      // Theme class before first paint (avoids light/dark flash). Claude S10.
+      { children: THEME_BOOTSTRAP_SCRIPT },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -109,8 +118,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  // Class set by THEME_BOOTSTRAP_SCRIPT + useTheme — do not hardcode "dark".
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <head>
         <HeadContent />
       </head>
@@ -125,6 +135,7 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
+  const { resolved } = useTheme();
 
   // PWA: prod-only service worker (ported from Claude PR #3 — never caches /api or Supabase)
   useEffect(() => {
@@ -144,7 +155,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
-      <Toaster theme="dark" position="top-center" richColors />
+      <Toaster theme={resolved} position="top-center" richColors />
     </QueryClientProvider>
   );
 }
