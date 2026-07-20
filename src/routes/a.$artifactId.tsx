@@ -154,7 +154,7 @@ function PublicArtifactPage() {
         </div>
       </header>
 
-      <main className="flex justify-center p-4 sm:p-8">
+      <main id="main-content" className="flex justify-center p-4 sm:p-8">
         {isHtml && srcDoc ? (
           <div
             className="overflow-hidden rounded-2xl border border-border-subtle bg-panel shadow-elevated"

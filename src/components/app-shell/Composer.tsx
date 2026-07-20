@@ -92,6 +92,20 @@ export function Composer({
                     type="button"
                     role="radio"
                     aria-checked={active}
+                    // Roving tabindex: one tab stop for the group, arrows switch modes.
+                    tabIndex={active ? 0 : -1}
+                    onKeyDown={(e) => {
+                      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+                      e.preventDefault();
+                      const next = key === "Build" ? "Plan" : "Build";
+                      haptic(5);
+                      onModeChange(next);
+                      const sibling =
+                        e.currentTarget.parentElement?.querySelector<HTMLButtonElement>(
+                          `[role="radio"]:not([aria-checked="true"])`,
+                        );
+                      sibling?.focus();
+                    }}
                     onClick={() => {
                       haptic(5);
                       onModeChange(key);

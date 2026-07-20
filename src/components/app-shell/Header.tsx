@@ -60,9 +60,16 @@ export function Header({
         await publish({ data: { artifactId: publishArtifact.id, isPublic: true } });
       }
       const url = `${window.location.origin}/a/${publishArtifact.id}`;
-      await navigator.clipboard.writeText(url).catch(() => {});
+      // Clipboard is best-effort — publishing already succeeded at this point.
+      let copied = false;
+      try {
+        await navigator.clipboard?.writeText(url);
+        copied = true;
+      } catch {
+        // Unsupported or denied clipboard access.
+      }
       haptic();
-      toast.success("Published — public link copied", { description: url });
+      toast.success(copied ? "Published — public link copied" : "Published", { description: url });
       onPublished?.();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Publish failed");

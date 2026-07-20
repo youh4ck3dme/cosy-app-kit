@@ -159,6 +159,7 @@ function ChatPage() {
   const goToSiblingThread = (dir: -1 | 1) => {
     const threads = (threadListData ?? []) as { id: string }[];
     const idx = threads.findIndex((t) => t.id === threadId);
+    if (idx === -1) return;
     const next = threads[idx + dir];
     if (next) navigate({ to: "/chat/$threadId", params: { threadId: next.id } });
   };

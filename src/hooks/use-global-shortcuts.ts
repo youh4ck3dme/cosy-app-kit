@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 export type ShortcutHandlers = {
   onCommandPalette?: () => void;
@@ -24,28 +24,35 @@ function isTypingTarget(target: EventTarget | null): boolean {
  *   [ / ]       prev/next thread    ?                 shortcut cheatsheet
  */
 export function useGlobalShortcuts(handlers: ShortcutHandlers) {
+  // The chat page re-renders on every streamed chunk; keep the window listener
+  // stable and read the latest handlers through a ref instead of re-binding.
+  const handlersRef = useRef(handlers);
+  useEffect(() => {
+    handlersRef.current = handlers;
+  }, [handlers]);
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
 
       if (mod && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        handlers.onCommandPalette?.();
+        handlersRef.current.onCommandPalette?.();
         return;
       }
       if (mod && e.shiftKey && e.key.toLowerCase() === "o") {
         e.preventDefault();
-        handlers.onNewChat?.();
+        handlersRef.current.onNewChat?.();
         return;
       }
       if (mod && e.key === "/") {
         e.preventDefault();
-        handlers.onFocusComposer?.();
+        handlersRef.current.onFocusComposer?.();
         return;
       }
       if (mod && e.key === ".") {
         e.preventDefault();
-        handlers.onToggleView?.();
+        handlersRef.current.onToggleView?.();
         return;
       }
 
@@ -53,17 +60,16 @@ export function useGlobalShortcuts(handlers: ShortcutHandlers) {
       if (isTypingTarget(e.target) || mod || e.altKey) return;
       if (e.key === "?") {
         e.preventDefault();
-        handlers.onShowShortcuts?.();
+        handlersRef.current.onShowShortcuts?.();
       } else if (e.key === "[") {
         e.preventDefault();
-        handlers.onPrevThread?.();
+        handlersRef.current.onPrevThread?.();
       } else if (e.key === "]") {
         e.preventDefault();
-        handlers.onNextThread?.();
+        handlersRef.current.onNextThread?.();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-    // Handlers object is re-created each render; listeners are cheap to rebind.
-  }, [handlers]);
+  }, []);
 }

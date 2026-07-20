@@ -227,6 +227,8 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
     try {
       const v = await getVersion({ data: { versionId } });
       setPreviewVersion(v as typeof previewVersion);
+      // Unsaved live edits must not linger (or get saved) while viewing history.
+      setEdits({});
       setIframeLoaded(false);
       setKey((k) => k + 1);
     } catch (e) {
