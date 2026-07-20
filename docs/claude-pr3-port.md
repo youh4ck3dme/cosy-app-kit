@@ -24,7 +24,7 @@
 | `src/lib/register-sw.ts` + root register | **TAKE** | ✅ ported |
 | `src/lib/haptics.ts` | **TAKE** | ✅ ported (+ send haptic) |
 | `src/lib/motion.ts` | **TAKE** | ✅ lib only (wire later if needed) |
-| `use-thread-mutations.ts` | **TAKE** | ⏳ later (S3) |
+| `use-thread-mutations.ts` | **TAKE** | ✅ S3 wired ThreadList |
 | Stick-to-bottom scroll | **LATER** | MessageList already C★ |
 | Canvas postMessage token | **LATER** | S5 careful on Monaco canvas |
 | `use-global-shortcuts` / ShortcutsDialog | **SKIP** merge | Use ours; gap-fill only |
@@ -42,9 +42,10 @@
 - [x] Inventory doc  
 - [x] S1 PWA  
 - [x] S2 haptics/motion libs + send haptic  
-- [ ] S3 optimistic threads  
+- [x] S3 optimistic threads + AlertDialog delete  
 - [ ] S5 canvas bridge token  
-- [ ] Comment/close PR #3  
+- [x] Board `docs/claudetodo.md` + parallel prompts  
+
 
 ---
 

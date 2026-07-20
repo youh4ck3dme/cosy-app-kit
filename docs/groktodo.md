@@ -4,16 +4,16 @@
 > **Sister board:** [`cursortodo.md`](./cursortodo.md) · **Hub:** [`todo.md`](./todo.md) · **Scores:** [`progress.md`](./progress.md)  
 > **Branch:** `developeredit` only · **Never** push `main`  
 > **AI rule:** Mistral only — no OpenAI / Lovable AI Gateway / Gemini for product chat  
-> **Last sync:** 2026-07-20 post-C★ — Grok G0–G2 ✅; Cursor **C★** ✅; human: SQL + smoke + BPI
+> **Last sync:** 2026-07-20 — G0–G2 ✅; Cursor C★ ✅; Claude port S1–S3 on `developeredit` (see `claudetodo.md`)
 
 ---
 
 ## 0. Prečo táto polovica
 
-Grok vlastní **mozog a dátovú cestu**: `/api/chat`, tools, prompty, memory, persistencia, model routing, testy agent vrstvy, BPI meranie, sample export skripty, server correctness.
+Grok vlastní **mozog a dátovú cestu**: `/api/chat`, tools, prompty, memory, persistencia, model routing, testy agent vrstvy, BPI, server correctness.
 
-Cursor vlastní **UI plátno a produktový povrch** (Monaco, templates routes, landing, onboarding tour, Playwright UI e2e).  
-**Zákaz kolízií** — pozri § Boundary.
+**Claude cherry-pick** (PWA, optimistic UI): [`claudetodo.md`](./claudetodo.md) — never full-merge Claude branch.  
+**Cursor surface:** [`cursortodo.md`](./cursortodo.md) (C★ done).
 
 ---
 

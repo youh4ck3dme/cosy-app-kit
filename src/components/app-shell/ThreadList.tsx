@@ -1,33 +1,22 @@
-import { Link, useNavigate } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { Plus, MessageSquare, Trash2, Loader2, Search } from "lucide-react";
-import { listThreads, createThread, deleteThread } from "@/lib/threads.functions";
+import { listThreads } from "@/lib/threads.functions";
+import { groupThreads, type ThreadListItem as Thread } from "@/lib/group-threads";
+import { useCreateThread, useDeleteThread } from "@/hooks/use-thread-mutations";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
-
-type Thread = { id: string; title: string; updated_at?: string; created_at?: string };
-
-function groupThreads(threads: Thread[]) {
-  const now = Date.now();
-  const DAY = 24 * 60 * 60 * 1000;
-  const groups: { label: string; items: Thread[] }[] = [
-    { label: "Today", items: [] },
-    { label: "Yesterday", items: [] },
-    { label: "Previous 7 days", items: [] },
-    { label: "Older", items: [] },
-  ];
-  for (const t of threads) {
-    const ts = new Date(t.updated_at ?? t.created_at ?? Date.now()).getTime();
-    const diff = now - ts;
-    if (diff < DAY) groups[0].items.push(t);
-    else if (diff < 2 * DAY) groups[1].items.push(t);
-    else if (diff < 8 * DAY) groups[2].items.push(t);
-    else groups[3].items.push(t);
-  }
-  return groups.filter((g) => g.items.length > 0);
-}
 
 export function ThreadList({
   activeThreadId,
@@ -36,12 +25,11 @@ export function ThreadList({
   activeThreadId?: string;
   onNavigate?: () => void;
 }) {
-  const navigate = useNavigate();
-  const qc = useQueryClient();
   const list = useServerFn(listThreads);
-  const create = useServerFn(createThread);
-  const del = useServerFn(deleteThread);
+  const createMutation = useCreateThread(onNavigate);
+  const deleteMutation = useDeleteThread(activeThreadId);
   const [query, setQuery] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<Thread | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["threads"],
@@ -57,28 +45,6 @@ export function ThreadList({
 
   const groups = useMemo(() => groupThreads(filtered), [filtered]);
 
-  const handleNew = async () => {
-    try {
-      const { id } = await create({ data: {} });
-      await qc.invalidateQueries({ queryKey: ["threads"] });
-      onNavigate?.();
-      navigate({ to: "/chat/$threadId", params: { threadId: id } });
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this chat?")) return;
-    try {
-      await del({ data: { threadId: id } });
-      await qc.invalidateQueries({ queryKey: ["threads"] });
-      if (activeThreadId === id) navigate({ to: "/chat" });
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
-  };
-
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-none items-center gap-2 px-3 pt-3">
@@ -88,18 +54,26 @@ export function ThreadList({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search chats"
+            aria-label="Search chats"
             className="w-full rounded-lg border border-border-subtle bg-surface-1/60 py-1.5 pl-8 pr-2 text-xs text-foreground outline-none placeholder:text-muted-foreground/70 focus:border-border-strong"
           />
         </div>
         <button
-          onClick={handleNew}
+          type="button"
+          onClick={() => createMutation.mutate()}
+          disabled={createMutation.isPending}
           title="New chat"
-          className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-subtle bg-surface-1/60 text-muted-foreground transition-all hover:border-accent-primary/50 hover:bg-surface-2 hover:text-foreground"
+          aria-label="New chat"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border-subtle bg-surface-1/60 text-muted-foreground transition-all hover:border-accent-primary/50 hover:bg-surface-2 hover:text-foreground disabled:opacity-50"
         >
-          <Plus className="h-3.5 w-3.5" />
+          {createMutation.isPending ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Plus className="h-3.5 w-3.5" />
+          )}
         </button>
       </div>
-      <div className="mt-2 flex-1 overflow-y-auto px-2 pb-3">
+      <nav aria-label="Chats" className="mt-2 flex-1 overflow-y-auto px-2 pb-3">
         {isLoading && (
           <div className="flex items-center gap-2 px-2 py-3 text-xs text-muted-foreground">
             <Loader2 className="h-3 w-3 animate-spin" /> Loading…
@@ -118,6 +92,7 @@ export function ThreadList({
             <div className="space-y-0.5">
               {g.items.map((t) => {
                 const active = t.id === activeThreadId;
+                const optimistic = t.id.startsWith("optimistic-");
                 return (
                   <div key={t.id} className="group relative">
                     <Link
@@ -129,6 +104,7 @@ export function ThreadList({
                         active
                           ? "bg-surface-2 text-foreground"
                           : "text-muted-foreground hover:bg-surface-1 hover:text-foreground",
+                        optimistic && "opacity-70",
                       )}
                     >
                       {active && (
@@ -145,20 +121,49 @@ export function ThreadList({
                       />
                       <span className="min-w-0 flex-1 truncate">{t.title}</span>
                     </Link>
-                    <button
-                      onClick={() => handleDelete(t.id)}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground opacity-0 transition-all hover:bg-surface-3 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
-                      aria-label="Delete chat"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    {!optimistic && (
+                      <button
+                        type="button"
+                        onClick={() => setPendingDelete(t)}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground opacity-0 transition-all hover:bg-surface-3 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
+                        aria-label={`Delete chat ${t.title}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
                 );
               })}
             </div>
           </div>
         ))}
-      </div>
+      </nav>
+
+      <AlertDialog open={!!pendingDelete} onOpenChange={(o) => !o && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDelete
+                ? `“${pendingDelete.title}” will be removed. This cannot be undone.`
+                : "This cannot be undone."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                const target = pendingDelete;
+                setPendingDelete(null);
+                if (target) deleteMutation.mutate({ threadId: target.id });
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

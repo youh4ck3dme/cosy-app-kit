@@ -5,7 +5,7 @@
 > **Hub:** [`todo.md`](./todo.md) · **Grok board:** [`groktodo.md`](./groktodo.md) · **Tools contract:** [`agent-tools.md`](./agent-tools.md)  
 > **AI product:** **Mistral only** — no OpenAI / Lovable Gateway / Gemini in chat UI  
 > **CI:** already green on `developeredit` (unit + typecheck + build). Do **not** add ESLint as CI gate.  
-> **Last sync:** 2026-07-20 (post Grok G0+G1 + CI green)
+> **Last sync:** 2026-07-20 — **C★ done**. Optional S4/S6: `docs/claudetodo.md`
 
 ---
 

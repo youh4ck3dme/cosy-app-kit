@@ -1,84 +1,72 @@
 # Builder roadmap hub (OmniOps · Mistral)
 
-> **Status 2026-07-20 post-C★:**  
-> **Grok G0–G2** + **Cursor A→Z (C★)** are in code on **`developeredit`**.  
-> CI was green before H–L land; re-run after commit. **`main` untouched.**  
-> Boards: [`groktodo.md`](./groktodo.md) · [`cursortodo.md`](./cursortodo.md) · mega-prompt: [`CURSOR_MEGA_PROMPT.md`](./CURSOR_MEGA_PROMPT.md)
+> **Status 2026-07-20:** Product line = **`developeredit` only.**  
+> **Grok G0–G2** + **Cursor C★** + **Claude cherry-pick S1–S3** (in progress).  
+> Boards: [`groktodo.md`](./groktodo.md) · [`cursortodo.md`](./cursortodo.md) · [`claudetodo.md`](./claudetodo.md)
 
 ---
 
-## Parallel worlds
+## Three parallel tracks (same branch)
 
-| World | File | Owner | Status |
-|-------|------|-------|--------|
-| **A** | [`groktodo.md`](./groktodo.md) | **Grok** | G0–G2 ✅ · G3 BPI ⏳ human live samples |
-| **B** | [`cursortodo.md`](./cursortodo.md) | **Cursor** | **C★ ✅** (A–L done) |
+| Track | Board | Focus now |
+|-------|-------|-----------|
+| **Grok** | [`groktodo.md`](./groktodo.md) | Agent health, BPI after smoke, S5/S7 ports |
+| **Cursor** | [`cursortodo.md`](./cursortodo.md) | **C★ done** — optional S4/S6 polish |
+| **Claude port** | [`claudetodo.md`](./claudetodo.md) | Cherry-pick only — **S1–S3 ✅**; S4–S7 open |
 
-**Scoreboard:** [`progress.md`](./progress.md) · **Architecture:** [`architecture.md`](./architecture.md)  
-**Tools/versions:** [`agent-tools.md`](./agent-tools.md) · **SQL:** [`migrations.md`](./migrations.md)  
-**Smoke:** [`smoke-checklist.md`](./smoke-checklist.md) · **Samples:** [`samples/2026-07/`](./samples/2026-07/)
-
----
-
-## Rules of engagement
-
-1. One world per agent session (unless human says otherwise).  
-2. File boundaries in each board § Ownership.  
-3. Shared files: Grok owns server contracts; Cursor consumes.  
-4. Branch **`developeredit`** only · **`main` locked** (PR + human merge).  
-5. Product AI: **Mistral only**.  
-6. Never commit secrets.  
-7. After prod: smoke `/api/ai-status` + `/chat`.
+**Do not** full-merge Claude remote branches into `developeredit`.  
+**Inventory:** [`claude-pr3-port.md`](./claude-pr3-port.md) · **Sim:** [`merge-sim-report.md`](./merge-sim-report.md) (~30% full merge / ~85% cherry-pick)
 
 ---
 
-## Where we stand
+## Rules
 
-### Shipped on `developeredit`
+1. All work on **`developeredit`**.  
+2. One track per agent session when possible.  
+3. Grok owns `src/lib/agent/**`, `api/chat`, migrations (Grok schema only).  
+4. Cursor owns canvas/shell polish; no agent execute rewrites.  
+5. Claude track = **file checkout + hand-wire**, never branch merge.  
+6. Mistral only for product AI.  
+7. After deploy: smoke `/api/ai-status` + `/chat`.
 
-| Area | Detail |
+---
+
+## Shipped on developeredit (code)
+
+| Area | Status |
 |------|--------|
-| Agent | Hybrid tools + fence, Codestral Build, truncate, stream data-parts |
-| G2 | `artifact_versions` migration + list/restore fns (SQL **must apply** for restore) |
-| Tests | Vitest **54** pass · suggestFollowups API |
-| Canvas | Monaco code + Diff, VersionTimeline, Network/console polish |
-| Chat UX | Palette, quote/chips/DnD, artifact focus |
-| Growth | Templates routes + seed, Tour, landing “Made with Builder” |
-| Share | Share panel + `/a/$id/embed` |
-| E2E | Local Playwright specs only (not CI) |
-
-### Human blockers (do these next)
-
-| # | Action | Why |
-|---|--------|-----|
-| 1 | Apply `supabase/migrations/20260720120000_artifact_versions.sql` | Live version **restore** |
-| 2 | Run [`smoke-checklist.md`](./smoke-checklist.md) | Edit/retry, Plan/Build, canvas |
-| 3 | Optional BPI suite → `docs/samples/2026-07/` + real scores in `progress.md` | Grok G★ |
-| 4 | Optional `bun add -d @playwright/test && bunx playwright install` | Local L e2e |
-| 5 | PR `developeredit` → `main` when you want | Ship |
-
-### Post-1.0 backlog (either world, human prioritizes)
-
-Billing · collab · voice · public API · lint-as-CI · Playwright in CI · Monaco format-on-save · user templates
+| Hybrid agent + fence + truncate + stream parts | ✅ |
+| artifact_versions code + list/restore | ✅ (SQL apply human) |
+| Cursor A–Z C★ (Monaco, templates, embed, e2e local) | ✅ |
+| PWA + haptics (Claude S1–S2) | ✅ |
+| Optimistic threads (Claude S3) | ✅ this session |
+| Vitest | 54+ |
 
 ---
 
-## Definition of “Builder 1.0-ready”
+## Human next
 
-- [x] Cursor **C★** (`cursortodo.md` tracker)  
-- [x] Grok hybrid tools + versions **code** (G0–G2)  
-- [ ] SQL migration **applied** on project  
-- [ ] Live smoke checklist green  
-- [ ] BPI measured (not estimated) in `progress.md`  
-- [ ] PR reviewed; human merges `main`  
-- [ ] Prod `/api/ai-status` + `/chat` smoke  
+1. `git push origin developeredit` (write credentials)  
+2. Apply [`migrations.md`](./migrations.md) — `20260720120000_artifact_versions.sql`  
+3. [`smoke-checklist.md`](./smoke-checklist.md)  
+4. Optional: BPI samples → `progress.md`  
+
+---
+
+## Parallel prompts (short)
+
+| Who | Full text |
+|-----|-----------|
+| Grok | See **Prompt A** in [`claudetodo.md`](./claudetodo.md) |
+| Cursor | See **Prompt B** in [`claudetodo.md`](./claudetodo.md) |
+| Human | See **Prompt C** in [`claudetodo.md`](./claudetodo.md) |
 
 ---
 
 ## Quick links
 
-| Who | Start | First task now |
-|-----|--------|----------------|
-| **Human** | [migrations.md](./migrations.md) + [smoke-checklist.md](./smoke-checklist.md) | SQL + smoke; **do not merge PR #3 raw** |
-| **Grok** | [claude-pr3-port.md](./claude-pr3-port.md) | Port Claude slices (PWA done); BPI after smoke |
-| **Cursor** | [cursortodo.md](./cursortodo.md) | **C★ done** — polish only if human asks |
+| Who | First task |
+|-----|------------|
+| **Human** | Push + SQL + smoke |
+| **Grok** | S5 canvas token / S7 smoke tests / BPI |
+| **Cursor** | S4 scroll or S6 shortcut gaps only |
