@@ -9,6 +9,15 @@ import {
   resolveKnownModelId,
 } from "./models";
 
+/**
+ * TanStack Start / seroval must deserialize a plain JSON object.
+ * Supabase rows can carry non-plain prototypes / odd JSON that breaks:
+ * "Cannot coerce the result to a single JSON object".
+ */
+function toPlainJson<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
 export const listThreads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -17,7 +26,7 @@ export const listThreads = createServerFn({ method: "GET" })
       .select("id,title,model,temperature,updated_at,created_at")
       .order("updated_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return data ?? [];
+    return toPlainJson(data ?? []);
   });
 
 export const createThread = createServerFn({ method: "POST" })
@@ -55,23 +64,28 @@ export const getThread = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { data: thread, error } = await context.supabase
       .from("threads")
-      .select("*")
+      .select("id,user_id,title,model,temperature,system_prompt,created_at,updated_at")
       .eq("id", data.threadId)
       .single();
     if (error) throw new Error(error.message);
     const [{ data: msgs }, { data: arts }] = await Promise.all([
       context.supabase
         .from("messages")
-        .select("*")
+        .select("id,thread_id,role,parts,created_at")
         .eq("thread_id", data.threadId)
         .order("created_at"),
       context.supabase
         .from("artifacts")
-        .select("*")
+        .select("id,thread_id,kind,title,content,files,entry_path,is_public,created_at,message_id")
         .eq("thread_id", data.threadId)
         .order("created_at", { ascending: false }),
     ]);
-    return { thread, messages: msgs ?? [], artifacts: arts ?? [] };
+    // Plain JSON object only — required for serverFnFetcher / seroval deserialize.
+    return toPlainJson({
+      thread,
+      messages: msgs ?? [],
+      artifacts: arts ?? [],
+    });
   });
 
 export const renameThread = createServerFn({ method: "POST" })
@@ -293,11 +307,8 @@ export const truncateThreadMessagesAfter = createServerFn({ method: "POST" })
     if (listErr) throw new Error(listErr.message);
     const ordered = rows ?? [];
 
-    const {
-      selectMessageIdsToDelete,
-      selectMessageIdsToDeleteFromKeepCount,
-      isUuid,
-    } = await import("@/lib/agent/truncate");
+    const { selectMessageIdsToDelete, selectMessageIdsToDeleteFromKeepCount, isUuid } =
+      await import("@/lib/agent/truncate");
 
     let toDelete: string[] = [];
     if (data.messageId && isUuid(data.messageId)) {

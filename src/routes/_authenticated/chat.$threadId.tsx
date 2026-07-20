@@ -407,7 +407,30 @@ function ChatPage() {
   );
 
   if (isError) {
-    throw error instanceof Error ? error : new Error("Failed to load thread");
+    const msg =
+      error instanceof Error
+        ? error.message
+        : typeof error === "string"
+          ? error
+          : "Failed to load thread";
+    return (
+      <div className="flex h-dvh flex-col items-center justify-center gap-3 px-4 text-center">
+        <h1 className="text-lg font-semibold">Could not open this chat</h1>
+        <p className="max-w-md text-sm text-muted-foreground wrap-anywhere">{msg}</p>
+        <div className="flex flex-wrap justify-center gap-2">
+          <button
+            type="button"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+            onClick={() => void qc.invalidateQueries({ queryKey: ["thread", threadId] })}
+          >
+            Retry
+          </button>
+          <Link to="/chat" className="rounded-md border border-border px-4 py-2 text-sm">
+            All chats
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
