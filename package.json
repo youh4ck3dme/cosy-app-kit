@@ -9,10 +9,16 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
+    "lint:gate": "eslint \"src/lib/**/*.{ts,tsx}\" \"src/hooks/**/*.{ts,tsx}\" --max-warnings 0 --rule \"prettier/prettier: off\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:unit": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium",
     "smoke": "bun scripts/smoke.ts",
+    "verify": "bun run typecheck && bun run test:unit && bun run lint:gate && bun run smoke",
+    "verify:full": "bun run verify && bun run test:e2e",
     "format": "prettier --write ."
   },
   "dependencies": {
@@ -95,6 +101,7 @@
   "devDependencies": {
     "@eslint/js": "^9.32.0",
     "@lovable.dev/vite-tanstack-config": "^2.7.6",
+    "@playwright/test": "^1.61.1",
     "@types/node": "^22.16.5",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",

@@ -73,7 +73,7 @@ export function computeFrame(opts: {
   const iframeHeight = opts.iframeHeight && opts.iframeHeight > 0 ? opts.iframeHeight : 720;
 
   let mediaWidth: number;
-  let mode = opts.mode;
+  const mode = opts.mode;
 
   if (opts.customWidth && opts.customWidth > 0) {
     mediaWidth = Math.round(opts.customWidth);

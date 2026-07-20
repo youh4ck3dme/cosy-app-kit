@@ -36,7 +36,7 @@ body{}
   });
 
   it("parses markdown fences", () => {
-    const arts = extractArtifacts("\`\`\`markdown\n# Hello\n\`\`\`");
+    const arts = extractArtifacts("```markdown\n# Hello\n```");
     expect(arts[0]?.kind).toBe("markdown");
   });
 

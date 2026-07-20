@@ -1,7 +1,7 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Monitor, Smartphone, Tablet, ExternalLink } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
@@ -39,7 +39,12 @@ const getPublicArtifact = createServerFn({ method: "GET" })
   });
 
 export const Route = createFileRoute("/a/$artifactId")({
-  loader: ({ params }) => getPublicArtifact({ data: { id: params.artifactId } }),
+  loader: async ({ params }) => {
+    const row = await getPublicArtifact({ data: { id: params.artifactId } });
+    // Throw in loader so notFoundComponent always paints (stable for e2e).
+    if (!row) throw notFound();
+    return row;
+  },
   head: ({ loaderData }) => {
     const t = loaderData?.title ?? "Shared artifact";
     return {
@@ -95,10 +100,6 @@ function PublicArtifactPage() {
     () => (isHtml && entry ? entry.content : null),
     [entry, isHtml],
   );
-
-  useEffect(() => {
-    if (!artifact) throw notFound();
-  }, [artifact]);
 
   if (!artifact || !entry) return null;
 

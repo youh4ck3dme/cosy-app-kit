@@ -64,4 +64,31 @@ describe("formatFrameBadge", () => {
     const f = computeFrame({ mode: "desktop", hostWidth: 390 });
     expect(formatFrameBadge(f)).toMatch(/media 1200/);
   });
+
+  it("fluid badge names fluid", () => {
+    const f = computeFrame({ mode: "fluid", hostWidth: 402 });
+    expect(formatFrameBadge(f)).toMatch(/fluid/);
+  });
+});
+
+describe("computeFrame edge cases", () => {
+  it("clamps media width to 280–1600", () => {
+    const low = computeFrame({ mode: "fluid", hostWidth: 50, customWidth: 10 });
+    expect(low.mediaWidth).toBe(280);
+    const high = computeFrame({ mode: "fluid", hostWidth: 2000, customWidth: 9999 });
+    expect(high.mediaWidth).toBe(1600);
+  });
+
+  it("mobile target is 390", () => {
+    const f = computeFrame({ mode: "mobile", hostWidth: 1200 });
+    expect(f.mediaWidth).toBe(390);
+    expect(f.simulated).toBe(false);
+  });
+
+  it("tablet on phone is simulated", () => {
+    const f = computeFrame({ mode: "tablet", hostWidth: 390 });
+    expect(f.mediaWidth).toBe(768);
+    expect(f.simulated).toBe(true);
+    expect(f.outerWidth).toBeCloseTo(390, 0);
+  });
 });
