@@ -40,6 +40,9 @@ jobs:
         continue-on-error: true
         # Project has pre-existing TS issues in some routes; fail soft until cleaned.
 
+      - name: Unit tests
+        run: bun test
+
       - name: Build
         run: bun run build
         env:

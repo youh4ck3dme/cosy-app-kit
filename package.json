@@ -10,6 +10,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "smoke": "bun scripts/smoke.ts",
     "format": "prettier --write ."
   },
   "dependencies": {

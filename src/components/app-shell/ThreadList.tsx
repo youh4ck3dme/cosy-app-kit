@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { Plus, MessageSquare, Trash2, Search } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { listThreads } from "@/lib/threads.functions";
+import { groupThreads, type ThreadListItem as Thread } from "@/lib/group-threads";
 import { useCreateThread, useDeleteThread } from "@/hooks/use-thread-mutations";
 import {
   AlertDialog,
@@ -19,28 +20,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useReducedMotionSafe } from "@/lib/motion";
 import { cn } from "@/lib/utils";
-
-type Thread = { id: string; title: string; updated_at?: string; created_at?: string };
-
-function groupThreads(threads: Thread[]) {
-  const now = Date.now();
-  const DAY = 24 * 60 * 60 * 1000;
-  const groups: { label: string; items: Thread[] }[] = [
-    { label: "Today", items: [] },
-    { label: "Yesterday", items: [] },
-    { label: "Previous 7 days", items: [] },
-    { label: "Older", items: [] },
-  ];
-  for (const t of threads) {
-    const ts = new Date(t.updated_at ?? t.created_at ?? Date.now()).getTime();
-    const diff = now - ts;
-    if (diff < DAY) groups[0].items.push(t);
-    else if (diff < 2 * DAY) groups[1].items.push(t);
-    else if (diff < 8 * DAY) groups[2].items.push(t);
-    else groups[3].items.push(t);
-  }
-  return groups.filter((g) => g.items.length > 0);
-}
 
 export function ThreadList({
   activeThreadId,
