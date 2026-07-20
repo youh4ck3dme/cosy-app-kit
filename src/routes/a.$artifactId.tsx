@@ -40,10 +40,15 @@ const getPublicArtifact = createServerFn({ method: "GET" })
 
 export const Route = createFileRoute("/a/$artifactId")({
   loader: async ({ params }) => {
-    const row = await getPublicArtifact({ data: { id: params.artifactId } });
-    // Throw in loader so notFoundComponent always paints (stable for e2e).
-    if (!row) throw notFound();
-    return row;
+    try {
+      const row = await getPublicArtifact({ data: { id: params.artifactId } });
+      if (!row) throw notFound();
+      return row;
+    } catch {
+      // Missing row, bad uuid, or Supabase env glitch → same public empty chrome
+      // (never error-boundary on public share URLs — stable for e2e).
+      throw notFound();
+    }
   },
   head: ({ loaderData }) => {
     const t = loaderData?.title ?? "Shared artifact";
@@ -59,10 +64,16 @@ export const Route = createFileRoute("/a/$artifactId")({
     };
   },
   notFoundComponent: () => (
-    <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
+    <div
+      data-testid="public-artifact-not-found"
+      className="flex min-h-screen items-center justify-center bg-background text-foreground"
+    >
       <div className="text-center">
         <div className="font-mono text-6xl font-bold text-muted-foreground">404</div>
-        <p className="mt-3 text-sm text-muted-foreground">This artifact isn't public or doesn't exist.</p>
+        {/* ASCII-only copy — stable for Playwright (no curly apostrophes). */}
+        <p className="mt-3 text-sm text-muted-foreground">
+          This artifact is not public or does not exist.
+        </p>
       </div>
     </div>
   ),
