@@ -13,6 +13,7 @@ import { Toaster } from "sonner";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { registerServiceWorker } from "../lib/register-sw";
+import { THEME_BOOTSTRAP_SCRIPT, useTheme } from "../lib/theme";
 import { supabase } from "@/integrations/supabase/client";
 
 function NotFoundComponent() {
@@ -99,6 +100,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Builder is a dark, focused AI studio. Chat with your agent, watch it ship live artifacts to a real preview canvas.",
       },
     ],
+    scripts: [
+      // Set the theme class before first paint to avoid a light/dark flash.
+      { children: THEME_BOOTSTRAP_SCRIPT },
+    ],
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
@@ -114,7 +119,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    // SSR renders dark (brand default); the head bootstrap script corrects the
+    // class before paint, so hydration may see either — suppress the warning.
+    <html lang="en" className="dark" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
@@ -135,6 +142,7 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
+  const { resolved: resolvedTheme } = useTheme();
 
   useEffect(() => {
     registerServiceWorker();
@@ -153,7 +161,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
-      <Toaster theme="dark" position="top-center" richColors />
+      <Toaster theme={resolvedTheme} position="top-center" richColors />
     </QueryClientProvider>
   );
 }
