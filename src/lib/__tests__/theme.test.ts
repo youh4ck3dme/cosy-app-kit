@@ -38,9 +38,9 @@ describe("resolveTheme with system preference", () => {
     expect(resolveTheme("system")).toBe("light");
   });
 
-  test("resolves to light when window is unavailable (SSR)", () => {
+  test("resolves to dark when window is unavailable (SSR matches the brand default)", () => {
     delete (globalThis as any).window;
-    expect(resolveTheme("system")).toBe("light");
+    expect(resolveTheme("system")).toBe("dark");
   });
 });
 

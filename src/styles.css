@@ -60,8 +60,9 @@
 }
 
 :root {
-  --radius: 0.75rem;
   color-scheme: light;
+
+  --radius: 0.75rem;
 
   /* Light theme — cool near-white base mirroring the dark elevation ladder */
   --background: oklch(0.985 0.003 260);

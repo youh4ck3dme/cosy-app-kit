@@ -9,12 +9,19 @@ const THEME_COLOR: Record<ResolvedTheme, string> = { dark: "#0e0f14", light: "#f
 
 export function getStoredTheme(): Theme {
   if (typeof localStorage === "undefined") return "system";
-  const raw = localStorage.getItem(STORAGE_KEY);
-  return raw === "light" || raw === "dark" ? raw : "system";
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw === "light" || raw === "dark" ? raw : "system";
+  } catch {
+    // Strict privacy modes can deny storage reads entirely.
+    return "system";
+  }
 }
 
 function systemPrefersDark(): boolean {
-  return typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  // SSR renders the dark brand default, so "system" must resolve dark there too.
+  if (typeof window === "undefined") return true;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
 export function resolveTheme(theme: Theme): ResolvedTheme {
