@@ -31,6 +31,7 @@ import {
   type ToolResultLike,
 } from "@/lib/agent/finish";
 import { toolResultsToDataParts } from "@/lib/agent/stream-parts";
+import { snapshotArtifactVersion } from "@/lib/agent/versions";
 
 type Mode = "build" | "plan";
 type ChatBody = {
@@ -192,18 +193,35 @@ export const Route = createFileRoute("/api/chat")({
             ) {
               const artifacts = extractArtifacts(text);
               if (artifacts.length) {
-                const { error: artErr } = await supabase.from("artifacts").insert(
-                  artifacts.map((a) => ({
-                    thread_id: thread.id,
-                    message_id: inserted?.id ?? null,
-                    kind: a.kind,
-                    title: a.title,
-                    content: a.content,
-                    files: a.files as unknown as Json,
-                    entry_path: a.entry_path,
-                  })),
-                );
-                if (artErr) console.error("[api/chat] artifacts insert failed", artErr);
+                const { data: insertedArts, error: artErr } = await supabase
+                  .from("artifacts")
+                  .insert(
+                    artifacts.map((a) => ({
+                      thread_id: thread.id,
+                      message_id: inserted?.id ?? null,
+                      kind: a.kind,
+                      title: a.title,
+                      content: a.content,
+                      files: a.files as unknown as Json,
+                      entry_path: a.entry_path,
+                    })),
+                  )
+                  .select("id,title,content,files,entry_path");
+                if (artErr) {
+                  console.error("[api/chat] artifacts insert failed", artErr);
+                } else if (insertedArts?.length) {
+                  for (const row of insertedArts) {
+                    await snapshotArtifactVersion(supabase, {
+                      artifactId: row.id,
+                      files: row.files,
+                      content: row.content,
+                      entry_path: row.entry_path,
+                      title: row.title,
+                      message_id: inserted?.id ?? null,
+                      source: "fence",
+                    });
+                  }
+                }
               }
             }
             await supabase

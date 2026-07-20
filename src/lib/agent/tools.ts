@@ -11,6 +11,7 @@ import {
   sanitizeRelativePath,
 } from "@/lib/agent/patch";
 import { fetchUrlText, webSearch } from "@/lib/agent/web";
+import { snapshotArtifactVersion } from "@/lib/agent/versions";
 
 type Client = SupabaseClient<Database>;
 
@@ -308,6 +309,14 @@ export function buildTools({ mode, threadId, supabase, flags }: BuildToolsArgs):
         .select("id,title,kind,entry_path")
         .single();
       if (error) return { ok: false as const, error: error.message };
+      await snapshotArtifactVersion(supabase, {
+        artifactId: data.id,
+        files,
+        content: main.content,
+        entry_path: resolvedEntry,
+        title: data.title,
+        source: "tool",
+      });
       await supabase
         .from("threads")
         .update({ updated_at: new Date().toISOString() })
@@ -406,6 +415,14 @@ export function buildTools({ mode, threadId, supabase, flags }: BuildToolsArgs):
         })
         .eq("id", art.id);
       if (upErr) return { ok: false as const, error: upErr.message };
+      await snapshotArtifactVersion(supabase, {
+        artifactId: art.id,
+        files: updated,
+        content: main.content,
+        entry_path: entry,
+        title: art.title,
+        source: "tool",
+      });
       await supabase
         .from("threads")
         .update({ updated_at: new Date().toISOString() })

@@ -34,7 +34,7 @@ export const Route = createFileRoute("/api/ai-status")({
         const body = {
           ok: true,
           provider: "mistral",
-          buildMarker: "mistral-agent-g1-1",
+          buildMarker: "mistral-agent-g2-1",
           promptRev: PROMPT_REV,
           defaultModel: DEFAULT_MODEL,
           buildCodeModel: BUILD_CODE_MODEL,
@@ -48,8 +48,12 @@ export const Route = createFileRoute("/api/ai-status")({
             "fetch_url",
             "web_search",
           ],
-          fenceFallback: true,
-          streamDataParts: ["artifact-created", "memory-saved", "plan"],
+          features: {
+            fenceFallback: true,
+            artifactVersions: true,
+            suggestFollowups: true,
+            streamDataParts: ["artifact-created", "memory-saved", "plan"],
+          },
           mistralKeyPresent: key.length > 0,
           searchKeyPresent: searchKey.length > 0,
           supabaseReachable: dbOk,
@@ -61,7 +65,7 @@ export const Route = createFileRoute("/api/ai-status")({
         return Response.json(body, {
           headers: {
             "cache-control": "no-store",
-            "x-builder-ai": "mistral-agent-g1-1",
+            "x-builder-ai": "mistral-agent-g2-1",
           },
         });
       },

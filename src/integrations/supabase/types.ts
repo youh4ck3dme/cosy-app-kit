@@ -41,6 +41,57 @@ export type Database = {
         }
         Relationships: []
       }
+      artifact_versions: {
+        Row: {
+          id: string
+          artifact_id: string
+          files: Json
+          content: string
+          entry_path: string | null
+          title: string | null
+          message_id: string | null
+          source: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          artifact_id: string
+          files?: Json
+          content?: string
+          entry_path?: string | null
+          title?: string | null
+          message_id?: string | null
+          source?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          artifact_id?: string
+          files?: Json
+          content?: string
+          entry_path?: string | null
+          title?: string | null
+          message_id?: string | null
+          source?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artifact_versions_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artifact_versions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artifacts: {
         Row: {
           content: string

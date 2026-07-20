@@ -359,14 +359,159 @@ export const updateArtifactFiles = createServerFn({ method: "POST" })
     const entry = data.entry_path ?? data.files[0]?.path;
     const main = data.files.find((f) => f.path === entry) ?? data.files[0];
     if (!main) throw new Error("No files");
-    const { error } = await context.supabase
+    const { data: art, error } = await context.supabase
       .from("artifacts")
       .update({
         files: data.files as unknown as import("@/integrations/supabase/types").Json,
         content: main.content,
         entry_path: entry ?? null,
       })
-      .eq("id", data.artifactId);
+      .eq("id", data.artifactId)
+      .select("id,title")
+      .single();
     if (error) throw new Error(error.message);
+
+    const { snapshotArtifactVersion } = await import("@/lib/agent/versions");
+    await snapshotArtifactVersion(context.supabase, {
+      artifactId: data.artifactId,
+      files: data.files,
+      content: main.content,
+      entry_path: entry ?? null,
+      title: art?.title,
+      source: "user_save",
+    });
     return { ok: true };
+  });
+
+/** G2 — Cursor phase H: list versions for timeline UI */
+export const listArtifactVersions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        artifactId: z.uuid(),
+        limit: z.number().int().min(1).max(100).optional().default(40),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    // Ownership via RLS on artifact_versions + join check
+    const { data: art, error: aErr } = await context.supabase
+      .from("artifacts")
+      .select("id")
+      .eq("id", data.artifactId)
+      .single();
+    if (aErr || !art) throw new Error(aErr?.message ?? "Artifact not found");
+
+    const { data: rows, error } = await context.supabase
+      .from("artifact_versions")
+      .select("id,artifact_id,source,title,entry_path,created_at,content,files")
+      .eq("artifact_id", data.artifactId)
+      .order("created_at", { ascending: false })
+      .limit(data.limit);
+    if (error) throw new Error(error.message);
+
+    const { estimateVersionBytes } = await import("@/lib/agent/versions");
+    return (rows ?? []).map((r) => ({
+      id: r.id,
+      artifact_id: r.artifact_id,
+      source: r.source,
+      title: r.title,
+      entry_path: r.entry_path,
+      created_at: r.created_at,
+      bytes: estimateVersionBytes(r.files, r.content),
+    }));
+  });
+
+/** G2 — restore a snapshot onto the live artifact (also writes a restore version). */
+export const restoreArtifactVersion = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ versionId: z.uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: ver, error: vErr } = await context.supabase
+      .from("artifact_versions")
+      .select("id,artifact_id,files,content,entry_path,title")
+      .eq("id", data.versionId)
+      .single();
+    if (vErr || !ver) throw new Error(vErr?.message ?? "Version not found");
+
+    const { error: upErr } = await context.supabase
+      .from("artifacts")
+      .update({
+        files: ver.files,
+        content: ver.content,
+        entry_path: ver.entry_path,
+        title: ver.title ?? undefined,
+      })
+      .eq("id", ver.artifact_id);
+    if (upErr) throw new Error(upErr.message);
+
+    const { snapshotArtifactVersion } = await import("@/lib/agent/versions");
+    await snapshotArtifactVersion(context.supabase, {
+      artifactId: ver.artifact_id,
+      files: ver.files,
+      content: ver.content,
+      entry_path: ver.entry_path,
+      title: ver.title,
+      source: "restore",
+    });
+
+    return { ok: true as const, artifactId: ver.artifact_id, versionId: ver.id };
+  });
+
+/**
+ * Optional follow-up chips (Cursor phase E can call this; static fallback if fails).
+ * Uses Mistral Small only — never OpenAI/Gemini.
+ */
+export const suggestFollowups = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        lastAssistantText: z.string().max(8000).optional().default(""),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const {
+      buildSuggestSystemPrompt,
+      buildSuggestUserPrompt,
+      parseSuggestionLines,
+      staticSuggestionFallback,
+    } = await import("@/lib/agent/suggestions");
+    const { SUGGESTION_MODEL } = await import("@/lib/models");
+    const { createMistralProvider } = await import("@/lib/ai-gateway.server");
+
+    const key = (process.env.MISTRAL_API_KEY ?? process.env.MISTRAL_KEY ?? "").trim();
+    if (!key) {
+      return {
+        ok: true as const,
+        source: "static" as const,
+        suggestions: staticSuggestionFallback(),
+      };
+    }
+
+    try {
+      const { generateText } = await import("ai");
+      const provider = createMistralProvider(key);
+      const result = await generateText({
+        model: provider(SUGGESTION_MODEL),
+        system: buildSuggestSystemPrompt(),
+        prompt: buildSuggestUserPrompt(data.lastAssistantText ?? ""),
+        temperature: 0.7,
+        maxOutputTokens: 200,
+      });
+      const parsed = parseSuggestionLines(result.text ?? "");
+      if (parsed.length) {
+        return { ok: true as const, source: "mistral" as const, suggestions: parsed };
+      }
+    } catch (e) {
+      console.warn("[suggestFollowups] failed, using static", e);
+    }
+
+    return {
+      ok: true as const,
+      source: "static" as const,
+      suggestions: staticSuggestionFallback(),
+    };
   });
