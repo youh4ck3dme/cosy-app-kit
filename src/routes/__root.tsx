@@ -101,7 +101,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
     ],
     scripts: [
-      // Set the theme class before first paint to avoid a light/dark flash.
+      // Theme class before first paint (avoids light/dark flash). Claude S10.
       { children: THEME_BOOTSTRAP_SCRIPT },
     ],
     links: [
@@ -118,20 +118,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  // Theme class on <html> is set by THEME_BOOTSTRAP_SCRIPT before React hydrates
+  // (and later by useTheme). SSR cannot know light/dark — suppress mismatch noise.
   return (
-    // SSR renders dark (brand default); the head bootstrap script corrects the
-    // class before paint, so hydration may see either — suppress the warning.
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
-      <body className="bg-background text-foreground">
-        <a
-          href="#main-content"
-          className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded-lg focus:border focus:border-border-strong focus:bg-popover focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground focus:shadow-elevated"
-        >
-          Skip to content
-        </a>
+      <body className="bg-background text-foreground" suppressHydrationWarning>
         {children}
         <Scripts />
       </body>
@@ -142,8 +136,9 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
-  const { resolved: resolvedTheme } = useTheme();
+  const { resolved } = useTheme();
 
+  // PWA: prod-only service worker (ported from Claude PR #3 — never caches /api or Supabase)
   useEffect(() => {
     registerServiceWorker();
   }, []);
@@ -151,8 +146,12 @@ function RootComponent() {
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") {
-        router.invalidate();
-        if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
+        // Defer past current React commit so router.invalidate does not hit
+        // Transitioner setState before mount (React 19 DEV warning).
+        window.setTimeout(() => {
+          void router.invalidate();
+          if (event !== "SIGNED_OUT") void queryClient.invalidateQueries();
+        }, 0);
       }
     });
     return () => sub.subscription.unsubscribe();
@@ -161,7 +160,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
-      <Toaster theme={resolvedTheme} position="top-center" richColors />
+      <Toaster theme={resolved} position="top-center" richColors />
     </QueryClientProvider>
   );
 }

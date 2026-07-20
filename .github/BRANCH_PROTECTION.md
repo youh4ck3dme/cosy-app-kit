@@ -12,7 +12,7 @@ Repo: `youh4ck3dme/cosy-app-kit` · branch **`main`**
 | Applies to admins too | **Yes** (`enforce_admins`) |
 | Force-push | **Blocked** |
 | Delete branch `main` | **Blocked** |
-| Required CI | **Yes** — check name: `Install · typecheck · build` |
+| Required CI | **Yes** — check name: `Install · test · typecheck · build` |
 | Approvals required | **0** (solo-friendly; PR still required) |
 
 ## Allowed workflow

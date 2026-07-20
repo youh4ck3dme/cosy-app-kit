@@ -1,19 +1,10 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Settings, Menu, X, ChevronDown, LogOut, Rocket, Sun, Moon, Monitor } from "lucide-react";
 import { useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { authSearch } from "@/integrations/lovable";
 import { AVAILABLE_MODELS, resolveKnownModelId } from "@/lib/models";
-import { setArtifactPublic } from "@/lib/threads.functions";
-import { haptic } from "@/lib/haptics";
 import { useTheme, type Theme } from "@/lib/theme";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { AppDialog } from "./AppDialog";
 import { ThreadList } from "./ThreadList";
 import { Logo } from "./Logo";
@@ -32,10 +23,8 @@ function ThemeToggle({ className }: { className?: string }) {
   const { Icon, label } = THEME_META[theme];
   return (
     <button
-      onClick={() => {
-        haptic(5);
-        setTheme(THEME_CYCLE[theme]);
-      }}
+      type="button"
+      onClick={() => setTheme(THEME_CYCLE[theme])}
       className={className}
       aria-label={`${label} — switch to ${THEME_CYCLE[theme]}`}
       title={label}
@@ -52,8 +41,6 @@ export function Header({
   onOpenSettings,
   view,
   onViewChange,
-  publishArtifact,
-  onPublished,
 }: {
   activeThreadId?: string;
   activeModel?: string;
@@ -61,13 +48,10 @@ export function Header({
   onOpenSettings: () => void;
   view: "chat" | "preview";
   onViewChange: (v: "chat" | "preview") => void;
-  publishArtifact?: { id: string; isPublic: boolean } | null;
-  onPublished?: () => void;
 }) {
   const navigate = useNavigate();
+  const [modelOpen, setModelOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [publishing, setPublishing] = useState(false);
-  const publish = useServerFn(setArtifactPublic);
   const resolvedModel = resolveKnownModelId(activeModel);
   const activeLabel =
     AVAILABLE_MODELS.find((m) => m.id === resolvedModel)?.label ?? "Mistral Large";
@@ -75,38 +59,12 @@ export function Header({
   const signOut = async () => {
     await supabase.auth.signOut();
     toast.success("Signed out");
-    navigate({ to: "/auth", search: { next: "" } });
-  };
-
-  const handlePublish = async () => {
-    if (!publishArtifact || publishing) return;
-    setPublishing(true);
-    try {
-      if (!publishArtifact.isPublic) {
-        await publish({ data: { artifactId: publishArtifact.id, isPublic: true } });
-      }
-      const url = `${window.location.origin}/a/${publishArtifact.id}`;
-      // Clipboard is best-effort — publishing already succeeded at this point.
-      let copied = false;
-      try {
-        await navigator.clipboard?.writeText(url);
-        copied = true;
-      } catch {
-        // Unsupported or denied clipboard access.
-      }
-      haptic();
-      toast.success(copied ? "Published — public link copied" : "Published", { description: url });
-      onPublished?.();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Publish failed");
-    } finally {
-      setPublishing(false);
-    }
+    navigate({ to: "/auth", search: authSearch("") });
   };
 
   return (
     <>
-      <header className="sticky top-0 z-40 flex-none border-b border-border-subtle glass-strong pt-[env(safe-area-inset-top)]">
+      <header className="z-40 flex-none border-b border-border-subtle glass-strong pt-[env(safe-area-inset-top)]">
         <div className="flex h-14 items-center justify-between px-3 sm:px-4">
           <div className="flex items-center gap-3">
             <Link to="/chat" className="group flex items-center gap-2.5">
@@ -116,19 +74,21 @@ export function Header({
               </span>
             </Link>
             <div className="hidden h-5 w-px bg-border-subtle sm:block" />
+            {/* Always visible — mobile must reach Preview after artifact without opening the menu */}
             <div
-              role="tablist"
-              aria-label="Workspace view"
-              className="hidden items-center rounded-lg border border-border-subtle bg-surface-1/70 p-0.5 text-[11px] font-mono font-medium sm:flex"
+              className="flex items-center rounded-lg border border-border-subtle bg-surface-1/70 p-0.5 text-[11px] font-mono font-medium"
+              role="group"
+              aria-label="Chat or preview"
             >
               {(["chat", "preview"] as const).map((v) => (
                 <button
                   key={v}
-                  role="tab"
-                  aria-selected={view === v}
+                  type="button"
                   onClick={() => onViewChange(v)}
+                  aria-label={v === "chat" ? "Show chat view" : "Show preview canvas"}
+                  aria-pressed={view === v}
                   className={cn(
-                    "rounded-md px-3 py-1 uppercase tracking-wider transition-all",
+                    "min-h-9 rounded-md px-2.5 py-1 uppercase tracking-wider transition-all sm:px-3",
                     view === v
                       ? "bg-surface-3 text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground",
@@ -142,60 +102,66 @@ export function Header({
 
           <div className="flex items-center gap-2">
             {activeThreadId && activeModel && (
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  aria-label={`Model: ${activeLabel}. Change model for this chat`}
-                  className="group hidden items-center gap-2 rounded-full border border-border-subtle bg-surface-1/60 px-3 py-1.5 font-mono text-[11px] text-muted-foreground transition-all hover:border-border-strong hover:bg-surface-2 hover:text-foreground md:flex"
+              <div className="relative hidden md:block">
+                <button
+                  type="button"
+                  onClick={() => setModelOpen((v) => !v)}
+                  onBlur={() => setTimeout(() => setModelOpen(false), 140)}
+                  aria-label={`Model: ${activeLabel}`}
+                  aria-expanded={modelOpen}
+                  aria-haspopup="listbox"
+                  className="group flex items-center gap-2 rounded-full border border-border-subtle bg-surface-1/60 px-3 py-1.5 font-mono text-[11px] text-muted-foreground transition-all hover:border-border-strong hover:bg-surface-2 hover:text-foreground"
                 >
                   <span className="relative flex h-1.5 w-1.5">
-                    <span className="absolute inset-0 motion-safe:animate-ping rounded-full bg-accent-primary/60" />
+                    <span className="absolute inset-0 animate-ping rounded-full bg-accent-primary/60" />
                     <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-accent-primary" />
                   </span>
                   <span className="text-foreground">{activeLabel}</span>
-                  <ChevronDown className="h-3 w-3 opacity-60 transition-transform group-data-[state=open]:rotate-180" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-72">
-                  <DropdownMenuRadioGroup
-                    value={resolvedModel}
-                    onValueChange={(id) => onModelChange?.(id)}
-                  >
+                  <ChevronDown className="h-3 w-3 opacity-60 transition-transform group-hover:translate-y-px" />
+                </button>
+                {modelOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-72 overflow-hidden rounded-xl border border-border-subtle bg-popover p-1 shadow-elevated animate-in-scale">
                     {AVAILABLE_MODELS.map((m) => (
-                      <DropdownMenuRadioItem
+                      <button
                         key={m.id}
-                        value={m.id}
-                        className="flex-col items-start gap-0.5 py-2"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          onModelChange?.(m.id);
+                          setModelOpen(false);
+                        }}
+                        className={cn(
+                          "flex w-full flex-col items-start rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-surface-2",
+                          activeModel === m.id && "bg-surface-2",
+                        )}
                       >
                         <span className="font-medium">{m.label}</span>
                         {m.note && (
-                          <span className="text-[11px] text-muted-foreground">{m.note}</span>
+                          <span className="mt-0.5 text-[11px] text-muted-foreground">{m.note}</span>
                         )}
-                      </DropdownMenuRadioItem>
+                      </button>
                     ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  </div>
+                )}
+              </div>
             )}
             <ThemeToggle className="hidden rounded-md p-2 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground md:inline-flex" />
             <button
+              type="button"
               onClick={onOpenSettings}
               className="hidden rounded-md p-2 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground md:inline-flex"
-              aria-label="Agent settings"
               title="Settings"
+              aria-label="Open settings"
             >
               <Settings className="h-4 w-4" />
             </button>
             <button
-              onClick={handlePublish}
-              disabled={!publishArtifact || publishing}
-              title={
-                publishArtifact
-                  ? "Publish this artifact and copy its public link"
-                  : "Create an artifact first"
-              }
-              className="hidden items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary-foreground shadow-[0_0_24px_-6px_color-mix(in_oklab,white_60%,transparent)] transition-all hover:scale-[1.03] hover:shadow-[0_0_32px_-4px_color-mix(in_oklab,white_70%,transparent)] disabled:pointer-events-none disabled:opacity-40 md:inline-flex"
+              type="button"
+              onClick={() => toast.info("Publish is a preview-only affordance in this build.")}
+              aria-label="Publish"
+              className="hidden items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary-foreground shadow-[0_0_24px_-6px_color-mix(in_oklab,white_60%,transparent)] transition-all hover:scale-[1.03] hover:shadow-[0_0_32px_-4px_color-mix(in_oklab,white_70%,transparent)] md:inline-flex"
             >
               <Rocket className="h-3 w-3" />
-              {publishing ? "Publishing…" : publishArtifact?.isPublic ? "Published" : "Publish"}
+              Publish
             </button>
             {/* Right-side hamburger on mobile */}
             <button
@@ -211,12 +177,7 @@ export function Header({
 
       {/* Mobile full-screen menu */}
       {mobileOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Menu"
-          className="fixed inset-0 z-50 flex flex-col bg-background pt-[env(safe-area-inset-top)] md:hidden animate-in-fade"
-        >
+        <div className="fixed inset-0 z-50 flex flex-col bg-background md:hidden animate-in-fade">
           <div className="flex h-14 flex-none items-center justify-between border-b border-border-subtle px-4">
             <button
               onClick={() => setMobileOpen(false)}
@@ -237,10 +198,13 @@ export function Header({
                 {(["chat", "preview"] as const).map((v) => (
                   <button
                     key={v}
+                    type="button"
                     onClick={() => {
                       onViewChange(v);
                       setMobileOpen(false);
                     }}
+                    aria-label={v === "chat" ? "Show chat view" : "Show preview canvas"}
+                    aria-pressed={view === v}
                     className={cn(
                       "flex-1 rounded-md px-3 py-2 text-xs font-mono uppercase tracking-wider transition-all",
                       view === v
@@ -255,8 +219,8 @@ export function Header({
             </div>
             <ThreadList activeThreadId={activeThreadId} onNavigate={() => setMobileOpen(false)} />
           </div>
-          <div className="flex-none space-y-2 border-t border-border-subtle p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-            <MobileThemeRow />
+          <div className="flex-none space-y-2 border-t border-border-subtle p-3">
+            <ThemeToggle className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm text-muted-foreground hover:bg-surface-2 hover:text-foreground" />
             <button
               onClick={() => {
                 setMobileOpen(false);
@@ -276,23 +240,6 @@ export function Header({
         </div>
       )}
     </>
-  );
-}
-
-function MobileThemeRow() {
-  const { theme, setTheme } = useTheme();
-  const { Icon } = THEME_META[theme];
-  return (
-    <button
-      onClick={() => {
-        haptic(5);
-        setTheme(THEME_CYCLE[theme]);
-      }}
-      className="flex w-full items-center gap-3 rounded-lg border border-border-subtle bg-surface-1/60 px-3 py-3 text-sm hover:bg-surface-2"
-    >
-      <Icon className="h-4 w-4" /> Theme
-      <span className="ml-auto text-xs capitalize text-muted-foreground">{theme}</span>
-    </button>
   );
 }
 

@@ -2,22 +2,56 @@ import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router"
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  bounceTokensToLocalDev,
+  clearStagedLocalReturn,
   decodeOAuthState,
   extractOAuthTokensFromLocation,
+  isLocalDevReturnUrl,
   isLocalHost,
   lovable,
+  readStagedLocalReturn,
+  startPublishedOAuthAfterStage,
   stripOAuthParamsFromUrl,
 } from "@/integrations/lovable";
 import { toast } from "sonner";
 import { Loader2, Zap } from "lucide-react";
 
+/**
+ * Shared shell for:
+ * - route pendingComponent (ssr:false Suspense / ClientOnly fallback)
+ * - OAuth bridge bootstrap
+ * Must stay identical so SSR HTML and first client paint match (no hydration mismatch).
+ */
+function AuthPendingShell({ label = "Completing sign-in…" }: { label?: string }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
+      <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+      {label}
+    </div>
+  );
+}
+
 export const Route = createFileRoute("/auth")({
   ssr: false,
+  // Critical: Match wraps ssr:false in Suspense + ClientOnly; without this the
+  // server fallback is null while the client paints AuthPage → hydration error.
+  pendingComponent: AuthPendingShell,
+  head: () => ({
+    meta: [
+      { title: "Sign in — Builder" },
+      { name: "robots", content: "noindex" },
+      { name: "description", content: "Sign in to Builder — AI-first app studio." },
+    ],
+  }),
   validateSearch: (s: Record<string, unknown>) => ({
     next:
       typeof s.next === "string" && s.next.startsWith("/") && !s.next.startsWith("//")
         ? s.next
         : "",
+    // Always present so `to: "/auth", search: { next }` typechecks; empty = unset.
+    oauth_stage: s.oauth_stage === "1" || s.oauth_stage === 1 ? "1" : "",
+    lr: typeof s.lr === "string" ? s.lr : "",
+    provider: typeof s.provider === "string" ? s.provider : "",
   }),
   component: AuthPage,
 });
@@ -25,12 +59,15 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const navigate = useNavigate();
   const router = useRouter();
-  const { next } = Route.useSearch();
+  const { next, oauth_stage, lr: lrParam, provider: providerParam } = Route.useSearch();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  // true until client OAuth/session bootstrap finishes — same UI as pendingComponent
   const [bridging, setBridging] = useState(true);
+  // Avoid isLocalHost() (window) on any pre-effect paint of the form copy.
+  const [localHint, setLocalHint] = useState(false);
 
   const goTo = (path: string) => {
     if (path.startsWith("http")) {
@@ -44,32 +81,45 @@ function AuthPage() {
     navigate({ to: "/chat" });
   };
 
-  // Handle OAuth return (production bridge → localhost, or direct tokens).
+  // OAuth: stage from local → published OAuth → bounce tokens back to local.
   useEffect(() => {
     let cancelled = false;
+    setLocalHint(isLocalHost());
 
     (async () => {
+      // ── 1) Published: local hopped here to STAGE return URL, then start Google ──
+      if (!isLocalHost() && oauth_stage === "1" && lrParam && isLocalDevReturnUrl(lrParam)) {
+        const nextPath = next || "/chat";
+        const provider = (
+          providerParam === "apple" || providerParam === "microsoft" || providerParam === "lovable"
+            ? providerParam
+            : "google"
+        ) as "google" | "apple" | "microsoft" | "lovable";
+        startPublishedOAuthAfterStage(provider, lrParam, nextPath);
+        return;
+      }
+
+      // ── 2) Tokens in URL (hash/query) after OAuth broker ──
       const tokens = extractOAuthTokensFromLocation();
       if (tokens) {
         const st = decodeOAuthState(tokens.state);
+        const staged = !isLocalHost() ? readStagedLocalReturn() : null;
+        const lr = (st?.lr && isLocalDevReturnUrl(st.lr) ? st.lr : null) || staged?.lr || null;
+        const nextPath = st?.next || staged?.next || next || "/chat";
 
-        // On published origin after Google: if login started from localhost, bounce tokens back.
-        if (
-          st?.lr &&
-          /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(st.lr) &&
-          !isLocalHost()
-        ) {
-          const target = new URL(st.lr);
-          const hash = new URLSearchParams({
+        // On production with a local return target → bounce home (do NOT setSession on prod)
+        if (lr && !isLocalHost()) {
+          bounceTokensToLocalDev({
             access_token: tokens.access_token,
             refresh_token: tokens.refresh_token,
-            state: tokens.state || "",
+            state: tokens.state,
+            lr,
+            next: nextPath,
           });
-          if (st.next) hash.set("next", st.next);
-          window.location.replace(`${target.origin}${target.pathname}#${hash.toString()}`);
           return;
         }
 
+        // Local (or prod without bridge): apply session here
         try {
           const { error } = await supabase.auth.setSession({
             access_token: tokens.access_token,
@@ -77,10 +127,10 @@ function AuthPage() {
           });
           if (error) throw error;
           stripOAuthParamsFromUrl();
+          clearStagedLocalReturn();
           if (cancelled) return;
           const dest =
-            st?.next ||
-            next ||
+            nextPath ||
             new URLSearchParams(window.location.hash.replace(/^#/, "")).get("next") ||
             "/chat";
           goTo(dest.startsWith("/") ? dest : "/chat");
@@ -93,20 +143,37 @@ function AuthPage() {
         }
       }
 
-      // Already signed in?
+      // ── 3) Already signed in (cookie session on this origin) ──
       const { data } = await supabase.auth.getSession();
       if (cancelled) return;
+
       if (data.session) {
+        // Critical: if production has session after OAuth but no hash tokens,
+        // still bounce to local when we staged lr (broker may drop hash/state).
+        const staged = !isLocalHost() ? readStagedLocalReturn() : null;
+        if (staged?.lr && !isLocalHost()) {
+          const { access_token, refresh_token } = data.session;
+          if (access_token && refresh_token) {
+            bounceTokensToLocalDev({
+              access_token,
+              refresh_token,
+              lr: staged.lr,
+              next: staged.next,
+            });
+            return;
+          }
+        }
         goTo(next || "/chat");
         return;
       }
+
       setBridging(false);
     })();
 
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount for OAuth hash
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- OAuth bootstrap once per landing
   }, []);
 
   const goNext = () => {
@@ -153,7 +220,7 @@ function AuthPage() {
         setLoading(false);
         return;
       }
-      // Full-page redirect (local or production) — keep loading until unload.
+      // Full-page redirect (local stage or production) — keep loading until unload.
       if (result.redirected) return;
       await router.invalidate();
       goNext();
@@ -164,12 +231,7 @@ function AuthPage() {
   };
 
   if (bridging) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        Completing sign-in…
-      </div>
-    );
+    return <AuthPendingShell />;
   }
 
   return (
@@ -192,8 +254,8 @@ function AuthPage() {
           </h1>
           <p className="mb-6 text-sm text-muted-foreground">
             {mode === "signin"
-              ? isLocalHost()
-                ? "Google opens in this tab (no popup). Or use email."
+              ? localHint
+                ? "Google: short hop via published app, then returns here. Or use email."
                 : "Continue where you left off."
               : "Start building with your own AI agent."}
           </p>

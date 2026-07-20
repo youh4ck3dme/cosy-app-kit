@@ -16,38 +16,35 @@ import {
   Check,
   X,
   Undo2,
-  MoreHorizontal,
-  History,
+  Columns2,
   Save,
-  Loader2,
+  Maximize2,
+  Network,
+  Scaling,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { formatDistanceToNow } from "date-fns";
-import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
+import { setArtifactPublic, updateArtifactFiles } from "@/lib/threads.functions";
+import { exportArtifactDownload } from "@/lib/export-artifact";
+import { MonacoEditor } from "@/components/canvas/MonacoEditor";
+import { MonacoDiff } from "@/components/canvas/MonacoDiff";
+import { NetworkPanel, type NetworkEntry } from "@/components/canvas/NetworkPanel";
+import { VersionTimeline } from "@/components/canvas/VersionTimeline";
+import { latestSnippetForFile, type EditFileSnippet } from "@/lib/edit-snippets";
 import {
-  getArtifactVersion,
-  listArtifactVersions,
-  restoreArtifactVersion,
-  setArtifactPublic,
-  updateArtifactContent,
-} from "@/lib/threads.functions";
-import { springTransition, useReducedMotionSafe } from "@/lib/motion";
-import { haptic } from "@/lib/haptics";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  computeFrame,
+  defaultPreviewModeForHost,
+  formatFrameBadge,
+  isPreviewMode,
+  migrateLegacyDevice,
+  type PreviewMode,
+} from "@/lib/preview-frame";
+import { analyzeResponsiveHtml, type ResponsiveReport } from "@/lib/agent/responsive-gate";
+import { buildPreviewBridgeScript } from "@/lib/preview-bridge";
+import { resolvePreviewNavTarget } from "@/lib/preview-nav";
+import { injectScriptIntoHtmlHead } from "@/lib/preview-storage-polyfill";
 
 export type ArtifactFile = { path: string; language: string; content: string };
 export type Artifact = {
@@ -60,35 +57,75 @@ export type Artifact = {
   is_public?: boolean | null;
 };
 
-type Device = "desktop" | "tablet" | "mobile";
-type View = "preview" | "code";
+type View = "preview" | "code" | "diff";
 type ConsoleEntry = { level: "log" | "warn" | "error"; args: string[]; ts: number };
+type ConsoleFilter = "all" | "log" | "warn" | "error";
 
-const WIDTHS: Record<Device, number> = { desktop: 1200, tablet: 768, mobile: 390 };
-
-// The sandboxed iframe uses srcDoc, so its origin is opaque ("null") and postMessage
-// must target "*". Messages are instead authenticated with a per-mount random token
-// plus an event.source check in the listener.
-function consoleBridge(token: string): string {
-  return `<script>(function(){
-  const send = (level, args) => {
-    try { parent.postMessage({ __builder_console: ${JSON.stringify(token)}, level, args: args.map(a => {
-      try { return typeof a === 'string' ? a : JSON.stringify(a); } catch(e) { return String(a); }
-    }) }, '*'); } catch(e) {}
-  };
-  ['log','warn','error'].forEach(l => {
-    const orig = console[l];
-    console[l] = function(){ send(l, [].slice.call(arguments)); orig.apply(console, arguments); };
-  });
-  window.addEventListener('error', e => send('error', [e.message + ' @ ' + (e.filename||'') + ':' + e.lineno]));
-  window.addEventListener('unhandledrejection', e => send('error', ['Unhandled: ' + (e.reason && e.reason.message || e.reason)]));
-})();</script>`;
+/** Build a chat prompt from live preview console errors (magic wand). */
+export function buildConsoleFixPrompt(
+  logs: ConsoleEntry[],
+  opts?: { fileHint?: string | null; networkFails?: string[] },
+): string {
+  const errors = logs.filter((l) => l.level === "error").slice(-12);
+  const warns = logs.filter((l) => l.level === "warn").slice(-6);
+  const lines: string[] = [
+    "Build mode. Fix the current canvas artifact (prefer edit_file on the open HTML file).",
+    "Preview console reported runtime issues — keep brand and layout, only fix the bugs.",
+    "",
+  ];
+  if (opts?.fileHint) {
+    lines.push(`Primary file: ${opts.fileHint}`);
+    lines.push("");
+  }
+  if (errors.length) {
+    lines.push("Errors:");
+    for (const e of errors) {
+      lines.push(`- ${e.args.join(" ").slice(0, 280)}`);
+    }
+    lines.push("");
+  }
+  if (warns.length) {
+    lines.push("Warnings:");
+    for (const w of warns) {
+      lines.push(`- ${w.args.join(" ").slice(0, 200)}`);
+    }
+    lines.push("");
+  }
+  if (opts?.networkFails?.length) {
+    lines.push("Failed network requests:");
+    for (const n of opts.networkFails.slice(-8)) {
+      lines.push(`- ${n}`);
+    }
+    lines.push("");
+  }
+  lines.push(
+    "After fixes, ensure: no uncaught JS errors, mobile sidebar works, localStorage in try/catch.",
+  );
+  return lines.join("\n");
 }
 
+/**
+ * Sandboxed iframe uses srcDoc (opaque origin "null") so postMessage target is "*".
+ * Authenticate with a per-mount random token + event.source === iframe.contentWindow.
+ *
+ * Do NOT add allow-same-origin to sandbox — untrusted agent HTML must not share parent origin.
+ * Instead we polyfill localStorage/sessionStorage in-memory so dashboards don't SecurityError.
+ */
 function injectBridge(html: string, token: string): string {
-  const bridge = consoleBridge(token);
-  if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, `${bridge}</body>`);
-  return `${html}\n${bridge}`;
+  // Polyfill MUST run before artifact scripts (localStorage in init).
+  return injectScriptIntoHtmlHead(html, buildPreviewBridgeScript(token));
+}
+
+function isHtmlPath(path: string): boolean {
+  return /\.html?$/i.test(path);
+}
+
+/** Short chip label for multi-page HTML (index.html → Home). */
+function htmlPageLabel(path: string): string {
+  const base = path.split("/").pop() ?? path;
+  const stem = base.replace(/\.html?$/i, "");
+  if (!stem || stem === "index") return "Home";
+  return stem.charAt(0).toUpperCase() + stem.slice(1);
 }
 
 function fileList(a: Artifact): ArtifactFile[] {
@@ -98,109 +135,392 @@ function fileList(a: Artifact): ArtifactFile[] {
   return [{ path, language: a.kind, content: a.content }];
 }
 
-export function Canvas({ artifact }: { artifact?: Artifact }) {
-  const [device, setDevice] = useState<Device>("desktop");
+function deviceStorageKey(threadId?: string) {
+  return threadId ? `builder:device:${threadId}` : "builder:device:global";
+}
+
+export function Canvas({
+  artifact,
+  threadId,
+  editSnippets = [],
+  onPolishMobile,
+  onFixFromConsole,
+}: {
+  artifact?: Artifact;
+  threadId?: string;
+  /** From chat tool parts — enables Diff “Show model change”. */
+  editSnippets?: EditFileSnippet[];
+  /** One-tap “Make mobile-first” → parent sends polish prompt (MR-40 M3). */
+  onPolishMobile?: () => void;
+  /**
+   * Magic wand: parent fills composer (or auto-sends) with a fix prompt built from
+   * live preview console errors. Prefer fill-composer so user can edit before send.
+   */
+  onFixFromConsole?: (prompt: string) => void;
+}) {
+  const [previewMode, setPreviewMode] = useState<PreviewMode>(() => defaultPreviewModeForHost());
+  const [customWidth, setCustomWidth] = useState<number | null>(null);
   const [zoom, setZoom] = useState(1);
   const [view, setView] = useState<View>("preview");
   const [activeFile, setActiveFile] = useState<string | null>(null);
+  /** Which HTML file the preview iframe is showing (multi-file nav). */
+  const [previewPath, setPreviewPath] = useState<string | null>(null);
   const [key, setKey] = useState(0);
   const [showConsole, setShowConsole] = useState(false);
+  const [showNetwork, setShowNetwork] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
   const [logs, setLogs] = useState<ConsoleEntry[]>([]);
+  const [consoleFilter, setConsoleFilter] = useState<ConsoleFilter>("all");
+  const [network, setNetwork] = useState<NetworkEntry[]>([]);
   const [sharing, setSharing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [edits, setEdits] = useState<Record<string, string>>({});
-  const [iframeLoaded, setIframeLoaded] = useState(false);
-  const [bridgeToken] = useState(() =>
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID()
-      : Math.random().toString(36).slice(2),
+  const [undoStack, setUndoStack] = useState<Record<string, string>[]>([]);
+  const [diffMode, setDiffMode] = useState<"local" | "model">("local");
+  /** Width of the scrollable canvas host (for fluid + fit scale). */
+  const [hostWidth, setHostWidth] = useState<number>(() =>
+    typeof window !== "undefined" ? Math.min(window.innerWidth, 1200) : 800,
   );
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const paneRef = useRef<HTMLDivElement | null>(null);
+  /** Per-mount token so we ignore console/network spam from other frames. */
+  const bridgeTokenRef = useRef(
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `tok-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
   const share = useServerFn(setArtifactPublic);
-  const reducedMotion = useReducedMotionSafe();
-  const qc = useQueryClient();
-  const listVersions = useServerFn(listArtifactVersions);
-  const getVersion = useServerFn(getArtifactVersion);
-  const restoreVersion = useServerFn(restoreArtifactVersion);
-  const saveContent = useServerFn(updateArtifactContent);
-  const [showHistory, setShowHistory] = useState(false);
-  const [previewVersion, setPreviewVersion] = useState<{
-    id: string;
-    content: string;
-    files: ArtifactFile[] | null;
-    entry_path: string | null;
-    created_at: string;
-  } | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [restoring, setRestoring] = useState(false);
-
-  const { data: versions } = useQuery({
-    queryKey: ["artifact-versions", artifact?.id],
-    queryFn: () => listVersions({ data: { artifactId: artifact!.id } }),
-    enabled: Boolean(artifact) && showHistory,
+  const saveFiles = useServerFn(updateArtifactFiles);
+  const [deviceHydrated, setDeviceHydrated] = useState(false);
+  const responsiveToastFor = useRef<string | null>(null);
+  /** Skip artifact-reset setState storm on initial mount / Strict Mode remount. */
+  const prevArtifactIdRef = useRef<string | null | undefined>(undefined);
+  const navCtxRef = useRef({
+    entryPath: null as string | null,
+    resolvedPreviewPath: null as string | null,
+    filePaths: [] as string[],
   });
 
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(deviceStorageKey(threadId));
+      if (!raw) {
+        setPreviewMode(defaultPreviewModeForHost());
+        setCustomWidth(null);
+      } else {
+        const parsed = JSON.parse(raw) as {
+          mode?: string;
+          device?: string;
+          customWidth?: number | null;
+        };
+        if (isPreviewMode(parsed.mode)) {
+          setPreviewMode(parsed.mode);
+        } else {
+          const legacy = migrateLegacyDevice(parsed.device);
+          setPreviewMode(legacy ?? defaultPreviewModeForHost());
+        }
+        if (typeof parsed.customWidth === "number") setCustomWidth(parsed.customWidth);
+      }
+    } catch {
+      setPreviewMode(defaultPreviewModeForHost());
+    }
+    setDeviceHydrated(true);
+  }, [threadId]);
+
+  useEffect(() => {
+    if (!deviceHydrated) return;
+    try {
+      localStorage.setItem(
+        deviceStorageKey(threadId),
+        JSON.stringify({ mode: previewMode, customWidth }),
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [previewMode, customWidth, threadId, deviceHydrated]);
+
+  // Host width for fluid + scale-to-fit simulation
+  useEffect(() => {
+    const el = paneRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width;
+      if (typeof w !== "number" || w <= 0) return;
+      const next = Math.round(w);
+      setHostWidth((prev) => (prev === next ? prev : next));
+    });
+    ro.observe(el);
+    const initial = Math.round(el.clientWidth);
+    if (initial > 0) setHostWidth((prev) => (prev === initial ? prev : initial));
+    return () => ro.disconnect();
+  }, []);
+
   const rawFiles = artifact ? fileList(artifact) : [];
-  const liveFiles = rawFiles.map((f) => ({ ...f, content: edits[f.path] ?? f.content }));
-  // When previewing an old version, show its snapshot instead of the live artifact.
-  const files: ArtifactFile[] = previewVersion
-    ? previewVersion.files && previewVersion.files.length > 0
-      ? previewVersion.files
-      : [
-          {
-            path: "index.html",
-            language: artifact?.kind ?? "html",
-            content: previewVersion.content,
-          },
-        ]
-    : liveFiles;
-  const entryPath = previewVersion ? previewVersion.entry_path : artifact?.entry_path;
+  const files = rawFiles.map((f) => ({ ...f, content: edits[f.path] ?? f.content }));
+  const htmlFiles = files.filter((f) => isHtmlPath(f.path));
+  const multiPage = htmlFiles.length > 1;
   const isDirty = Object.keys(edits).length > 0;
+  const filePathsKey = rawFiles.map((f) => f.path).join("\0");
+  const filePaths = useMemo(() => (filePathsKey ? filePathsKey.split("\0") : []), [filePathsKey]);
+  const entryPath =
+    (artifact?.entry_path && files.some((f) => f.path === artifact.entry_path)
+      ? artifact.entry_path
+      : null) ??
+    files.find((f) => isHtmlPath(f.path))?.path ??
+    files[0]?.path ??
+    null;
+  const resolvedPreviewPath =
+    (previewPath && files.some((f) => f.path === previewPath) ? previewPath : null) ?? entryPath;
+  navCtxRef.current = { entryPath, resolvedPreviewPath, filePaths };
   const currentFile =
-    files.find((f) => f.path === activeFile) ?? files.find((f) => f.path === entryPath) ?? files[0];
+    files.find((f) => f.path === activeFile) ??
+    files.find((f) => f.path === resolvedPreviewPath) ??
+    files.find((f) => f.path === artifact?.entry_path) ??
+    files[0];
+  const originalCurrent = rawFiles.find((f) => f.path === currentFile?.path);
+
+  const modelSnippet = currentFile
+    ? latestSnippetForFile(editSnippets, currentFile.path, artifact?.id)
+    : null;
+
+  useEffect(() => {
+    // Fall back to local when switching files without a model snippet
+    if (diffMode === "model" && !modelSnippet) setDiffMode("local");
+  }, [diffMode, modelSnippet]);
+
+  const iframeBaseHeight = fullscreen
+    ? Math.max(480, (typeof window !== "undefined" ? window.innerHeight : 800) - 160)
+    : 720;
+
+  const frame = useMemo(
+    () =>
+      computeFrame({
+        mode: previewMode,
+        hostWidth: Math.max(280, hostWidth - 32),
+        zoom,
+        customWidth,
+        iframeHeight: iframeBaseHeight,
+      }),
+    [previewMode, hostWidth, zoom, customWidth, iframeBaseHeight],
+  );
 
   const srcDoc = useMemo(() => {
-    if (!artifact) return null;
-    const entry = files.find((f) => f.path === entryPath) ?? files[0];
+    if (!artifact || !resolvedPreviewPath) return null;
+    const entry = files.find((f) => f.path === resolvedPreviewPath);
     if (!entry) return null;
-    if (artifact.kind === "html" || /\.html?$/i.test(entry.path)) {
-      return injectBridge(entry.content, bridgeToken);
+    if (artifact.kind === "html" || isHtmlPath(entry.path)) {
+      return injectBridge(entry.content, bridgeTokenRef.current);
     }
     return null;
-  }, [artifact, files, entryPath, bridgeToken]);
+    // iframe remount uses React key={key}; content deps only (not key)
+  }, [artifact, files, resolvedPreviewPath]);
+
+  const entryHtml = useMemo(() => {
+    if (!artifact || !resolvedPreviewPath) return null;
+    const entry = files.find((f) => f.path === resolvedPreviewPath);
+    if (!entry) return null;
+    if (artifact.kind === "html" || isHtmlPath(entry.path)) return entry.content;
+    return null;
+  }, [artifact, files, resolvedPreviewPath]);
+
+  const responsiveReport: ResponsiveReport | null = useMemo(() => {
+    if (!entryHtml) return null;
+    return analyzeResponsiveHtml(entryHtml);
+  }, [entryHtml]);
+
+  useEffect(() => {
+    if (!artifact?.id || !responsiveReport || responsiveReport.ok) return;
+    if (responsiveToastFor.current === artifact.id) return;
+    responsiveToastFor.current = artifact.id;
+    toast.message(`Mobile score ${responsiveReport.score}/100`, {
+      description: responsiveReport.hints[0] ?? "Layout may not be mobile-friendly.",
+      duration: 4500,
+    });
+  }, [artifact?.id, responsiveReport]);
 
   const refresh = () => {
     setLogs([]);
-    setIframeLoaded(false);
+    setNetwork([]);
+    // New token on hard refresh so stale iframe messages cannot land.
+    bridgeTokenRef.current =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `tok-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     setKey((k) => k + 1);
   };
 
+  useEffect(() => {
+    if (!isDirty || view !== "preview") return;
+    const t = window.setTimeout(() => {
+      setLogs([]);
+      setKey((k) => k + 1);
+    }, 400);
+    return () => window.clearTimeout(t);
+  }, [edits, isDirty, view]);
+
   const resetEdits = () => {
+    if (Object.keys(edits).length) setUndoStack((s) => [...s.slice(-4), edits]);
     setEdits({});
     setLogs([]);
   };
 
-  useEffect(() => {
-    setActiveFile(null);
+  const restoreUndo = () => {
+    const last = undoStack[undoStack.length - 1];
+    if (!last) return;
+    setUndoStack((s) => s.slice(0, -1));
+    setEdits(last);
+  };
+
+  const revertCurrentFile = async () => {
+    if (!artifact || !currentFile || !originalCurrent) return;
+    const nextEdits = { ...edits };
+    delete nextEdits[currentFile.path];
+    setEdits(nextEdits);
+    if (!Object.keys(nextEdits).length) {
+      toast.success(`Reverted ${currentFile.path}`);
+      return;
+    }
+    try {
+      const nextFiles = rawFiles.map((f) =>
+        f.path === currentFile.path
+          ? originalCurrent
+          : { ...f, content: nextEdits[f.path] ?? f.content },
+      );
+      await saveFiles({
+        data: {
+          artifactId: artifact.id,
+          files: nextFiles,
+          entry_path: artifact.entry_path ?? undefined,
+        },
+      });
+      toast.success(`Reverted ${currentFile.path}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Revert failed");
+    }
+  };
+
+  const selectHtmlPage = (path: string) => {
+    setActiveFile(path);
+    if (!isHtmlPath(path)) return;
+    setPreviewPath(path);
     setLogs([]);
+    setNetwork([]);
+    bridgeTokenRef.current =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `tok-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setKey((k) => k + 1);
+  };
+
+  useEffect(() => {
+    const id = artifact?.id ?? null;
+    // Initial mount (incl. Strict Mode remount with same id): do not reset / bump iframe key.
+    if (prevArtifactIdRef.current === undefined) {
+      prevArtifactIdRef.current = id;
+      return;
+    }
+    if (prevArtifactIdRef.current === id) return;
+    prevArtifactIdRef.current = id;
+    setActiveFile(null);
+    setPreviewPath(null);
+    setLogs([]);
+    setNetwork([]);
     setEdits({});
-    setIframeLoaded(false);
-    setPreviewVersion(null);
-    setShowHistory(false);
+    setUndoStack([]);
+    bridgeTokenRef.current =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `tok-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     setKey((k) => k + 1);
   }, [artifact?.id]);
 
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
-      // Only accept messages from our own preview iframe carrying this mount's token.
-      if (e.source !== iframeRef.current?.contentWindow) return;
+      // Only accept messages from our preview iframe + matching mount token.
+      if (iframeRef.current && e.source !== iframeRef.current.contentWindow) return;
       const d = e.data;
-      if (d && d.__builder_console === bridgeToken) {
-        setLogs((prev) => [...prev.slice(-199), { level: d.level, args: d.args, ts: Date.now() }]);
+      if (!d || typeof d !== "object") return;
+      const token = bridgeTokenRef.current;
+      if (d.__builder_navigate === token && typeof d.href === "string") {
+        const { entryPath: ep, resolvedPreviewPath: rp, filePaths: fps } = navCtxRef.current;
+        const current = rp ?? ep ?? "index.html";
+        const target = resolvePreviewNavTarget(d.href, {
+          filePaths: fps,
+          currentPath: current,
+        });
+        if (target.kind === "internal") {
+          setPreviewPath(target.path);
+          setActiveFile(target.path);
+          setLogs([]);
+          setNetwork([]);
+          bridgeTokenRef.current =
+            typeof crypto !== "undefined" && crypto.randomUUID
+              ? crypto.randomUUID()
+              : `tok-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+          setKey((k) => k + 1);
+        }
+        return;
+      }
+      if (d.__builder_console === token) {
+        const level: ConsoleEntry["level"] =
+          d.level === "error" || d.level === "warn" || d.level === "log" ? d.level : "log";
+        const args = Array.isArray(d.args)
+          ? d.args.map((a: unknown) => (typeof a === "string" ? a : String(a)))
+          : [String(d.args ?? "")];
+        setLogs((prev) => [...prev.slice(-199), { level, args, ts: Date.now() }]);
+        // Surface real runtime failures immediately
+        if (level === "error") setShowConsole(true);
+      }
+      if (d.__builder_network === token) {
+        if (d.phase === "start") {
+          setNetwork((prev) =>
+            [
+              ...prev,
+              {
+                id: d.id,
+                method: d.method,
+                url: d.url,
+                status: null,
+                ms: null,
+                ts: Date.now(),
+              },
+            ].slice(-100),
+          );
+        } else if (d.phase === "end") {
+          setNetwork((prev) =>
+            prev.map((row) => (row.id === d.id ? { ...row, status: d.status, ms: d.ms } : row)),
+          );
+        }
       }
     };
     window.addEventListener("message", onMsg);
     return () => window.removeEventListener("message", onMsg);
-  }, [bridgeToken]);
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      const typing =
+        t &&
+        (t.tagName === "INPUT" ||
+          t.tagName === "TEXTAREA" ||
+          t.isContentEditable ||
+          t.closest(".monaco-editor"));
+      if (e.key === "Escape" && fullscreen) {
+        e.preventDefault();
+        setFullscreen(false);
+        return;
+      }
+      if (typing) return;
+      if ((e.key === "f" || e.key === "F") && srcDoc && view === "preview") {
+        e.preventDefault();
+        setFullscreen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [fullscreen, srcDoc, view]);
 
   const handleShare = async () => {
     if (!artifact) return;
@@ -208,12 +528,13 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
     try {
       const next = !artifact.is_public;
       await share({ data: { artifactId: artifact.id, isPublic: next } });
-      haptic();
       if (next) {
+        setShowShare(true);
         const url = `${window.location.origin}/a/${artifact.id}`;
         await navigator.clipboard.writeText(url).catch(() => {});
         toast.success("Public link copied", { description: url });
       } else {
+        setShowShare(false);
         toast.success("Share link disabled");
       }
     } catch (e) {
@@ -223,59 +544,21 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
     }
   };
 
-  const openVersion = async (versionId: string) => {
-    try {
-      const v = await getVersion({ data: { versionId } });
-      setPreviewVersion(v as typeof previewVersion);
-      // Unsaved live edits must not linger (or get saved) while viewing history.
-      setEdits({});
-      setIframeLoaded(false);
-      setKey((k) => k + 1);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not load version");
-    }
-  };
-
-  const backToLatest = () => {
-    setPreviewVersion(null);
-    setIframeLoaded(false);
-    setKey((k) => k + 1);
-  };
-
-  const handleRestore = async () => {
-    if (!previewVersion || restoring) return;
-    setRestoring(true);
-    try {
-      await restoreVersion({ data: { versionId: previewVersion.id } });
-      haptic();
-      toast.success("Version restored");
-      setPreviewVersion(null);
-      // Thread queries hold the artifacts; prefix match refreshes whichever thread is open.
-      qc.invalidateQueries({ queryKey: ["thread"] });
-      qc.invalidateQueries({ queryKey: ["artifact-versions", artifact?.id] });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Restore failed");
-    } finally {
-      setRestoring(false);
-    }
-  };
-
   const handleSaveEdits = async () => {
-    if (!artifact || !isDirty || saving) return;
+    if (!artifact || !isDirty) return;
     setSaving(true);
     try {
-      if (artifact.files && artifact.files.length > 0) {
-        await saveContent({ data: { artifactId: artifact.id, files: liveFiles } });
-      } else {
-        await saveContent({
-          data: { artifactId: artifact.id, content: liveFiles[0]?.content ?? "" },
-        });
-      }
-      haptic();
+      await saveFiles({
+        data: {
+          artifactId: artifact.id,
+          files,
+          entry_path: artifact.entry_path ?? undefined,
+        },
+      });
+      setUndoStack((s) => [...s.slice(-4), edits]);
       setEdits({});
-      toast.success("Edits saved");
-      qc.invalidateQueries({ queryKey: ["thread"] });
-      qc.invalidateQueries({ queryKey: ["artifact-versions", artifact.id] });
+      toast.success("Saved to artifact");
+      refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
     } finally {
@@ -285,50 +568,42 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
 
   const handleExport = async () => {
     if (!artifact) return;
-    if (files.length === 1) {
-      const f = files[0];
-      const blob = new Blob([f.content], { type: "text/plain;charset=utf-8" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = f.path.split("/").pop() ?? "artifact.txt";
-      a.click();
-      URL.revokeObjectURL(a.href);
-      return;
-    }
-    // Multi-file: lazy-load jszip only when needed.
     try {
-      const { default: JSZip } = await import("jszip");
-      const zip = new JSZip();
-      for (const f of files) zip.file(f.path, f.content);
-      const blob = await zip.generateAsync({ type: "blob" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${artifact.title.replace(/\W+/g, "-").toLowerCase() || "artifact"}.zip`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await exportArtifactDownload(artifact, files);
     } catch {
-      toast.error("Export failed (jszip missing?)");
+      toast.error("Export failed");
     }
   };
 
+  const filteredLogs =
+    consoleFilter === "all" ? logs : logs.filter((l) => l.level === consoleFilter);
+  const errorCount = logs.filter((l) => l.level === "error").length;
+  const warnCount = logs.filter((l) => l.level === "warn").length;
+  const networkFails = network
+    .filter((n) => n.status === 0 || (typeof n.status === "number" && n.status >= 400))
+    .map((n) => `${n.method} ${n.url} → ${n.status ?? "?"}`);
+
   return (
-    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[color-mix(in_oklab,var(--color-background)_94%,black)]">
+    <div
+      className={cn(
+        "relative flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[color-mix(in_oklab,var(--color-background)_94%,black)]",
+        fullscreen && "fixed inset-0 z-50 bg-background",
+      )}
+    >
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-grid-pattern bg-grid-fade opacity-70"
       />
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-mesh-glow opacity-40" />
 
-      {/* Top toolbar */}
       <div className="relative z-10 flex flex-none items-center justify-between gap-2 border-b border-border-subtle glass px-3 py-2">
         <div className="flex items-center gap-2">
-          {/* Preview / Code toggle */}
           <div className="flex items-center rounded-lg border border-border-subtle bg-surface-1/70 p-0.5">
             {(
               [
                 { key: "preview", Icon: Eye, label: "Preview" },
                 { key: "code", Icon: Code2, label: "Code" },
+                { key: "diff", Icon: Columns2, label: "Diff" },
               ] as const
             ).map(({ key: k, Icon, label }) => {
               const active = view === k;
@@ -337,12 +612,13 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
                   key={k}
                   onClick={() => setView(k)}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all",
+                    "inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all",
                     active
                       ? "bg-surface-3 text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                   title={label}
+                  aria-label={label}
                 >
                   <Icon className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">{label}</span>
@@ -354,77 +630,72 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
           {view === "preview" && srcDoc && (
             <>
               <div className="hidden h-4 w-px bg-border-subtle sm:block" />
-              <div className="hidden items-center gap-0.5 rounded-lg border border-border-subtle bg-surface-1/70 p-0.5 sm:flex">
-                {(["desktop", "tablet", "mobile"] as Device[]).map((d) => {
-                  const Icon = d === "desktop" ? Monitor : d === "tablet" ? Tablet : Smartphone;
-                  const active = device === d;
+              {/* M1: fluid + real device sim (scale) — visible on phone too */}
+              <div className="flex items-center gap-0.5 rounded-lg border border-border-subtle bg-surface-1/70 p-0.5">
+                {(
+                  [
+                    { mode: "fluid" as const, Icon: Scaling, label: "Fluid (host width)" },
+                    { mode: "mobile" as const, Icon: Smartphone, label: "Mobile 390" },
+                    { mode: "tablet" as const, Icon: Tablet, label: "Tablet 768" },
+                    { mode: "desktop" as const, Icon: Monitor, label: "Desktop 1200" },
+                  ] as const
+                ).map(({ mode, Icon, label }) => {
+                  const active = previewMode === mode && !customWidth;
                   return (
                     <button
-                      key={d}
-                      onClick={() => setDevice(d)}
+                      key={mode}
+                      type="button"
+                      onClick={() => {
+                        setCustomWidth(null);
+                        setPreviewMode(mode);
+                      }}
                       className={cn(
-                        "flex items-center justify-center rounded-md p-1.5 transition-all",
+                        "flex min-h-9 min-w-9 items-center justify-center rounded-md p-1.5 transition-all",
                         active
                           ? "bg-surface-3 text-foreground shadow-sm"
                           : "text-muted-foreground hover:text-foreground",
                       )}
-                      title={d}
+                      title={label}
+                      aria-label={label}
+                      aria-pressed={active}
                     >
                       <Icon className="h-3.5 w-3.5" />
                     </button>
                   );
                 })}
               </div>
+              <label className="hidden items-center gap-1 font-mono text-[10px] text-muted-foreground sm:flex">
+                px
+                <input
+                  type="number"
+                  min={280}
+                  max={1600}
+                  value={customWidth ?? ""}
+                  placeholder={String(frame.mediaWidth)}
+                  onChange={(e) => {
+                    const n = Number(e.target.value);
+                    setCustomWidth(Number.isFinite(n) && n > 0 ? n : null);
+                  }}
+                  className="h-8 w-16 rounded-md border border-border-subtle bg-surface-1 px-1.5 text-[11px] text-foreground"
+                  aria-label="Custom preview width"
+                />
+              </label>
               <button
                 onClick={refresh}
-                className="hidden rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground sm:block"
+                className="min-h-9 min-w-9 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
                 title="Refresh preview"
                 aria-label="Refresh preview"
               >
                 <RefreshCw className="h-3.5 w-3.5" />
               </button>
-              {/* Compact overflow menu — holds the controls hidden on small screens */}
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  aria-label="Preview options"
-                  className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground sm:hidden"
-                >
-                  <MoreHorizontal className="h-3.5 w-3.5" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-48">
-                  <DropdownMenuLabel>Device</DropdownMenuLabel>
-                  <DropdownMenuRadioGroup
-                    value={device}
-                    onValueChange={(d) => setDevice(d as Device)}
-                  >
-                    {(["desktop", "tablet", "mobile"] as Device[]).map((d) => (
-                      <DropdownMenuRadioItem key={d} value={d} className="capitalize">
-                        {d}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onSelect={(e) => {
-                      e.preventDefault();
-                      setZoom((z) => Math.min(1.5, +(z + 0.1).toFixed(2)));
-                    }}
-                  >
-                    <ZoomIn className="mr-2 h-3.5 w-3.5" /> Zoom in
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={(e) => {
-                      e.preventDefault();
-                      setZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(2)));
-                    }}
-                  >
-                    <ZoomOut className="mr-2 h-3.5 w-3.5" /> Zoom out
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={refresh}>
-                    <RefreshCw className="mr-2 h-3.5 w-3.5" /> Refresh
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <button
+                onClick={() => setFullscreen((v) => !v)}
+                className="min-h-9 min-w-9 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+                title="Fullscreen (F)"
+                aria-label="Toggle fullscreen preview"
+              >
+                <Maximize2 className="h-3.5 w-3.5" />
+              </button>
             </>
           )}
         </div>
@@ -436,6 +707,7 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
                 onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(2)))}
                 className="rounded-md p-1.5 hover:text-foreground"
                 title="Zoom out"
+                aria-label="Zoom out"
               >
                 <ZoomOut className="h-3.5 w-3.5" />
               </button>
@@ -444,52 +716,76 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
                 onClick={() => setZoom((z) => Math.min(1.5, +(z + 0.1).toFixed(2)))}
                 className="rounded-md p-1.5 hover:text-foreground"
                 title="Zoom in"
+                aria-label="Zoom in"
               >
                 <ZoomIn className="h-3.5 w-3.5" />
               </button>
             </div>
           )}
           {artifact && srcDoc && (
-            <button
-              onClick={() => setShowConsole((s) => !s)}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
-                showConsole
-                  ? "bg-surface-3 text-foreground"
-                  : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
-              )}
-              title="Console"
-            >
-              <Terminal className="h-3.5 w-3.5" />
-              <span className="hidden md:inline">Console</span>
-              {logs.length > 0 && (
-                <span className="rounded-full bg-accent-primary/20 px-1.5 text-[10px] font-mono text-accent-primary tabular-nums">
-                  {logs.length}
-                </span>
-              )}
-            </button>
-          )}
-          {artifact && (
             <>
               <button
-                onClick={() => setShowHistory((s) => !s)}
+                onClick={() => {
+                  setShowConsole((s) => !s);
+                  if (!showConsole) setShowNetwork(false);
+                }}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
-                  showHistory
+                  "inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+                  showConsole
                     ? "bg-surface-3 text-foreground"
                     : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
                 )}
-                title="Version history"
-                aria-label="Version history"
-                aria-expanded={showHistory}
+                title={
+                  errorCount
+                    ? `Console — ${errorCount} error(s) from preview`
+                    : "Console — live logs from sandboxed preview"
+                }
+                aria-label="Toggle console"
               >
-                <History className="h-3.5 w-3.5" />
-                <span className="hidden md:inline">History</span>
+                <Terminal className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">Console</span>
+                {errorCount > 0 ? (
+                  <span className="rounded-full bg-destructive/20 px-1.5 text-[10px] font-mono text-destructive tabular-nums">
+                    {errorCount}
+                  </span>
+                ) : logs.length > 0 ? (
+                  <span className="rounded-full bg-accent-primary/20 px-1.5 text-[10px] font-mono text-accent-primary tabular-nums">
+                    {logs.length}
+                  </span>
+                ) : null}
               </button>
               <button
+                onClick={() => {
+                  setShowNetwork((s) => !s);
+                  if (!showNetwork) setShowConsole(false);
+                }}
+                className={cn(
+                  "inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+                  showNetwork
+                    ? "bg-surface-3 text-foreground"
+                    : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
+                )}
+                title="Network"
+                aria-label="Toggle network panel"
+              >
+                <Network className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">Net</span>
+                {network.length > 0 && (
+                  <span className="rounded-full bg-accent-primary/20 px-1.5 text-[10px] font-mono text-accent-primary tabular-nums">
+                    {network.length}
+                  </span>
+                )}
+              </button>
+            </>
+          )}
+          {artifact && (
+            <>
+              <VersionTimeline artifactId={artifact.id} threadId={threadId} />
+              <button
                 onClick={handleExport}
-                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+                className="min-h-9 min-w-9 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
                 title="Download"
+                aria-label="Download artifact"
               >
                 <Download className="h-3.5 w-3.5" />
               </button>
@@ -497,12 +793,13 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
                 onClick={handleShare}
                 disabled={sharing}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+                  "inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
                   artifact.is_public
                     ? "bg-accent-primary/15 text-accent-primary hover:bg-accent-primary/25"
                     : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
                 )}
                 title={artifact.is_public ? "Public — click to unshare" : "Share publicly"}
+                aria-label={artifact.is_public ? "Disable public share" : "Share publicly"}
               >
                 {artifact.is_public ? (
                   <Check className="h-3.5 w-3.5" />
@@ -523,8 +820,9 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
                   w.document.close();
                 }
               }}
-              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+              className="min-h-9 min-w-9 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
               title="Open in new tab"
+              aria-label="Open in new tab"
             >
               <ExternalLink className="h-3.5 w-3.5" />
             </button>
@@ -532,18 +830,82 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
         </div>
       </div>
 
-      {/* File tabs (when multi-file OR in code view) */}
-      {artifact && (files.length > 1 || view === "code") && (
+      {artifact && multiPage && view === "preview" && (
+        <div
+          className="relative z-10 flex flex-none items-center gap-2 overflow-x-auto border-b border-border-subtle bg-surface-1/40 px-2 py-1.5 no-scrollbar"
+          role="navigation"
+          aria-label="Preview pages"
+        >
+          <span className="shrink-0 px-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground tabular-nums">
+            {htmlFiles.length} pages
+          </span>
+          <label className="flex min-h-11 min-w-0 flex-1 items-center sm:hidden">
+            <span className="sr-only">Select page</span>
+            <select
+              className="min-h-11 w-full rounded-md border border-border-subtle bg-surface-1 px-2 font-mono text-[12px] text-foreground"
+              value={resolvedPreviewPath ?? htmlFiles[0]?.path ?? ""}
+              onChange={(e) => selectHtmlPage(e.target.value)}
+              aria-label="Select preview page"
+            >
+              {htmlFiles.map((f) => (
+                <option key={f.path} value={f.path}>
+                  {htmlPageLabel(f.path)} ({f.path})
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="hidden min-w-0 flex-1 items-center gap-1 sm:flex">
+            {htmlFiles.map((f) => {
+              const active = f.path === resolvedPreviewPath;
+              const edited = edits[f.path] !== undefined;
+              return (
+                <button
+                  key={f.path}
+                  type="button"
+                  onClick={() => selectHtmlPage(f.path)}
+                  aria-pressed={active}
+                  aria-label={`Preview ${f.path}`}
+                  title={f.path}
+                  className={cn(
+                    "min-h-11 shrink-0 rounded-lg border px-3 py-1.5 font-mono text-[11px] transition-colors",
+                    active
+                      ? "border-accent-primary/50 bg-accent-primary/15 text-foreground shadow-sm"
+                      : "border-transparent text-muted-foreground hover:border-border-subtle hover:bg-surface-2 hover:text-foreground",
+                  )}
+                >
+                  {htmlPageLabel(f.path)}
+                  {edited && <span className="ml-1.5 text-accent-primary">●</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {artifact && (view === "code" || view === "diff") && files.length > 1 && (
         <div className="relative z-10 flex flex-none items-center gap-0.5 overflow-x-auto border-b border-border-subtle bg-surface-1/40 px-2 no-scrollbar">
+          {multiPage && (
+            <span className="shrink-0 px-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground tabular-nums">
+              {htmlFiles.length} pages
+            </span>
+          )}
           {files.map((f) => {
             const active = currentFile?.path === f.path;
             const edited = edits[f.path] !== undefined;
             return (
               <button
                 key={f.path}
-                onClick={() => setActiveFile(f.path)}
+                type="button"
+                onClick={() => {
+                  if (isHtmlPath(f.path)) {
+                    selectHtmlPage(f.path);
+                  } else {
+                    setActiveFile(f.path);
+                  }
+                }}
+                aria-pressed={active}
                 className={cn(
-                  "shrink-0 border-b-2 px-3 py-1.5 font-mono text-[11px] transition-colors",
+                  "min-h-11 shrink-0 border-b-2 px-3 py-1.5 font-mono text-[11px] transition-colors",
                   active
                     ? "border-accent-primary text-foreground"
                     : "border-transparent text-muted-foreground hover:text-foreground",
@@ -555,109 +917,168 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
             );
           })}
           {isDirty && (
-            <div className="ml-auto flex shrink-0 items-center gap-1">
+            <button
+              onClick={resetEdits}
+              className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+              title="Discard edits"
+            >
+              <Undo2 className="h-3 w-3" /> Reset
+            </button>
+          )}
+          {undoStack.length > 0 && (
+            <button
+              onClick={restoreUndo}
+              className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+              title="Restore previous edits"
+            >
+              Undo stack
+            </button>
+          )}
+          {view === "diff" && (
+            <>
+              {modelSnippet && (
+                <button
+                  type="button"
+                  onClick={() => setDiffMode((m) => (m === "model" ? "local" : "model"))}
+                  className={cn(
+                    "inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[11px] hover:bg-surface-2",
+                    diffMode === "model"
+                      ? "bg-accent-primary/15 text-accent-primary"
+                      : "text-muted-foreground",
+                  )}
+                  title="Compare edit_file beforeSnippet / afterSnippet from the model"
+                >
+                  {diffMode === "model" ? "Showing model change" : "Show model change"}
+                </button>
+              )}
               <button
-                onClick={resetEdits}
-                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-surface-2 hover:text-foreground"
-                title="Discard edits"
+                type="button"
+                onClick={() => {
+                  setDiffMode("local");
+                  setView("preview");
+                }}
+                className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-surface-2"
               >
-                <Undo2 className="h-3 w-3" /> Reset
+                Accept
               </button>
               <button
-                onClick={handleSaveEdits}
-                disabled={saving}
-                className="inline-flex items-center gap-1 rounded-md bg-accent-primary/15 px-2 py-1 text-[11px] font-medium text-accent-primary hover:bg-accent-primary/25 disabled:opacity-50"
-                title="Save edits to this artifact"
+                type="button"
+                onClick={() => void revertCurrentFile()}
+                className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-surface-2"
               >
-                {saving ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Save className="h-3 w-3" />
-                )}
-                Save
+                Revert
               </button>
-            </div>
+            </>
+          )}
+          {isDirty && (
+            <button
+              onClick={handleSaveEdits}
+              disabled={saving}
+              className="inline-flex shrink-0 items-center gap-1 rounded-md bg-primary px-2 py-1 text-[11px] font-semibold text-primary-foreground"
+              title="Save edits to artifact"
+            >
+              <Save className="h-3 w-3" /> {saving ? "Saving…" : "Save"}
+            </button>
           )}
         </div>
       )}
 
-      {/* Version-preview banner */}
-      {previewVersion && (
-        <div className="relative z-10 flex flex-none flex-wrap items-center justify-between gap-2 border-b border-accent-primary/30 bg-accent-primary/10 px-3 py-1.5 text-xs animate-in-fade">
-          <span className="text-foreground/90">
-            Viewing version from{" "}
-            {formatDistanceToNow(new Date(previewVersion.created_at), { addSuffix: true })}
-          </span>
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={backToLatest}
-              className="rounded-md px-2 py-1 text-muted-foreground hover:bg-surface-2 hover:text-foreground"
-            >
-              Back to latest
-            </button>
-            <button
-              onClick={handleRestore}
-              disabled={restoring}
-              className="inline-flex items-center gap-1 rounded-md bg-accent-primary px-2.5 py-1 font-medium text-accent-primary-foreground hover:opacity-90 disabled:opacity-50"
-            >
-              {restoring && <Loader2 className="h-3 w-3 animate-spin" />}
-              Restore this version
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Body */}
       <div className="relative z-0 flex min-h-0 flex-1 flex-col">
         <div
-          className={cn(
-            "flex flex-1 justify-center overflow-auto p-4 sm:p-8",
-            view === "code" ? "items-stretch" : "items-start",
-          )}
+          ref={paneRef}
+          className="flex flex-1 items-start justify-center overflow-auto p-4 sm:p-8"
         >
           {!artifact && <EmptyCanvas />}
 
           {artifact && view === "preview" && srcDoc && (
-            <motion.div
-              className="max-w-full flex-none overflow-hidden rounded-2xl border border-border-subtle bg-panel shadow-elevated animate-in-scale"
-              initial={false}
-              animate={{ width: WIDTHS[device] * zoom }}
-              transition={reducedMotion ? { duration: 0 } : springTransition}
+            <div
+              className="flex-none animate-in-scale"
+              style={{
+                width: frame.outerWidth,
+                height: 32 + frame.outerIframeHeight,
+                maxWidth: "100%",
+              }}
             >
-              <div className="flex h-8 items-center gap-1.5 border-b border-border-subtle bg-surface-1/60 px-3">
-                <span className="h-2 w-2 rounded-full bg-[oklch(0.65_0.20_25)]/50" />
-                <span className="h-2 w-2 rounded-full bg-[oklch(0.80_0.16_85)]/50" />
-                <span className="h-2 w-2 rounded-full bg-[oklch(0.72_0.18_150)]/50" />
-                <div className="ml-3 flex flex-1 items-center gap-2 truncate">
-                  <span className="font-mono text-[10px] text-muted-foreground">
-                    {artifact.title}
+              {/*
+                Outer size = scaled footprint. Inner keeps full mediaWidth so
+                iframe CSS media queries see desktop/tablet targets (M1).
+              */}
+              <div
+                className="overflow-hidden rounded-2xl border border-border-subtle bg-panel shadow-elevated"
+                style={{
+                  width: frame.mediaWidth,
+                  height: 32 + frame.iframeHeight,
+                  transform: `scale(${frame.scale})`,
+                  transformOrigin: "top left",
+                }}
+              >
+                <div className="flex h-8 items-center gap-1.5 border-b border-border-subtle bg-surface-1/60 px-3">
+                  <span className="h-2 w-2 rounded-full bg-[oklch(0.65_0.20_25)]/50" />
+                  <span className="h-2 w-2 rounded-full bg-[oklch(0.80_0.16_85)]/50" />
+                  <span className="h-2 w-2 rounded-full bg-[oklch(0.72_0.18_150)]/50" />
+                  <div className="ml-3 flex min-w-0 flex-1 items-center gap-2 truncate">
+                    <span className="truncate font-mono text-[10px] text-muted-foreground">
+                      {artifact.title}
+                    </span>
+                    {responsiveReport && (
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[9px] font-semibold tabular-nums",
+                          responsiveReport.ok
+                            ? "bg-emerald-500/15 text-emerald-400"
+                            : "bg-amber-500/15 text-amber-300",
+                        )}
+                        title={
+                          responsiveReport.hints[0] ??
+                          (responsiveReport.ok ? "Responsive gate OK" : "Responsive gate warnings")
+                        }
+                      >
+                        m{responsiveReport.score}
+                      </span>
+                    )}
+                    {onPolishMobile && entryHtml && (
+                      <button
+                        type="button"
+                        onClick={onPolishMobile}
+                        className={cn(
+                          "shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-semibold transition-colors",
+                          responsiveReport && !responsiveReport.ok
+                            ? "bg-amber-500/20 text-amber-200 hover:bg-amber-500/30"
+                            : "bg-surface-2 text-muted-foreground hover:bg-surface-3 hover:text-foreground",
+                        )}
+                        title="Ask Builder to rewrite layout mobile-first"
+                      >
+                        Mobile-first
+                      </button>
+                    )}
+                  </div>
+                  <span
+                    className="shrink-0 font-mono text-[10px] text-muted-foreground/60 tabular-nums"
+                    title={
+                      frame.simulated
+                        ? `Simulated ${frame.mode}: media queries see ${frame.mediaWidth}px, scaled ×${frame.fitScale.toFixed(2)} to fit host`
+                        : `Media width ${frame.mediaWidth}px (${frame.mode})`
+                    }
+                  >
+                    {formatFrameBadge(frame)}
+                    {frame.simulated ? " sim" : ""}
                   </span>
                 </div>
-                <span className="font-mono text-[10px] text-muted-foreground/60 tabular-nums">
-                  {WIDTHS[device]}px
-                </span>
-              </div>
-              <div className="relative">
-                {!iframeLoaded && (
-                  <div className="absolute inset-0 z-10 space-y-3 bg-panel p-6" aria-hidden>
-                    <Skeleton className="h-8 w-2/3 rounded-lg" />
-                    <Skeleton className="h-4 w-full rounded" />
-                    <Skeleton className="h-4 w-5/6 rounded" />
-                    <Skeleton className="h-40 w-full rounded-xl" />
-                  </div>
-                )}
+                {/*
+                  Sandbox: scripts+forms only — no same-origin, no top-nav, no downloads.
+                  Preview is untrusted user/agent HTML; keep capabilities minimal.
+                */}
                 <iframe
                   key={key}
                   ref={iframeRef}
                   srcDoc={srcDoc}
                   sandbox="allow-scripts allow-forms"
-                  onLoad={() => setIframeLoaded(true)}
                   className="block w-full border-0 bg-white"
-                  style={{ height: `${(720 * zoom).toFixed(0)}px` }}
+                  style={{ height: frame.iframeHeight, width: frame.mediaWidth }}
                   title={artifact.title}
                 />
               </div>
-            </motion.div>
+            </div>
           )}
 
           {artifact && view === "preview" && !srcDoc && artifact.kind === "markdown" && (
@@ -665,81 +1086,122 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
               className="prose prose-invert prose-sm max-w-3xl rounded-2xl border border-border-subtle bg-panel px-8 py-6 shadow-elevated animate-in-scale"
               style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}
             >
-              <h2 className="!mt-0">{artifact.title}</h2>
+              <h2 className="mt-0!">{artifact.title}</h2>
               <ReactMarkdown>{currentFile?.content ?? artifact.content}</ReactMarkdown>
             </article>
           )}
 
           {artifact && view === "code" && currentFile && (
-            <textarea
-              key={currentFile.path}
+            <MonacoEditor
+              path={currentFile.path}
               value={currentFile.content}
-              onChange={(e) => {
-                const val = e.target.value;
+              language={currentFile.language}
+              onChange={(val) => {
                 const path = currentFile.path;
                 setEdits((prev) => ({ ...prev, [path]: val }));
               }}
-              spellCheck={false}
-              readOnly={Boolean(previewVersion)}
-              aria-label={`Edit ${currentFile.path}`}
-              className="min-h-64 w-full max-w-5xl resize-none overflow-auto rounded-2xl border border-border-subtle bg-surface-1/80 p-5 font-mono text-[12.5px] leading-relaxed text-foreground/90 shadow-elevated outline-none ring-0 focus:border-accent-primary/60 focus:bg-surface-1 animate-in-fade"
             />
+          )}
+
+          {artifact && view === "diff" && currentFile && (
+            <div className="flex w-full max-w-6xl flex-col gap-2">
+              <p className="px-1 text-[11px] text-muted-foreground">
+                {diffMode === "model" && modelSnippet
+                  ? "Model change — edit_file beforeSnippet → afterSnippet"
+                  : "Local edits — saved file vs current buffer (undo stack if you Reset)"}
+              </p>
+              <MonacoDiff
+                path={currentFile.path}
+                language={currentFile.language}
+                original={
+                  diffMode === "model" && modelSnippet
+                    ? modelSnippet.beforeSnippet
+                    : (originalCurrent?.content ?? "")
+                }
+                modified={
+                  diffMode === "model" && modelSnippet
+                    ? modelSnippet.afterSnippet
+                    : currentFile.content
+                }
+              />
+            </div>
           )}
         </div>
 
-        {/* Version history panel */}
-        {showHistory && artifact && (
-          <div className="absolute right-3 top-3 z-20 flex max-h-[70%] w-72 max-w-[calc(100%-1.5rem)] flex-col overflow-hidden rounded-xl border border-border-subtle bg-popover shadow-elevated animate-in-scale">
-            <div className="flex flex-none items-center justify-between border-b border-border-subtle px-3 py-2">
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <History className="h-3 w-3" /> Version history
-              </span>
-              <button
-                onClick={() => setShowHistory(false)}
-                className="rounded p-1 text-muted-foreground hover:bg-surface-2 hover:text-foreground"
-                aria-label="Close version history"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
-              <button
-                onClick={backToLatest}
-                className={cn(
-                  "flex w-full flex-col items-start rounded-lg px-2.5 py-2 text-left text-xs transition-colors hover:bg-surface-2",
-                  !previewVersion && "bg-surface-2",
-                )}
-              >
-                <span className="font-medium text-foreground">Latest</span>
-                <span className="text-muted-foreground">Current state of the artifact</span>
-              </button>
-              {(versions ?? []).map((v) => (
-                <button
-                  key={v.id}
-                  onClick={() => openVersion(v.id)}
-                  className={cn(
-                    "flex w-full flex-col items-start rounded-lg px-2.5 py-2 text-left text-xs transition-colors hover:bg-surface-2",
-                    previewVersion?.id === v.id && "bg-surface-2",
+        {showShare && artifact?.is_public && (
+          <div className="relative z-10 border-t border-border-subtle bg-surface-1/95 px-4 py-3 backdrop-blur">
+            <div className="mx-auto flex max-w-3xl flex-col gap-3">
+              <div className="flex gap-3">
+                <div className="hidden h-16 w-24 shrink-0 overflow-hidden rounded-lg border border-border-subtle bg-surface-2 sm:block">
+                  {srcDoc ? (
+                    <iframe
+                      srcDoc={srcDoc}
+                      // Same as main preview — empty sandbox logs "allow-scripts is not set"
+                      // and confuses debugging (thumbnail is pointer-events-none only).
+                      sandbox="allow-scripts allow-forms"
+                      className="pointer-events-none h-[200%] w-[200%] origin-top-left scale-50 border-0 bg-white"
+                      title="Share preview"
+                      tabIndex={-1}
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center font-mono text-[10px] text-muted-foreground">
+                      {artifact.kind}
+                    </div>
                   )}
-                >
-                  <span className="font-medium text-foreground">
-                    {v.label ?? formatDistanceToNow(new Date(v.created_at), { addSuffix: true })}
-                  </span>
-                  <span className="text-muted-foreground">
-                    {new Date(v.created_at).toLocaleString()}
-                  </span>
-                </button>
-              ))}
-              {versions && versions.length === 0 && (
-                <div className="px-2.5 py-4 text-center text-xs text-muted-foreground">
-                  No earlier versions yet. Snapshots appear when the artifact changes.
                 </div>
-              )}
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-semibold">Share</div>
+                  <div className="truncate text-sm">{artifact.title}</div>
+                  <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground">
+                    {typeof window !== "undefined"
+                      ? `${window.location.origin}/a/${artifact.id}`
+                      : `/a/${artifact.id}`}
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="min-h-11 rounded-md border border-border px-3 text-xs"
+                  onClick={async () => {
+                    const url = `${window.location.origin}/a/${artifact.id}`;
+                    await navigator.clipboard.writeText(url);
+                    toast.success("Link copied");
+                  }}
+                >
+                  Copy link
+                </button>
+                <button
+                  type="button"
+                  className="min-h-11 rounded-md border border-border px-3 text-xs"
+                  onClick={async () => {
+                    const embed = `<iframe src="${window.location.origin}/a/${artifact.id}/embed" style="width:100%;height:640px;border:0;border-radius:12px" title="${artifact.title}"></iframe>`;
+                    await navigator.clipboard.writeText(embed);
+                    toast.success("Embed code copied");
+                  }}
+                >
+                  Copy embed
+                </button>
+                <button
+                  type="button"
+                  className="min-h-11 rounded-md border border-border px-3 text-xs"
+                  onClick={handleExport}
+                >
+                  Download ZIP
+                </button>
+                <button
+                  type="button"
+                  className="min-h-11 rounded-md px-2 text-xs text-muted-foreground"
+                  onClick={() => setShowShare(false)}
+                  aria-label="Close share panel"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Console drawer */}
         {showConsole && (
           <div className="relative z-10 flex max-h-64 min-h-32 flex-none flex-col border-t border-border-subtle bg-surface-1/95 backdrop-blur">
             <div className="flex flex-none items-center justify-between border-b border-border-subtle px-3 py-1.5">
@@ -747,10 +1209,49 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
                 <Terminal className="h-3 w-3" />
                 Console
                 <span className="font-mono tabular-nums text-muted-foreground/70">
-                  {logs.length}
+                  {filteredLogs.length}
                 </span>
+                <div className="ml-2 flex gap-0.5">
+                  {(["all", "log", "warn", "error"] as ConsoleFilter[]).map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setConsoleFilter(f)}
+                      className={cn(
+                        "rounded px-1.5 py-0.5 font-mono text-[10px] uppercase",
+                        consoleFilter === f
+                          ? "bg-surface-3 text-foreground"
+                          : "text-muted-foreground hover:bg-surface-2",
+                      )}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="flex items-center gap-1">
+                {onFixFromConsole &&
+                  (errorCount > 0 || warnCount > 0 || networkFails.length > 0) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const prompt = buildConsoleFixPrompt(logs, {
+                          fileHint: resolvedPreviewPath ?? artifact?.entry_path ?? "index.html",
+                          networkFails,
+                        });
+                        onFixFromConsole(prompt);
+                        toast.message("Fix prompt ready in chat", {
+                          description: "Review and send — Build mode preferred",
+                        });
+                      }}
+                      className="inline-flex min-h-8 items-center gap-1 rounded-md border border-accent-primary/40 bg-accent-primary/10 px-2 py-0.5 text-[11px] font-medium text-accent-primary hover:bg-accent-primary/20"
+                      title="Fill chat with a prompt to fix these console errors"
+                      aria-label="Suggest fix prompt from console errors"
+                    >
+                      <Wand2 className="h-3 w-3" aria-hidden />
+                      Fix in chat
+                    </button>
+                  )}
                 <button
                   onClick={() => setLogs([])}
                   className="rounded px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-surface-2 hover:text-foreground"
@@ -760,18 +1261,20 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
                 <button
                   onClick={() => setShowConsole(false)}
                   className="rounded p-1 text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+                  aria-label="Close console"
                 >
                   <X className="h-3 w-3" />
                 </button>
               </div>
             </div>
             <div className="min-h-0 flex-1 overflow-auto px-3 py-2 font-mono text-[11.5px] leading-relaxed">
-              {logs.length === 0 && (
+              {filteredLogs.length === 0 && (
                 <div className="py-2 text-muted-foreground/70">
-                  No output yet — logs from the preview will appear here.
+                  Live preview console — JS errors, warns, and logs from the sandboxed iframe appear
+                  here (not mocked).
                 </div>
               )}
-              {logs.map((l, i) => (
+              {filteredLogs.map((l, i) => (
                 <div
                   key={i}
                   className={cn(
@@ -788,6 +1291,8 @@ export function Canvas({ artifact }: { artifact?: Artifact }) {
             </div>
           </div>
         )}
+
+        {showNetwork && <NetworkPanel entries={network} onClear={() => setNetwork([])} />}
       </div>
     </div>
   );
@@ -809,8 +1314,8 @@ function EmptyCanvas() {
         anything.
       </h1>
       <p className="mx-auto mt-6 max-w-md text-sm text-muted-foreground">
-        Describe what you want on the left. Watch it render here — pixel-perfect, instantly
-        editable, and always in view.
+        Describe what you want in Chat. Watch it render here — live preview, Monaco edit, console +
+        network. On mobile, switch with Chat | Preview in the header.
       </p>
       <div className="mt-8 grid w-full max-w-md grid-cols-3 gap-2 text-left">
         {[
@@ -829,7 +1334,7 @@ function EmptyCanvas() {
       </div>
       <div className="mt-8 inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/70">
         <Wand2 className="h-3 w-3" />
-        Try: "Design a hero for a rocket startup"
+        Try: &quot;Design a hero for a rocket startup&quot;
       </div>
     </div>
   );

@@ -1,5 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { convertToModelMessages, streamText, type UIMessage } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+  stepCountIs,
+  streamText,
+  type UIMessage,
+} from "ai";
 import { createClient } from "@supabase/supabase-js";
 import type { Database, Json } from "@/integrations/supabase/types";
 import {
@@ -8,139 +15,43 @@ import {
 } from "@/integrations/supabase/public-config";
 import {
   createMistralProvider,
-  DEFAULT_MODEL,
   DEFAULT_SYSTEM_PROMPT,
   formatAiGatewayError,
 } from "@/lib/ai-gateway.server";
-import { resolveKnownModelId } from "@/lib/models";
+import { resolveModelForMode } from "@/lib/models";
+import { extractArtifacts } from "@/lib/agent/artifacts";
+import { composeSystem, formatClientContext, type ClientPreviewContext } from "@/lib/agent/prompts";
+import { formatMemoryBlock, loadThreadMemory } from "@/lib/agent/memory";
+import { buildTools, type ToolFlags } from "@/lib/agent/tools";
+import {
+  collectToolResultsFromSteps,
+  shouldFenceArtifacts,
+  summarizeToolResults,
+  toolCreatedArtifact,
+  type ToolResultLike,
+} from "@/lib/agent/finish";
+import { toolResultsToDataParts } from "@/lib/agent/stream-parts";
+import { snapshotArtifactVersion } from "@/lib/agent/versions";
 
 type Mode = "build" | "plan";
 type ChatBody = {
   threadId?: string;
   messages?: UIMessage[];
   mode?: Mode;
+  /** Optional host viewport hint for mobile-first generation (MR-40 M3). */
+  clientContext?: ClientPreviewContext;
 };
 
-type ArtifactFile = { path: string; language: string; content: string };
-type ParsedArtifact = {
-  kind: "html" | "markdown" | "code";
-  title: string;
-  content: string;
-  files: ArtifactFile[];
-  entry_path: string | null;
-};
-
-// Match fenced blocks with an optional info-string, e.g.
-//   ```html
-//   ```tsx path=src/App.tsx
-//   ```html path=index.html title="Landing"
-const FENCE_RE = /```([^\n`]*)\n([\s\S]*?)```/g;
-
-function parseMeta(info: string): { lang: string; path?: string; title?: string } {
-  const parts = info.trim().split(/\s+/);
-  const lang = (parts[0] ?? "").toLowerCase();
-  const meta: { lang: string; path?: string; title?: string } = { lang };
-  for (const p of parts.slice(1)) {
-    const m = p.match(/^(path|title)=(?:"([^"]+)"|(\S+))/);
-    if (m) {
-      const key = m[1] as "path" | "title";
-      meta[key] = m[2] ?? m[3];
-    }
-  }
-  return meta;
-}
-
-function inferTitle(content: string, fallback: string): string {
-  const t1 = content.match(/<title>([^<]+)<\/title>/i);
-  const t2 = content.match(/<h1[^>]*>([^<]+)<\/h1>/i);
-  const t3 = content.match(/^#\s+(.+)$/m);
-  return (t1?.[1] ?? t2?.[1] ?? t3?.[1] ?? fallback).trim().slice(0, 120);
-}
-
-function extractArtifacts(text: string): ParsedArtifact[] {
-  const blocks: Array<{ lang: string; path?: string; title?: string; content: string }> = [];
-  let m: RegExpExecArray | null;
-  const re = new RegExp(FENCE_RE.source, "g");
-  while ((m = re.exec(text)) !== null) {
-    const meta = parseMeta(m[1]);
-    const content = m[2].trimEnd();
-    blocks.push({ ...meta, content });
-  }
-  if (!blocks.length) return [];
-
-  // Multi-file artifact: consecutive `path=` blocks bundle into one artifact.
-  const artifacts: ParsedArtifact[] = [];
-  let buffer: typeof blocks = [];
-  const flushMulti = () => {
-    if (!buffer.length) return;
-    const files: ArtifactFile[] = buffer.map((b) => ({
-      path: b.path!,
-      language: b.lang || "text",
-      content: b.content,
-    }));
-    const entry =
-      files.find((f) => /\.html?$/i.test(f.path)) ??
-      files.find((f) => /index\./i.test(f.path)) ??
-      files[0];
-    const isHtml = /\.html?$/i.test(entry.path);
-    artifacts.push({
-      kind: isHtml ? "html" : "code",
-      title: buffer.find((b) => b.title)?.title ?? inferTitle(entry.content, entry.path),
-      content: entry.content,
-      files,
-      entry_path: entry.path,
-    });
-    buffer = [];
-  };
-
-  for (const b of blocks) {
-    if (b.path) {
-      buffer.push(b);
-      continue;
-    }
-    flushMulti();
-    // Standalone block — only html / markdown become artifacts.
-    if (b.lang === "html") {
-      artifacts.push({
-        kind: "html",
-        title: b.title ?? inferTitle(b.content, "Artifact"),
-        content: b.content,
-        files: [{ path: "index.html", language: "html", content: b.content }],
-        entry_path: "index.html",
-      });
-    } else if (b.lang === "markdown" || b.lang === "md") {
-      artifacts.push({
-        kind: "markdown",
-        title: b.title ?? inferTitle(b.content, "Document"),
-        content: b.content,
-        files: [{ path: "README.md", language: "markdown", content: b.content }],
-        entry_path: "README.md",
-      });
-    }
-  }
-  flushMulti();
-  return artifacts;
-}
+/** Keep last N UI messages to reduce latency/cost (M4 context trim). */
+const MAX_CONTEXT_MESSAGES = 24;
 
 function messageText(m: UIMessage): string {
   return (m.parts ?? []).map((p) => (p.type === "text" ? p.text : "")).join("");
 }
 
-const PLAN_PROMPT = `You are Builder in PLAN MODE. Do NOT write full code or emit fenced code artifacts.
-Instead, produce a crisp, numbered implementation plan:
-1. Clarify the goal in one sentence.
-2. List the concrete steps (max 8), each with the file(s) or change involved.
-3. Call out risks, unknowns, and what to verify.
-End with a one-line question inviting the user to confirm or adjust before you build.`;
-
-const BUILD_SUFFIX = `\n\nWhen the user asks for a webpage or component, respond with a short explanation and then emit ONE of:
-- A single self-contained HTML document in a \`\`\`html fenced block.
-- A multi-file artifact using \`\`\`lang path=<relative/path>\`\`\` blocks (each file is one block). Include an \`index.html\` as the entry file when possible.
-Prefer semantic HTML, inline <style>, tasteful modern design, and accessible markup.`;
-
-function resolveModelId(raw: string | null | undefined): string {
-  // Drops openai/* google/* and any non-Mistral id → DEFAULT_MODEL
-  return resolveKnownModelId(raw);
+function trimMessages(messages: UIMessage[]): UIMessage[] {
+  if (messages.length <= MAX_CONTEXT_MESSAGES) return messages;
+  return messages.slice(-MAX_CONTEXT_MESSAGES);
 }
 
 export const Route = createFileRoute("/api/chat")({
@@ -171,7 +82,6 @@ export const Route = createFileRoute("/api/chat")({
           const { data: userData, error: userErr } = await supabase.auth.getUser(token);
           if (userErr || !userData.user) return new Response("Unauthorized", { status: 401 });
 
-          // Direct Mistral only — never LOVABLE_API_KEY / OpenAI / ChatGPT.
           const mistralKey = (process.env.MISTRAL_API_KEY ?? process.env.MISTRAL_KEY ?? "").trim();
           if (!mistralKey) {
             return new Response(
@@ -193,6 +103,13 @@ export const Route = createFileRoute("/api/chat")({
             .single();
           if (tErr || !thread) return new Response("Thread not found", { status: 404 });
 
+          const { data: settings } = await supabase
+            .from("agent_settings")
+            .select("tools")
+            .eq("user_id", userData.user.id)
+            .maybeSingle();
+          const toolFlags = (settings?.tools ?? {}) as ToolFlags;
+
           const lastUser = [...body.messages].reverse().find((m) => m.role === "user");
           if (lastUser) {
             const { error: insErr } = await supabase.from("messages").insert({
@@ -200,31 +117,33 @@ export const Route = createFileRoute("/api/chat")({
               role: "user",
               parts: lastUser.parts as unknown as Json,
             });
-            if (insErr) {
-              console.error("[api/chat] user message insert failed", insErr);
-            }
+            if (insErr) console.error("[api/chat] user message insert failed", insErr);
           }
           if (thread.title === "New chat" && lastUser) {
             const title = messageText(lastUser).slice(0, 60).trim();
             if (title) await supabase.from("threads").update({ title }).eq("id", thread.id);
           }
 
-          const modelId = resolveModelId(thread.model);
+          const modelId = resolveModelForMode(thread.model, mode);
           if (modelId !== thread.model) {
-            console.warn(`[api/chat] unknown model "${thread.model}" → fallback "${modelId}"`);
-            // Persist fix so the next turn does not repeat the fallback.
-            await supabase.from("threads").update({ model: modelId }).eq("id", thread.id);
+            console.warn(`[api/chat] model "${thread.model}" → "${modelId}" (mode=${mode})`);
           }
 
-          const provider = createMistralProvider(mistralKey);
-          const baseSystem = thread.system_prompt || DEFAULT_SYSTEM_PROMPT;
-          const system =
-            mode === "plan" ? `${baseSystem}\n\n${PLAN_PROMPT}` : `${baseSystem}${BUILD_SUFFIX}`;
+          const memoryRows = await loadThreadMemory(supabase, thread.id);
+          const memoryBlock = formatMemoryBlock(memoryRows);
+          const clientBlock = formatClientContext(body.clientContext);
+          const system = composeSystem(
+            mode,
+            thread.system_prompt || DEFAULT_SYSTEM_PROMPT,
+            memoryBlock,
+            clientBlock,
+          );
           const temperature = Number(thread.temperature ?? 0.7);
 
+          const trimmed = trimMessages(body.messages as UIMessage[]);
           let modelMessages;
           try {
-            modelMessages = await convertToModelMessages(body.messages as UIMessage[]);
+            modelMessages = await convertToModelMessages(trimmed);
           } catch (convErr) {
             console.error("[api/chat] convertToModelMessages failed", convErr);
             return new Response(`Invalid messages payload: ${formatAiGatewayError(convErr)}`, {
@@ -232,17 +151,33 @@ export const Route = createFileRoute("/api/chat")({
             });
           }
 
-          const persistAssistant = async (text: string, usedModelId: string) => {
-            if (!text?.trim()) {
-              console.warn("[api/chat] empty assistant text", { usedModelId });
+          const tools = buildTools({
+            mode,
+            threadId: thread.id,
+            supabase,
+            flags: toolFlags,
+          });
+
+          const persistAssistant = async (
+            text: string,
+            usedModelId: string,
+            toolResults: ToolResultLike[],
+          ) => {
+            const toolSummary = summarizeToolResults(toolResults);
+            const bodyText = text?.trim() || toolSummary;
+            if (!bodyText) {
+              console.warn("[api/chat] empty assistant text and no tool summary", {
+                usedModelId,
+              });
               return;
             }
+
             const { data: inserted, error: aErr } = await supabase
               .from("messages")
               .insert({
                 thread_id: thread.id,
                 role: "assistant",
-                parts: [{ type: "text", text }] as unknown as Json,
+                parts: [{ type: "text", text: bodyText }] as unknown as Json,
               })
               .select("id")
               .single();
@@ -251,21 +186,46 @@ export const Route = createFileRoute("/api/chat")({
               return;
             }
 
-            if (mode === "build") {
+            // Fence fallback only when tools did not create an artifact (G-P1-1).
+            const createdViaTool = toolCreatedArtifact(toolResults);
+            if (
+              shouldFenceArtifacts({
+                mode,
+                createArtifactEnabled: toolFlags.create_artifact !== false,
+                toolCreatedArtifact: createdViaTool,
+              })
+            ) {
               const artifacts = extractArtifacts(text);
               if (artifacts.length) {
-                const { error: artErr } = await supabase.from("artifacts").insert(
-                  artifacts.map((a) => ({
-                    thread_id: thread.id,
-                    message_id: inserted?.id ?? null,
-                    kind: a.kind,
-                    title: a.title,
-                    content: a.content,
-                    files: a.files as unknown as Json,
-                    entry_path: a.entry_path,
-                  })),
-                );
-                if (artErr) console.error("[api/chat] artifacts insert failed", artErr);
+                const { data: insertedArts, error: artErr } = await supabase
+                  .from("artifacts")
+                  .insert(
+                    artifacts.map((a) => ({
+                      thread_id: thread.id,
+                      message_id: inserted?.id ?? null,
+                      kind: a.kind,
+                      title: a.title,
+                      content: a.content,
+                      files: a.files as unknown as Json,
+                      entry_path: a.entry_path,
+                    })),
+                  )
+                  .select("id,title,content,files,entry_path");
+                if (artErr) {
+                  console.error("[api/chat] artifacts insert failed", artErr);
+                } else if (insertedArts?.length) {
+                  for (const row of insertedArts) {
+                    await snapshotArtifactVersion(supabase, {
+                      artifactId: row.id,
+                      files: row.files,
+                      content: row.content,
+                      entry_path: row.entry_path,
+                      title: row.title,
+                      message_id: inserted?.id ?? null,
+                      source: "fence",
+                    });
+                  }
+                }
               }
             }
             await supabase
@@ -274,38 +234,63 @@ export const Route = createFileRoute("/api/chat")({
               .eq("id", thread.id);
           };
 
-          // Prefer non-streaming preflight only when we need a safe fallback path:
-          // streamText itself surfaces errors via the UI stream.
-          const runStream = (usedModelId: string) =>
-            streamText({
-              model: provider(usedModelId),
-              system,
-              temperature,
-              messages: modelMessages,
-              onError: ({ error }) => {
-                console.error("[api/chat] streamText error", {
-                  modelId: usedModelId,
-                  threadId: thread.id,
-                  error,
-                });
-              },
-              onFinish: async ({ text }) => {
-                try {
-                  await persistAssistant(text, usedModelId);
-                } catch (finishErr) {
-                  console.error("[api/chat] onFinish failed", finishErr);
-                }
-              },
-            });
+          const provider = createMistralProvider(mistralKey);
+          const originalMessages = body.messages as UIMessage[];
 
-          const activeModelId = modelId;
-          const result = runStream(activeModelId);
+          // Wrap stream so we can emit transient data-* parts for Cursor toasts/canvas.
+          const uiStream = createUIMessageStream({
+            originalMessages,
+            execute: async ({ writer }) => {
+              const result = streamText({
+                model: provider(modelId),
+                system,
+                temperature,
+                messages: modelMessages,
+                tools,
+                stopWhen: stepCountIs(mode === "plan" ? 12 : 25),
+                onError: ({ error }) => {
+                  console.error("[api/chat] streamText error", {
+                    modelId,
+                    threadId: thread.id,
+                    error,
+                  });
+                },
+                onStepFinish: ({ toolResults }) => {
+                  const parts = toolResultsToDataParts(
+                    (toolResults ?? []) as ToolResultLike[],
+                  );
+                  for (const part of parts) {
+                    try {
+                      writer.write(part as Parameters<typeof writer.write>[0]);
+                    } catch (e) {
+                      console.warn("[api/chat] data part write failed", e);
+                    }
+                  }
+                },
+                onFinish: async ({ text, steps, toolResults }) => {
+                  try {
+                    const fromSteps = collectToolResultsFromSteps(steps);
+                    const allTools: ToolResultLike[] =
+                      fromSteps.length > 0
+                        ? fromSteps
+                        : ((toolResults ?? []) as ToolResultLike[]);
+                    await persistAssistant(text, modelId, allTools);
+                  } catch (finishErr) {
+                    console.error("[api/chat] onFinish failed", finishErr);
+                  }
+                },
+              });
 
-          return result.toUIMessageStreamResponse({
-            originalMessages: body.messages as UIMessage[],
-            // AI SDK default hides all errors as "An error occurred." — surface actionable text.
+              writer.merge(
+                result.toUIMessageStream({
+                  originalMessages,
+                }),
+              );
+            },
             onError: (error) => formatAiGatewayError(error),
           });
+
+          return createUIMessageStreamResponse({ stream: uiStream });
         } catch (err) {
           console.error("[api/chat] unhandled", err);
           return new Response(formatAiGatewayError(err), { status: 500 });

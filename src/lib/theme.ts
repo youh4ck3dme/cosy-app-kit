@@ -13,15 +13,12 @@ export function getStoredTheme(): Theme {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw === "light" || raw === "dark" ? raw : "system";
   } catch {
-    // Strict privacy modes can deny storage reads entirely.
     return "system";
   }
 }
 
 function systemPrefersDark(): boolean {
-  // SSR renders the dark brand default, so "system" must resolve dark there too.
-  if (typeof window === "undefined") return true;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  return typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
 export function resolveTheme(theme: Theme): ResolvedTheme {
@@ -31,6 +28,7 @@ export function resolveTheme(theme: Theme): ResolvedTheme {
 
 /** Flip the .dark class + browser chrome color to match the resolved theme. */
 function syncDom(resolved: ResolvedTheme) {
+  if (typeof document === "undefined") return;
   document.documentElement.classList.toggle("dark", resolved === "dark");
   document
     .querySelector<HTMLMetaElement>('meta[name="theme-color"]')
@@ -42,18 +40,23 @@ export function setTheme(theme: Theme) {
     if (theme === "system") localStorage.removeItem(STORAGE_KEY);
     else localStorage.setItem(STORAGE_KEY, theme);
   } catch {
-    // Private mode etc. — theme still applies for this page load.
+    // Private mode / sandboxed — still apply for this page load.
   }
   syncDom(resolveTheme(theme));
-  window.dispatchEvent(new CustomEvent(CHANGE_EVENT));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(CHANGE_EVENT));
+  }
 }
 
 /**
- * Reactive theme state. Tracks the stored preference, the OS preference
- * (while in "system" mode), and cross-component changes.
+ * Reactive theme state. Tracks stored preference, OS preference (system mode),
+ * and cross-component changes.
  */
-export function useTheme(): { theme: Theme; resolved: ResolvedTheme; setTheme: typeof setTheme } {
-  // SSR-stable initial value; corrected in the effect below before paint matters.
+export function useTheme(): {
+  theme: Theme;
+  resolved: ResolvedTheme;
+  setTheme: typeof setTheme;
+} {
   const [theme, setThemeState] = useState<Theme>("system");
   const [resolved, setResolved] = useState<ResolvedTheme>("dark");
 
@@ -81,7 +84,7 @@ export function useTheme(): { theme: Theme; resolved: ResolvedTheme; setTheme: t
 }
 
 /**
- * Inline bootstrap for <head>: applies the right theme class before first
- * paint so there is no light/dark flash. Must stay in sync with STORAGE_KEY.
+ * Inline bootstrap for <head>: applies theme class before first paint.
+ * Must stay in sync with STORAGE_KEY. Failure defaults to dark (brand).
  */
 export const THEME_BOOTSTRAP_SCRIPT = `(function(){try{var t=localStorage.getItem("builder-theme");var d=t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",d);}catch(e){document.documentElement.classList.add("dark");}})();`;

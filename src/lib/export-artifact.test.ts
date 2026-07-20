@@ -1,0 +1,102 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Artifact } from "@/components/app-shell/Canvas";
+import { exportArtifactDownload } from "./export-artifact";
+
+type AnchorStub = {
+  href: string;
+  download: string;
+  click: ReturnType<typeof vi.fn>;
+};
+
+function baseArtifact(over: Partial<Artifact> = {}): Artifact {
+  return {
+    id: "art-1",
+    kind: "html",
+    title: "Ops Dashboard",
+    content: "<html><body>hi</body></html>",
+    ...over,
+  };
+}
+
+describe("exportArtifactDownload", () => {
+  let lastAnchor: AnchorStub | null;
+  let createObjectURL: ReturnType<typeof vi.fn>;
+  let revokeObjectURL: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    lastAnchor = null;
+    createObjectURL = vi.fn(() => "blob:mock-url");
+    revokeObjectURL = vi.fn();
+
+    vi.stubGlobal("URL", {
+      createObjectURL,
+      revokeObjectURL,
+    });
+
+    vi.stubGlobal("document", {
+      createElement: (tag: string) => {
+        if (tag !== "a") throw new Error(`unexpected tag ${tag}`);
+        const a: AnchorStub = {
+          href: "",
+          download: "",
+          click: vi.fn(),
+        };
+        lastAnchor = a;
+        return a;
+      },
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("downloads a single file from content fallback as index.html", async () => {
+    await exportArtifactDownload(baseArtifact({ files: null }));
+
+    expect(lastAnchor?.download).toBe("index.html");
+    expect(lastAnchor?.href).toBe("blob:mock-url");
+    expect(lastAnchor?.click).toHaveBeenCalledOnce();
+    expect(createObjectURL).toHaveBeenCalledOnce();
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:mock-url");
+  });
+
+  it("downloads a single explicit file by basename", async () => {
+    await exportArtifactDownload(
+      baseArtifact({
+        files: [{ path: "pages/home.html", language: "html", content: "<html></html>" }],
+      }),
+    );
+    expect(lastAnchor?.download).toBe("home.html");
+  });
+
+  it("zips multi-file artifacts with a slug title", async () => {
+    await exportArtifactDownload(
+      baseArtifact({
+        title: "Field Ops SK!",
+        files: [
+          { path: "index.html", language: "html", content: "<html>a</html>" },
+          { path: "about.html", language: "html", content: "<html>b</html>" },
+        ],
+      }),
+    );
+
+    expect(lastAnchor?.download).toBe("field-ops-sk-.zip");
+    expect(lastAnchor?.click).toHaveBeenCalledOnce();
+    expect(createObjectURL).toHaveBeenCalledOnce();
+  });
+
+  it("prefers filesOverride over artifact.files", async () => {
+    await exportArtifactDownload(
+      baseArtifact({
+        files: [
+          { path: "index.html", language: "html", content: "a" },
+          { path: "about.html", language: "html", content: "b" },
+        ],
+      }),
+      [{ path: "only.html", language: "html", content: "solo" }],
+    );
+    expect(lastAnchor?.download).toBe("only.html");
+  });
+});

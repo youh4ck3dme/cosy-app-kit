@@ -1,11 +1,13 @@
-# CI for cosy-app-kit — Node 24 (avoids Node 20 deprecation warnings on GHA runners)
+# CI for cosy-app-kit — Bun + Node 24
+# Green gate for developeredit / PR into main. Main stays locked (PR only, no force-push).
+# Typecheck is a HARD gate (no continue-on-error).
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [developeredit]
   pull_request:
-    branches: [main]
+    branches: [main, developeredit]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -13,7 +15,7 @@ concurrency:
 
 jobs:
   check:
-    name: Install · typecheck · build
+    name: Install · test · typecheck · build
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -26,7 +28,6 @@ jobs:
         with:
           bun-version: latest
 
-      # Node 24 for any tooling that shells out to node (not Node 20 — deprecation)
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
@@ -35,22 +36,19 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # Vitest only (package.json "test" / "test:unit") — not bare `bun test` (breaks vi mocks)
+      - name: Unit tests
+        run: bun run test:unit
+
       - name: Typecheck
         run: bun run typecheck
-        continue-on-error: true
-        # Project has pre-existing TS issues in some routes; fail soft until cleaned.
-
-      - name: Unit tests
-        run: bun test
 
       - name: Build
         run: bun run build
         env:
-          # Use GitHub Actions secrets only — never hardcode keys (GitGuardian).
-          # Repo Settings → Secrets: SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, MISTRAL_API_KEY
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://example.supabase.co' }}
-          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY || 'ci-placeholder-publishable-key' }}
-          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://example.supabase.co' }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY || 'ci-placeholder-publishable-key' }}
-          VITE_SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID || 'ci-placeholder' }}
-          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY || 'ci-placeholder-not-used-at-build' }}
+          SUPABASE_URL: https://example.supabase.co
+          SUPABASE_PUBLISHABLE_KEY: ci-placeholder-publishable-key
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-publishable-key
+          VITE_SUPABASE_PROJECT_ID: ci-placeholder
+          MISTRAL_API_KEY: ci-placeholder-not-used-at-build

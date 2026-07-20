@@ -1,27 +1,42 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getAgentSettings, saveAgentSettings } from "@/lib/threads.functions";
+import {
+  deleteThreadMemory,
+  getAgentSettings,
+  listThreadMemory,
+  saveAgentSettings,
+  upsertThreadMemory,
+} from "@/lib/threads.functions";
 import {
   AVAILABLE_MODELS,
+  BUILD_CODE_MODEL,
   DEFAULT_MODEL,
   DEFAULT_SYSTEM_PROMPT,
   DEFAULT_TEMPERATURE,
   resolveKnownModelId,
 } from "@/lib/models";
 import { Chip } from "./Chip";
-import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Loader2, RotateCcw } from "lucide-react";
+import { Loader2, RotateCcw, Trash2 } from "lucide-react";
 
-export function AgentSettingsPanel() {
+export function AgentSettingsPanel({ threadId }: { threadId?: string }) {
   const qc = useQueryClient();
   const get = useServerFn(getAgentSettings);
   const save = useServerFn(saveAgentSettings);
+  const listMem = useServerFn(listThreadMemory);
+  const upsertMem = useServerFn(upsertThreadMemory);
+  const deleteMem = useServerFn(deleteThreadMemory);
 
   const { data, isLoading } = useQuery({
     queryKey: ["agent-settings"],
     queryFn: () => get(),
+  });
+
+  const { data: memory = [], refetch: refetchMem } = useQuery({
+    queryKey: ["thread-memory", threadId],
+    queryFn: () => listMem({ data: { threadId: threadId! } }),
+    enabled: Boolean(threadId),
   });
 
   const [model, setModel] = useState(DEFAULT_MODEL);
@@ -29,18 +44,34 @@ export function AgentSettingsPanel() {
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
   const [tools, setTools] = useState<Record<string, boolean>>({
     create_artifact: true,
+    edit_file: true,
+    read_artifact: true,
+    remember: true,
+    plan_steps: true,
     web_search: false,
+    fetch_url: false,
     code_interpreter: false,
   });
   const [saving, setSaving] = useState(false);
+  const [memKey, setMemKey] = useState("");
+  const [memVal, setMemVal] = useState("");
 
   useEffect(() => {
     if (data) {
-      // Never show/keep GPT/Gemini ids — catalog is Mistral-only.
       setModel(resolveKnownModelId(data.default_model));
       setTemperature(Number(data.default_temperature));
       setSystemPrompt(data.default_system_prompt || DEFAULT_SYSTEM_PROMPT);
-      setTools((data.tools as Record<string, boolean>) ?? {});
+      setTools({
+        create_artifact: true,
+        edit_file: true,
+        read_artifact: true,
+        remember: true,
+        plan_steps: true,
+        web_search: false,
+        fetch_url: false,
+        code_interpreter: false,
+        ...((data.tools as Record<string, boolean>) ?? {}),
+      });
     }
   }, [data]);
 
@@ -66,35 +97,19 @@ export function AgentSettingsPanel() {
 
   if (isLoading) {
     return (
-      <div className="stagger space-y-6" aria-hidden>
-        <div className="space-y-3">
-          <Skeleton className="h-3 w-16 rounded" />
-          <div className="flex gap-2">
-            <Skeleton className="h-8 w-28 rounded-full" />
-            <Skeleton className="h-8 w-24 rounded-full" />
-            <Skeleton className="h-8 w-32 rounded-full" />
-          </div>
-        </div>
-        <div className="space-y-3">
-          <Skeleton className="h-3 w-24 rounded" />
-          <Skeleton className="h-2 w-full rounded-full" />
-        </div>
-        <div className="space-y-3">
-          <Skeleton className="h-3 w-28 rounded" />
-          <Skeleton className="h-32 w-full rounded-lg" />
-        </div>
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading…
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Model */}
       <section>
         <SectionTitle>Model</SectionTitle>
         <p className="mb-3 text-xs text-muted-foreground">
-          Mistral only — no OpenAI / ChatGPT / Gemini. Default for new chats; change per-thread in
-          the header. Click a selected chip to reset to default.
+          Mistral only. Build mode auto-routes Large → {BUILD_CODE_MODEL} for code speed unless you
+          pick another model explicitly.
         </p>
         <div className="flex flex-wrap gap-2">
           {AVAILABLE_MODELS.map((m) => {
@@ -117,7 +132,6 @@ export function AgentSettingsPanel() {
         </div>
       </section>
 
-      {/* Temperature */}
       <section>
         <div className="mb-2 flex items-center justify-between">
           <SectionTitle>Temperature</SectionTitle>
@@ -130,17 +144,10 @@ export function AgentSettingsPanel() {
           step={0.05}
           value={temperature}
           onChange={(e) => setTemperature(Number(e.target.value))}
-          aria-label="Temperature"
-          aria-valuetext={`${temperature.toFixed(2)} — ${temperature < 0.7 ? "more deterministic" : temperature > 1.3 ? "more creative" : "balanced"}`}
           className="w-full accent-foreground"
         />
-        <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
-          <span>Deterministic</span>
-          <span>Creative</span>
-        </div>
       </section>
 
-      {/* System prompt */}
       <section>
         <div className="mb-2 flex items-center justify-between">
           <SectionTitle>System prompt</SectionTitle>
@@ -159,27 +166,113 @@ export function AgentSettingsPanel() {
         />
       </section>
 
-      {/* Tools */}
       <section>
         <SectionTitle>Tools &amp; capabilities</SectionTitle>
-        <p className="mb-3 text-xs text-muted-foreground">Turn agent capabilities on or off.</p>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Live tools write to the canvas / memory. Fence HTML fallback still works if tools are off.
+        </p>
         <div className="space-y-2">
-          <ToolRow
-            id="create_artifact"
-            title="Create artifact"
-            description="Extract HTML / markdown blocks from responses and render them on the canvas."
-            checked={tools.create_artifact}
-            wired
-            onChange={(v) => setTools({ ...tools, create_artifact: v })}
-          />
+          {(
+            [
+              ["create_artifact", "Create artifact", "Tool: write multi-file artifacts to canvas", true],
+              ["edit_file", "Edit file", "Tool: patch a file in an existing artifact", true],
+              ["read_artifact", "Read artifact", "Tool: read canvas files before editing", true],
+              ["remember", "Remember", "Tool: store project preferences in thread memory", true],
+              ["plan_steps", "Plan steps", "Tool: structured plans in Plan mode", true],
+              ["fetch_url", "Fetch URL", "Tool: load public page text (SSRF-guarded)", true],
+              ["web_search", "Web search", "Tool: needs SEARCH_API_KEY (Tavily) on server", true],
+              ["code_interpreter", "Code interpreter", "Coming soon", false],
+            ] as const
+          ).map(([id, title, description, wired]) => (
+            <ToolRow
+              key={id}
+              id={id}
+              title={title}
+              description={description}
+              checked={Boolean(tools[id])}
+              wired={wired}
+              onChange={(v) => setTools({ ...tools, [id]: v })}
+            />
+          ))}
         </div>
       </section>
+
+      {threadId && (
+        <section>
+          <SectionTitle>Project memory</SectionTitle>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Injected into the system prompt for this thread. Empty is fine.
+          </p>
+          {memory.length === 0 ? (
+            <p className="mb-3 text-xs text-muted-foreground">
+              No project memory yet. Ask the agent to remember something, or add a key below.
+            </p>
+          ) : (
+            <ul className="mb-3 space-y-2">
+              {memory.map((row) => (
+                <li
+                  key={row.id}
+                  className="flex items-start justify-between gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                >
+                  <div className="min-w-0">
+                    <div className="font-mono text-[11px] text-muted-foreground">{row.key}</div>
+                    <div className="wrap-anywhere text-xs">
+                      {typeof row.value === "string" ? row.value : JSON.stringify(row.value)}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label={`Delete ${row.key}`}
+                    className="min-h-11 min-w-11 rounded-md p-2 text-muted-foreground hover:bg-elevated hover:text-foreground"
+                    onClick={async () => {
+                      await deleteMem({ data: { threadId, key: row.key } });
+                      await refetchMem();
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              value={memKey}
+              onChange={(e) => setMemKey(e.target.value)}
+              placeholder="key"
+              className="min-h-11 flex-1 rounded-md border border-border bg-surface px-3 text-sm"
+            />
+            <input
+              value={memVal}
+              onChange={(e) => setMemVal(e.target.value)}
+              placeholder="value"
+              className="min-h-11 flex-2 rounded-md border border-border bg-surface px-3 text-sm"
+            />
+            <button
+              type="button"
+              className="min-h-11 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground"
+              onClick={async () => {
+                if (!memKey.trim() || !memVal.trim()) return;
+                await upsertMem({
+                  data: { threadId, key: memKey.trim(), value: memVal.trim() },
+                });
+                setMemKey("");
+                setMemVal("");
+                await refetchMem();
+                toast.success(`Remembered: ${memKey.trim()}`);
+              }}
+            >
+              Add
+            </button>
+          </div>
+        </section>
+      )}
 
       <div className="flex justify-end pt-2">
         <button
           onClick={onSave}
           disabled={saving}
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          className="inline-flex min-h-11 items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
         >
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
           Save

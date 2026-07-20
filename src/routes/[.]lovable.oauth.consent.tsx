@@ -1,6 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { authSearch } from "@/integrations/lovable";
 
 export const Route = createFileRoute("/.lovable/oauth/consent")({
   // Browser-only: Supabase reads its session from localStorage.
@@ -13,7 +14,7 @@ export const Route = createFileRoute("/.lovable/oauth/consent")({
     const { data } = await supabase.auth.getSession();
     if (!data.session) {
       const next = location.pathname + location.searchStr;
-      throw redirect({ to: "/auth", search: { next } });
+      throw redirect({ to: "/auth", search: authSearch(next) });
     }
   },
   loader: async ({ location }) => {
