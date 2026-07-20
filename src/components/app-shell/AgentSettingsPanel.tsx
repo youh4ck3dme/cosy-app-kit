@@ -138,6 +138,8 @@ export function AgentSettingsPanel({ threadId }: { threadId?: string }) {
           <span className="font-mono text-sm">{temperature.toFixed(2)}</span>
         </div>
         <input
+          id="agent-temperature"
+          name="temperature"
           type="range"
           min={0}
           max={2}
@@ -145,6 +147,7 @@ export function AgentSettingsPanel({ threadId }: { threadId?: string }) {
           value={temperature}
           onChange={(e) => setTemperature(Number(e.target.value))}
           className="w-full accent-foreground"
+          aria-label="Temperature"
         />
       </section>
 
@@ -159,6 +162,8 @@ export function AgentSettingsPanel({ threadId }: { threadId?: string }) {
           </button>
         </div>
         <textarea
+          id="agent-system-prompt"
+          name="system_prompt"
           value={systemPrompt}
           onChange={(e) => setSystemPrompt(e.target.value)}
           rows={6}
@@ -174,7 +179,12 @@ export function AgentSettingsPanel({ threadId }: { threadId?: string }) {
         <div className="space-y-2">
           {(
             [
-              ["create_artifact", "Create artifact", "Tool: write multi-file artifacts to canvas", true],
+              [
+                "create_artifact",
+                "Create artifact",
+                "Tool: write multi-file artifacts to canvas",
+                true,
+              ],
               ["edit_file", "Edit file", "Tool: patch a file in an existing artifact", true],
               ["read_artifact", "Read artifact", "Tool: read canvas files before editing", true],
               ["remember", "Remember", "Tool: store project preferences in thread memory", true],
@@ -237,15 +247,21 @@ export function AgentSettingsPanel({ threadId }: { threadId?: string }) {
           )}
           <div className="flex flex-col gap-2 sm:flex-row">
             <input
+              id="memory-key"
+              name="memory_key"
               value={memKey}
               onChange={(e) => setMemKey(e.target.value)}
               placeholder="key"
+              autoComplete="off"
               className="min-h-11 flex-1 rounded-md border border-border bg-surface px-3 text-sm"
             />
             <input
+              id="memory-value"
+              name="memory_value"
               value={memVal}
               onChange={(e) => setMemVal(e.target.value)}
               placeholder="value"
+              autoComplete="off"
               className="min-h-11 flex-2 rounded-md border border-border bg-surface px-3 text-sm"
             />
             <button

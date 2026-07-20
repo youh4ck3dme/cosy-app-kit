@@ -13,12 +13,7 @@ import {
   type PromptInputMessage,
 } from "@/components/ai-elements/prompt-input";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { haptic } from "@/lib/haptics";
 
 export type BuilderMode = "Build" | "Plan";
@@ -146,9 +141,7 @@ export function Composer({
     setBoot((b) => ({ key: b.key + 1, text: "" }));
   };
 
-  const status: "ready" | "submitted" | "streaming" | "error" = streaming
-    ? "streaming"
-    : "ready";
+  const status: "ready" | "submitted" | "streaming" | "error" = streaming ? "streaming" : "ready";
 
   return (
     <div
@@ -217,6 +210,8 @@ export function Composer({
         >
           <PromptInputBody>
             <PromptInputTextarea
+              id="composer-input"
+              name="composer"
               disabled={disabled && !streaming}
               placeholder="Ask Builder to design, code, or explain…"
               className="max-h-[240px] min-h-[52px] bg-transparent px-4 pt-3 text-[15px] leading-relaxed placeholder:text-muted-foreground/70"
@@ -230,6 +225,8 @@ export function Composer({
             <PromptInputTools>
               <input
                 ref={fileRef}
+                id="composer-attachments"
+                name="composer-attachments"
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/gif"
                 className="sr-only"

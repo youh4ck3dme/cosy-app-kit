@@ -667,6 +667,8 @@ export function Canvas({
               <label className="hidden items-center gap-1 font-mono text-[10px] text-muted-foreground sm:flex">
                 px
                 <input
+                  id="preview-custom-width"
+                  name="preview-custom-width"
                   type="number"
                   min={280}
                   max={1600}
@@ -842,6 +844,8 @@ export function Canvas({
           <label className="flex min-h-11 min-w-0 flex-1 items-center sm:hidden">
             <span className="sr-only">Select page</span>
             <select
+              id="preview-page-select"
+              name="preview-page"
               className="min-h-11 w-full rounded-md border border-border-subtle bg-surface-1 px-2 font-mono text-[12px] text-foreground"
               value={resolvedPreviewPath ?? htmlFiles[0]?.path ?? ""}
               onChange={(e) => selectHtmlPage(e.target.value)}

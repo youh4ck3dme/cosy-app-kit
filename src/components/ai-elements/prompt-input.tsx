@@ -852,6 +852,8 @@ export const PromptInput = ({
   const inner = (
     <>
       <input
+        id="prompt-input-files"
+        name="prompt-input-files"
         accept={accept}
         aria-label="Upload files"
         className="hidden"

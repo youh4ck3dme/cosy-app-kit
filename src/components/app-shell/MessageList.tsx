@@ -521,6 +521,8 @@ function MessageRow({
           {editing ? (
             <div className="space-y-2">
               <textarea
+                id={`edit-message-${message.id}`}
+                name="edit-message"
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 rows={4}
