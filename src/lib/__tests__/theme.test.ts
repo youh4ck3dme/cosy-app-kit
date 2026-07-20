@@ -78,6 +78,17 @@ describe("getStoredTheme with a mocked localStorage", () => {
   test("falls back to system when nothing is stored", () => {
     expect(getStoredTheme()).toBe("system");
   });
+
+  test("falls back to system when localStorage.getItem throws", () => {
+    (globalThis as any).localStorage = {
+      getItem: () => {
+        throw new Error("blocked");
+      },
+      setItem: () => {},
+      removeItem: () => {},
+    };
+    expect(getStoredTheme()).toBe("system");
+  });
 });
 
 describe("setTheme", () => {
