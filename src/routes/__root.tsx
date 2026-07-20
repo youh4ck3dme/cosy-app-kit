@@ -118,13 +118,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
-  // Class set by THEME_BOOTSTRAP_SCRIPT + useTheme — do not hardcode "dark".
+  // Theme class on <html> is set by THEME_BOOTSTRAP_SCRIPT before React hydrates
+  // (and later by useTheme). SSR cannot know light/dark — suppress mismatch noise.
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
-      <body className="bg-background text-foreground">
+      <body className="bg-background text-foreground" suppressHydrationWarning>
         {children}
         <Scripts />
       </body>
