@@ -1,11 +1,12 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Settings, Menu, X, ChevronDown, LogOut, Rocket } from "lucide-react";
+import { Settings, Menu, X, ChevronDown, LogOut, Rocket, Sun, Moon, Monitor } from "lucide-react";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { AVAILABLE_MODELS, resolveKnownModelId } from "@/lib/models";
 import { setArtifactPublic } from "@/lib/threads.functions";
 import { haptic } from "@/lib/haptics";
+import { useTheme, type Theme } from "@/lib/theme";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +19,31 @@ import { ThreadList } from "./ThreadList";
 import { Logo } from "./Logo";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+
+const THEME_CYCLE: Record<Theme, Theme> = { system: "light", light: "dark", dark: "system" };
+const THEME_META: Record<Theme, { Icon: typeof Sun; label: string }> = {
+  light: { Icon: Sun, label: "Theme: light" },
+  dark: { Icon: Moon, label: "Theme: dark" },
+  system: { Icon: Monitor, label: "Theme: system" },
+};
+
+function ThemeToggle({ className }: { className?: string }) {
+  const { theme, setTheme } = useTheme();
+  const { Icon, label } = THEME_META[theme];
+  return (
+    <button
+      onClick={() => {
+        haptic(5);
+        setTheme(THEME_CYCLE[theme]);
+      }}
+      className={className}
+      aria-label={`${label} — switch to ${THEME_CYCLE[theme]}`}
+      title={label}
+    >
+      <Icon className="h-4 w-4" />
+    </button>
+  );
+}
 
 export function Header({
   activeThreadId,
@@ -149,6 +175,7 @@ export function Header({
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            <ThemeToggle className="hidden rounded-md p-2 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground md:inline-flex" />
             <button
               onClick={onOpenSettings}
               className="hidden rounded-md p-2 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground md:inline-flex"
@@ -229,6 +256,7 @@ export function Header({
             <ThreadList activeThreadId={activeThreadId} onNavigate={() => setMobileOpen(false)} />
           </div>
           <div className="flex-none space-y-2 border-t border-border-subtle p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <MobileThemeRow />
             <button
               onClick={() => {
                 setMobileOpen(false);
@@ -248,6 +276,23 @@ export function Header({
         </div>
       )}
     </>
+  );
+}
+
+function MobileThemeRow() {
+  const { theme, setTheme } = useTheme();
+  const { Icon } = THEME_META[theme];
+  return (
+    <button
+      onClick={() => {
+        haptic(5);
+        setTheme(THEME_CYCLE[theme]);
+      }}
+      className="flex w-full items-center gap-3 rounded-lg border border-border-subtle bg-surface-1/60 px-3 py-3 text-sm hover:bg-surface-2"
+    >
+      <Icon className="h-4 w-4" /> Theme
+      <span className="ml-auto text-xs capitalize text-muted-foreground">{theme}</span>
+    </button>
   );
 }
 
