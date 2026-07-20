@@ -11,7 +11,7 @@
 | World | File | Owner | Focus |
 |-------|------|-------|--------|
 | **A** | **[`groktodo.md`](./groktodo.md)** | **Grok** | `/api/chat`, tools, prompts, memory, migrations, Vitest agent, BPI samples, P0 persist bugs |
-| **B** | **[`cursortodo.md`](./cursortodo.md)** | **Cursor** | Canvas Monaco, chat UX polish, templates, onboarding, landing, share UI, Playwright, a11y |
+| **B** | **[`cursortodo.md`](./cursortodo.md)** | **Cursor** | **A→Z plan** (B tidy → Monaco → templates → share). Start at letter **A**. |
 
 **Shared scoreboard:** [`progress.md`](./progress.md)  
 **Architecture:** [`architecture.md`](./architecture.md)  
@@ -60,7 +60,9 @@
 
 | Theme | World |
 |-------|--------|
-| Truncate + versions + web/fetch tools | Grok G0–G2 |
+| Truncate + web/fetch + stream parts | ✅ Grok G0–G1 |
+| artifact_versions list/restore | ✅ Grok G2 (apply migration) |
+| BPI samples | Grok G3 + human |
 | Monaco Canvas Pro + network panel | Cursor C1 |
 | Templates + tour + landing gallery | Cursor C3 |
 | Share embed route + a11y + Playwright | Cursor C4 |
@@ -120,6 +122,6 @@ If you need the historical phase essays, recover from git history before this sp
 
 | If you are… | Start here | First task |
 |-------------|------------|------------|
-| **Grok** | [groktodo.md](./groktodo.md) | Sprint **G0** (P0 persist) |
-| **Cursor** | [cursortodo.md](./cursortodo.md) | Sprint **C0+C1 done** (Monaco); next C2 when Grok truncate ships |
-| **Human** | this file + [progress.md](./progress.md) | Live Build/Plan smoke + commit order |
+| **Grok** | [groktodo.md](./groktodo.md) | G0–G2 + tests shipped; next: BPI after smoke |
+| **Cursor** | [cursortodo.md](./cursortodo.md) | A–G ✅ → next **H** (after SQL) or **I/J** |
+| **Human** | [smoke-checklist.md](./smoke-checklist.md) · [migrations.md](./migrations.md) | Apply SQL + live smoke + BPI |

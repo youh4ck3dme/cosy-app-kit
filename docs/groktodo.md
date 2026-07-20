@@ -4,7 +4,7 @@
 > **Sister board:** [`cursortodo.md`](./cursortodo.md) · **Hub:** [`todo.md`](./todo.md) · **Scores:** [`progress.md`](./progress.md)  
 > **Branch:** `developeredit` only · **Never** push `main`  
 > **AI rule:** Mistral only — no OpenAI / Lovable AI Gateway / Gemini for product chat  
-> **Last sync:** 2026-07-20 (post M1–M6 code review)
+> **Last sync:** 2026-07-20 EOD — G0–G2 + Vitest 54; Cursor A–G done; next human smoke + SQL
 
 ---
 
@@ -174,119 +174,63 @@ if (mode === "build" && !toolCreated && toolFlags.create_artifact !== false) {
 
 ---
 
-### Sprint G1 — Agent intelligence depth
+### Sprint G1 — Agent intelligence depth ✅ (code landed 2026-07-20)
 
 **Goal:** Tools feel like a real agent, not ChatGPT + buttons.
 
-#### G1.1 Tool quality pass
+#### G1.1 Tool quality pass ✅
 
 | Tool | Improvements |
 |------|----------------|
-| `create_artifact` | Cap content size; sanitize paths (`..`); return `filesCount`; optional update-if-title-match |
-| `edit_file` | Return before/after snippet (max 2k) for Cursor canvas Diff tab later; multi-replace option `replace_all` |
-| `read_artifact` | List mode: return file tree without full content when `paths_only: true` |
-| `remember` | Return previous value if overwrite; toast hook via stream data part `data-remembered` |
-| `plan_steps` | Persist last plan into `thread_memory` key `last_plan` optional flag |
+| `create_artifact` | Cap content size; sanitize paths; `filesCount` |
+| `edit_file` | `beforeSnippet`/`afterSnippet`; `replace_all` |
+| `read_artifact` | `paths_only` |
+| `remember` | returns `previous` |
+| `plan_steps` | optional `persist` → memory `last_plan` |
 
-**Files:** `src/lib/agent/tools.ts`, tests in `artifacts.test.ts` or new `tools.test.ts`
+#### G1.2 `web_search` + `fetch_url` ✅
 
-#### G1.2 `web_search` + `fetch_url` (Mistral-only stack)
+- `src/lib/agent/web.ts` — SSRF guard, html→text, Tavily when `SEARCH_API_KEY`
+- Flags default **off**; enable in Agent Settings
+- Documented in `docs/agent-tools.md` + architecture
 
-**Do NOT** use Lovable gateway `websearch--*`.
+#### G1.3 Streaming data parts ✅
 
-**Options (pick one, document in architecture.md)**
-1. Mistral-native tool if available on account  
-2. Self-hosted / Brave / Tavily via env `SEARCH_API_KEY`  
-3. Stub tool that returns “web_search disabled” until key present
+- `data-artifact-created`, `data-memory-saved`, `data-plan` via `createUIMessageStream` + `onStepFinish`
+- Client `useChat.onData` toasts + invalidate (chat page)
 
-**Files**
-- `src/lib/agent/tools.ts` — add tools behind flags
-- `src/lib/agent/web.ts` — new fetch+html-to-text (max 8k)
-- env: `SEARCH_API_KEY` optional; never commit
+#### G1.4 Model routing ✅ (tests matrix)
 
-**Agent settings flags**
-```json
-{ "web_search": false, "fetch_url": false }
-```
+#### G1.5 Reasoning parts
 
-**Acceptance**
-- [ ] Plan mode can ground with search when flag on
-- [ ] fetch_url strips scripts, caps size
-- [ ] Timeout 8s, no SSRF to localhost/metadata IPs (blocklist)
-
-#### G1.3 Streaming data parts for client
-
-Emit UI-friendly stream annotations (AI SDK data parts):
-- `data-artifact-created` `{ artifactId, title }`
-- `data-memory-saved` `{ key }`
-- `data-plan` `{ goal, steps }`
-
-**Files:** `chat.ts` + document contract for Cursor MessageList/Canvas  
-**Do not** implement full Canvas UI — only contract.
-
-#### G1.4 Model routing refinement
-
-| Mode / task | Model |
-|-------------|--------|
-| Build (default Large/Medium thread) | `codestral-latest` |
-| Plan | keep user model; if Codestral → bump to `mistral-large-latest` |
-| Explicit Small / Pixtral / Nemo | never auto-override |
-| Suggestions (later, if Grok implements API) | `mistral-small-latest` |
-
-**Files:** `src/lib/models.ts` + tests already partial — extend matrix
-
-#### G1.5 Reasoning parts (only if Mistral streams them)
-
-- If provider never sends reasoning: **skip UI**, document “N/A for Mistral”
-- Do not implement OpenAI-specific reasoning pipeline
-- Cursor may add collapsible UI later when parts exist
+- **N/A for Mistral** — no OpenAI reasoning pipeline; skip until provider streams reasoning parts
 
 ---
 
-### Sprint G2 — Persistence, versions, Realtime (data layer)
+### Sprint G2 — Persistence, versions ✅ (code 2026-07-20)
 
-> UI for timeline/versions = Cursor. **Schema + write path = Grok.**
+> UI timeline = Cursor **H**. Schema + write + server fns = Grok.
 
-#### G2.1 `artifact_versions` table
-
-```sql
-CREATE TABLE public.artifact_versions (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  artifact_id uuid NOT NULL REFERENCES public.artifacts(id) ON DELETE CASCADE,
-  files jsonb NOT NULL,
-  content text,
-  message_id uuid REFERENCES public.messages(id) ON DELETE SET NULL,
-  source text NOT NULL DEFAULT 'tool', -- tool | fence | user_save
-  created_at timestamptz NOT NULL DEFAULT now()
-);
--- RLS: read/insert if owns artifact via threads.user_id
-CREATE INDEX artifact_versions_artifact_created_idx
-  ON public.artifact_versions(artifact_id, created_at DESC);
-```
-
-**Wire in**
-- `create_artifact` / `edit_file` / fence insert / `updateArtifactFiles` → snapshot version
-
-**Server fns for Cursor**
-- `listArtifactVersions({ artifactId })`
-- `restoreArtifactVersion({ versionId })`
-
-#### G2.2 Realtime channel helper (server-agnostic)
-
-- Document channel name: `thread:{threadId}:artifacts`
-- Prefer: tools already write DB; Cursor/client subscribes  
-- Optional: Grok adds `broadcast` after insert if project uses supabase channels
-
-#### G2.3 Index memory
-
-```sql
-CREATE INDEX IF NOT EXISTS thread_memory_thread_updated_idx
-  ON public.thread_memory(thread_id, updated_at DESC);
-```
+| Item | Status |
+|------|--------|
+| Migration `20260720120000_artifact_versions.sql` | ✅ written — **apply on Supabase/Lovable** |
+| Snapshots from tool / fence / user_save / restore | ✅ |
+| `listArtifactVersions` / `restoreArtifactVersion` | ✅ `threads.functions.ts` |
+| Memory index | ✅ in same migration |
+| Realtime channel helper | deferred (client can subscribe to artifacts) |
+| Docs + Cursor handoff phase H | ✅ READY |
 
 ---
 
-### Sprint G3 — Quality, monitoring, BPI
+### Sprint G3 — Quality, monitoring, BPI (partial)
+
+| Item | Status |
+|------|--------|
+| Vitest expansion (edge cases + suggestions) | ✅ in progress / expanded |
+| `suggestFollowups` (Mistral Small + static fallback) | ✅ |
+| `docs/migrations.md` + smoke-checklist + samples README | ✅ |
+| Live BPI HTML scores | ⏳ human + smoke |
+| prompt_rev already | ✅ `2026-07-20-b` |
 
 #### G3.1 Live regen suite (Grok drives process + scoring)
 
@@ -407,9 +351,9 @@ When Grok finishes a contract, append here:
 
 | Date | Contract | Payload | Cursor action |
 |------|----------|---------|---------------|
-| 2026-07-20 | `truncateThreadMessagesAfter` | `{ threadId, messageId?, mode, keepCount? }` | ✅ wired by Grok in chat page; Cursor may re-use for palette |
-| _pending_ | `data-artifact-created` | `{artifactId,title}` | early canvas focus |
-| _pending_ | `listArtifactVersions` | server fn | timeline UI |
+| 2026-07-20 | `truncateThreadMessagesAfter` | `{ threadId, messageId?, mode, keepCount? }` | ✅ wired |
+| 2026-07-20 | `data-artifact-created` etc. | see `docs/agent-tools.md` | focus canvas |
+| 2026-07-20 | `listArtifactVersions` / `restoreArtifactVersion` | see agent-tools G2 | phase **H** timeline |
 
 ---
 

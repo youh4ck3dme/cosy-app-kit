@@ -8,7 +8,9 @@
 | ⌘/Ctrl+B | Toggle sidebar | **Desktop only** (sidebar hidden on mobile) |
 | ⌘/Ctrl+Enter | Send message | Composer focused |
 | ? | Shortcuts help | Not while typing in inputs |
-| F | Fullscreen preview | Canvas focused, not in editor input (C1) |
+| F | Fullscreen preview | Canvas focused, not in editor input |
 | Esc | Close palette / fullscreen / help | |
 
-Palette also exposes: starters (4), model switch, thread jump, export ZIP, copy share link, memory keys (read-only → Open settings).
+Palette Actions: New thread · Toggle Plan/Build · Open settings · Toggle sidebar · **Export ZIP** · **Copy share link** (if public) · Shortcuts help.
+
+Palette groups: **Starters** (all 4 from `STARTERS`) · **Switch model** (`updateThreadModel`) · **Memory** (read-only keys → Open settings) · Threads jump.

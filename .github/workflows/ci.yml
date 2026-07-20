@@ -45,11 +45,12 @@ jobs:
       - name: Build
         run: bun run build
         env:
-          # Use GitHub Actions secrets only — never hardcode keys (GitGuardian).
-          # Repo Settings → Secrets: SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, MISTRAL_API_KEY
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://example.supabase.co' }}
-          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY || 'ci-placeholder-publishable-key' }}
-          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://example.supabase.co' }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY || 'ci-placeholder-publishable-key' }}
-          VITE_SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID || 'ci-placeholder' }}
-          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY || 'ci-placeholder-not-used-at-build' }}
+          # Build-time placeholders only — this job does not call live Supabase/Mistral.
+          # Do not commit real keys. Wire repo Actions secrets here only if a future
+          # step needs live credentials (and the secrets exist in Settings → Secrets).
+          SUPABASE_URL: https://example.supabase.co
+          SUPABASE_PUBLISHABLE_KEY: ci-placeholder-publishable-key
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-publishable-key
+          VITE_SUPABASE_PROJECT_ID: ci-placeholder
+          MISTRAL_API_KEY: ci-placeholder-not-used-at-build

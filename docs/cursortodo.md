@@ -1,467 +1,460 @@
-# Cursor Todo — UI · Canvas · Growth (parallel world B)
+# Cursor plan A→Z — UI · Canvas · Growth
 
-> **Owner:** Cursor agents (IDE / Composer track)  
-> **Sister board:** [`groktodo.md`](./groktodo.md) · **Hub:** [`todo.md`](./todo.md) · **Scores:** [`progress.md`](./progress.md)  
-> **Branch:** `developeredit` only · **Never** push `main`  
-> **AI rule:** Product chat is **Mistral only** — do not reintroduce OpenAI / Lovable Gateway / Gemini in chat paths  
-> **Last sync:** 2026-07-20 (post M1–M6 code review)
-
----
-
-## 0. Prečo táto polovica
-
-Cursor vlastní **produktový povrch**: Canvas Pro (Monaco), message actions polish, suggestions UI, templates, onboarding, landing, share/embed UX, a11y empty/loading, Playwright e2e, visual design tokens.
-
-Grok vlastní **agent backend** (`/api/chat`, tools, migrations for agent data, BPI samples scoring, server fns).  
-**Zákaz kolízií** — pozri § Boundary.
+> **Pre koho:** Cursor agents (Composer / IDE)  
+> **Branch:** `developeredit` **only** · **Never** `git push origin main` · **Never** force-push  
+> **Hub:** [`todo.md`](./todo.md) · **Grok board:** [`groktodo.md`](./groktodo.md) · **Tools contract:** [`agent-tools.md`](./agent-tools.md)  
+> **AI product:** **Mistral only** — no OpenAI / Lovable Gateway / Gemini in chat UI  
+> **CI:** already green on `developeredit` (unit + typecheck + build). Do **not** add ESLint as CI gate.  
+> **Last sync:** 2026-07-20 (post Grok G0+G1 + CI green)
 
 ---
 
-## 1. Shared ground truth (oba svety)
-
-### 1.1 Hotové v UI (neprepisovať bez dôvodu)
-
-| Oblast | Stav | Kde |
-|--------|------|-----|
-| Chat shell | ✅ | `Header`, `ThreadList`, `Composer`, `MessageList`, `Canvas` |
-| Cmd+K palette + `?` help | ✅ | `CommandPalette.tsx`, `use-hotkeys.ts` |
-| Canvas preview/code/**simple diff**/ZIP/share | ✅ | `Canvas.tsx` (textarea, not Monaco) |
-| Device presets + **420** mobile | ✅ | `Canvas.tsx` `WIDTHS` |
-| Auto-refresh 400ms local edits | ✅ | `Canvas.tsx` |
-| Undo stack (local edits) | ✅ | `Canvas.tsx` |
-| Share panel + **embed iframe** copy | ✅ | `Canvas.tsx` |
-| Image attach (Pixtral path) | ✅ | `Composer.tsx` file parts |
-| Starters (4) empty state | ✅ | `src/lib/starters.ts` + MessageList |
-| Skeletons thread/messages/canvas | ✅ | `chat.$threadId.tsx` |
-| safe-area + reduced-motion | ✅ | `styles.css`, Header/Composer |
-| Chat error/notFound boundaries | ✅ | `chat.$threadId.tsx` |
-| Memory UI list add/delete | ✅ | `AgentSettingsPanel.tsx` |
-
-### 1.2 Known UI gaps (Cursor-owned unless noted)
-
-| ID | Severity | Issue | Owner |
-|----|----------|-------|-------|
-| **C-P0-1** | P0 | Edit/Retry UX exists but DB truncate is **Grok G-P0-1** — Cursor must **wire** server fn when Grok lands it | Shared |
-| **C-P1-1** | P1 | Diff tab is side-by-side plain text, not Monaco DiffEditor | Cursor |
-| **C-P1-2** | P1 | No version timeline UI (needs Grok `artifact_versions`) | Cursor after G2 |
-| **C-P1-3** | P1 | No follow-up suggestion chips (need cheap model call — prefer Grok API or client Small) | Shared design / Cursor UI |
-| **C-P2-1** | P2 | Public share mobile width **390** vs canvas **420** — unify to 420 | Cursor |
-| **C-P2-2** | P2 | MessageList `artifacts` dep warning — useMemo | Cursor |
-| **C-P2-3** | P2 | Palette incomplete vs mega-spec (no export ZIP from palette, no memory section) | Cursor |
-
----
-
-## 2. Ownership boundary (hard)
-
-### 2.1 Cursor **MAY** edit freely
-
-```
-src/components/app-shell/**
-src/components/ai-elements/**
-src/components/ui/**
-src/components/templates/**          # when created
-src/components/onboarding/**         # when created
-src/components/palette/**            # if extracted from app-shell
-src/hooks/use-hotkeys.ts
-src/hooks/use-mobile.tsx
-src/lib/starters.ts
-src/lib/utils.ts
-src/styles.css
-src/routes/index.tsx
-src/routes/auth.tsx                  # SEO/UI only; no auth protocol rewrite
-src/routes/a.$artifactId.tsx         # public share UI
-src/routes/templates.tsx             # new
-src/routes/templates.$slug.tsx       # new
-src/routes/_authenticated/**         # UI layout; careful with chat transport
-e2e/**                               # Playwright
-docs/keyboard.md
-docs/cursortodo.md                   # this file
-public/**
-```
-
-### 2.2 Cursor **MUST NOT** touch (Grok world)
-
-```
-src/routes/api/chat.ts
-src/routes/api/ai-status.ts
-src/lib/agent/**                     # tools/prompts/memory execute
-src/lib/models.ts                    # routing — request Grok for model catalog UI labels only via props
-src/lib/ai-gateway.server.ts
-supabase/migrations/**               # except if human assigns a pure UI-supporting migration jointly
-```
-
-**Exception:** Cursor may **read** agent files for types/contracts. No silent tool behavior changes.
-
-### 2.3 Shared files — **protocol**
-
-| File | Rule |
-|------|------|
-| `chat.$threadId.tsx` | Cursor: layout, palette props, skeletons. Grok: transport, truncate wiring. Prefer small sequential commits. |
-| `MessageList.tsx` | Cursor owns visual actions, chips, tool cards polish. Grok may add data-part handlers. |
-| `threads.functions.ts` | **Consume only** via `useServerFn`. If you need a new shape, open a note in groktodo handoff table — do not invent server logic that duplicates tools. |
-| `package.json` | You may add `@monaco-editor/react`, `prettier`, Playwright, etc. Do not remove Mistral / vitest deps. |
-
-### 2.4 Conflict rule
-
-Grok P0 backend first if both blocked.  
-If Cursor needs a server fn: add row to **Grok handoff** in `groktodo.md` §7 and stub UI with TODO toast until ready.
-
----
-
-## 3. Sprint map (Cursor) — detailed
-
-### Sprint C0 — Wire & polish existing shell (≤ 1 session)
-
-**Goal:** Make M1–M6 UI feel finished; zero hooks bugs; unify mobile.
-
-#### C0.1 Unify device widths
-
-- [x] `a.$artifactId.tsx` mobile `390` → **`420`** (match Canvas)
-- [x] Optional: rotate landscape widths later
-
-#### C0.2 Hooks / lint cleanliness (UI files)
-
-- [x] `chat.$threadId.tsx` — `const artifacts = useMemo(() => …, [data])`
-- [ ] Confirm public artifact page hooks order (Grok may have fixed `a.$artifactId.tsx` — verify)
-
-#### C0.3 Wire Grok truncate when available
-
-When `truncateThreadMessagesAfter` exists:
-
-```ts
-// onEditUserMessage / onRetryFrom
-await truncate(...);
-setMessages(...);
-regenerate() | sendMessage()
-```
-
-- [x] Soft-wire via `maybeTruncateThreadMessages` (toast until Grok ships fn)
-- [x] Loading toast while truncating  
-- [x] Error toast if truncate fails (don’t stream on top of old history)
-
-#### C0.4 Palette gaps (quick wins)
-
-| Action | Behavior |
-|--------|----------|
-| Export ZIP | ✅ Call `exportArtifactDownload` |
-| Copy share link | ✅ If public artifact active |
-| Starters group | ✅ all 4 from `STARTERS` |
-| Models | ✅ Switch via existing `updateThreadModel` |
-| Memory | ✅ List keys read-only + “Open settings” |
-
-**Files:** `CommandPalette.tsx`, `chat.$threadId.tsx`
-
-#### C0.5 Keyboard.md accuracy
-
-- [x] Keep `docs/keyboard.md` in sync with real bindings  
-- [x] Note desktop-only shortcuts on mobile help modal
-
----
-
-### Sprint C1 — Canvas Pro (Monaco) ✅ (2026-07-20)
-
-**Goal:** Code tab feels like a real editor; Diff tab is Monaco DiffEditor.
-
-#### C1.1 Monaco lazy mount
-
-- [x] `@monaco-editor/react` + `monaco-editor`
-- [x] `MonacoEditor.tsx` / `MonacoDiff.tsx` / `monaco-theme.ts`
-- [x] Replace textarea; keep edits + auto-refresh + Save
-
-#### C1.2 DiffEditor
-
-- [x] Monaco DiffEditor + Accept / Revert (local undoStack / original)
-
-#### C1.3 Console + Network panels
-
-- [x] Console filter chips
-- [x] Network fetch interceptor + NetworkPanel
-
-#### C1.4 Preview UX
-
-- [x] Fullscreen (`F`) + Esc
-- [x] Custom width + `localStorage` `builder:device:{threadId}`
-
-#### C1.5 Version timeline UI (after Grok G2)
-
-- [ ] Deferred until Grok `artifact_versions`
-
-#### C1.3 Console + Network panels
-
-| Feature | Detail |
-|---------|--------|
-| Console filters | chips: all / log / warn / error |
-| Network | inject fetch interceptor next to `CONSOLE_BRIDGE` |
-| Columns | method, url (truncate), status, ms |
-| Cap | last 100 network rows |
-
-**Security**
-- [ ] Confirm iframe `sandbox` without `allow-same-origin` (or document why forms need more)  
-- [ ] Optional CSP meta inject in `injectBridge`  
-
-#### C1.4 Preview UX
-
-- [ ] Fullscreen preview (`F` when not in input) + Esc  
-- [ ] Custom width input + persist `localStorage` key `builder:device:{threadId}`  
-- [ ] Rotate tablet/mobile optional  
-
-#### C1.5 Version timeline UI (after Grok G2)
-
-- [ ] Horizontal slider or list of versions  
-- [ ] Preview snapshot on hover  
-- [ ] Restore confirms dialog  
-- [ ] Uses `listArtifactVersions` / `restoreArtifactVersion` only  
-
----
-
-### Sprint C2 — Chat UX depth
-
-#### C2.1 Message actions complete
-
-| Action | Status target |
-|--------|----------------|
-| Copy | ✅ keep |
-| Retry any assistant | wire + truncate |
-| Edit user | inline textarea ✅ → + truncate |
-| Quote | insert `> …` into composer draft |
-| Branch | **blocked** on Grok `parent_thread_id` — UI button disabled with tooltip until schema |
-
-#### C2.2 Attachments polish
-
-- [ ] Drag & drop overlay on Composer  
-- [ ] Max 4 images; show size; reject > 4MB with toast  
-- [ ] Text files `.md/.json/.csv` ≤ 200KB → read as text part (client)  
-- [ ] Do **not** build Storage bucket unless Grok/human adds migration — data URLs OK for v1  
-
-#### C2.3 Suggestion chips
-
-**Preferred design (avoid non-Mistral):**
-- Client calls a tiny server fn `suggestFollowups({ lastAssistantText })` **if Grok adds it** using `mistral-small-latest`  
-- Fallback: static chips from last starter category  
-
-**UI**
-- Row under last assistant message  
-- Click fills composer, does not auto-send  
-
-#### C2.4 Tool UI polish
-
-- [ ] `Tool` cards already in MessageList — improve labels for `create_artifact` / `edit_file`  
-- [ ] On `data-artifact-created` (Grok stream part): toast + focus canvas  
-- [ ] On `data-memory-saved`: toast “Remembered: {key}”  
-
-#### C2.5 Empty / loading consistency
-
-| Surface | Empty | Loading |
-|---------|-------|---------|
-| ThreadList | illustration + New chat | 5 skeletons ✅ |
-| Canvas | hint + starter chip | skeleton ✅ |
-| Memory | copy ✅ | skeleton rows |
-| Search threads | “No matches” + clear | — |
-
----
-
-### Sprint C3 — Templates + onboarding + landing
-
-#### C3.1 Data: coordinate with Grok/human
-
-Templates table + seed may be a **joint migration**. Prefer:
-
-1. Cursor writes UI against mock `src/lib/templates.seed.ts` static array first  
-2. Then swap to Supabase when migration lands  
-
-**12 templates** (from original roadmap) — categories: landing / app / content / utility.
-
-#### C3.2 Routes
-
-```
-src/routes/templates.tsx
-src/routes/templates.$slug.tsx
-src/components/templates/TemplateGrid.tsx
-src/components/templates/TemplateCard.tsx
-src/components/templates/TemplateFilter.tsx
-```
-
-**SEO `head()`**
-- Unique title/description per slug  
-- og:image from preview path  
-- robots index on public templates  
-
-**Use template CTA**
-- Auth: `createThread` + seed prompt into composer (not auto-send)  
-- Unauth: `sessionStorage.pendingTemplate` → `/auth?next=…`  
-
-#### C3.3 Onboarding tour
-
-```
-src/components/onboarding/Tour.tsx
-src/lib/onboarding.functions.ts  # markOnboarded — or ask Grok if middleware-heavy
-```
-
-- 3 steps: Composer → Canvas → Cmd+K / ThreadList  
-- Skip / Next / Esc  
-- `prefers-reduced-motion`: no animation  
-- Gate on `profiles.onboarded_at` (migration may be needed — joint)
-
-#### C3.4 Landing `/`
-
-- [ ] Hero copy polish (Mistral Builder, not GPT)  
-- [ ] “Made with Builder” grid of public artifacts (server fn public list — Grok or Cursor with publishable client)  
-- [ ] Hide section if zero public artifacts  
-- [ ] Do not put og:image on root if project rule forbids — leaf routes only for images  
-
----
-
-### Sprint C4 — Share, growth, a11y, e2e
-
-#### C4.1 Share modal v2
-
-- [ ] Social preview card (title + fake browser chrome)  
-- [ ] Copy link / Copy embed ✅ / Download ZIP ✅  
-- [ ] Optional QR (`qrcode` lazy)  
-- [ ] Embed route `/a/$id/embed` minimal chrome + “Made with Builder” badge  
-
-#### C4.2 a11y pass
-
-- [ ] Icon-only buttons all have `aria-label`  
-- [ ] Message list `role="log"` `aria-live="polite"`  
-- [ ] Skip-to-content already partial — ensure `#main` / `#chat-main`  
-- [ ] Focus rings `focus-visible:ring-2` audit  
-- [ ] Optional dev `@axe-core/react`  
-
-**Target:** Lighthouse a11y ≥ 95 on `/`, `/auth`, `/templates`, `/a/$id`
-
-#### C4.3 Playwright e2e (Cursor-owned)
-
-```
-e2e/chat-happy.spec.ts
-e2e/plan-mode.spec.ts
-e2e/share-public.spec.ts
-e2e/palette.spec.ts
-```
-
-| Spec | Steps |
-|------|-------|
-| Happy | login fixture → new thread → prompt → wait artifact (mock or real) |
-| Plan | mode Plan → assert no canvas artifact within N s / tool name absent |
-| Share | public artifact URL loads iframe |
-| Palette | Cmd+K opens, filter, Esc |
-
-**CI:** only if human enables secrets; otherwise local `bunx playwright test`.
-
-#### C4.4 Docs Cursor owns
-
-- [ ] `docs/keyboard.md` living  
-- [ ] Component story notes optional  
-- [ ] Update hub `todo.md` status lines when C sprints complete  
-
----
-
-## 4. File-level checklist (Cursor)
-
-### Create
-
-- [x] `src/components/canvas/MonacoEditor.tsx`  
-- [x] `src/components/canvas/MonacoDiff.tsx`  
-- [x] `src/components/canvas/monaco-theme.ts`  
-- [x] `src/components/canvas/NetworkPanel.tsx`  
-- [ ] `src/components/templates/*`  
-- [ ] `src/components/onboarding/Tour.tsx`  
-- [ ] `src/routes/templates.tsx` + `templates.$slug.tsx`  
-- [ ] `src/routes/a.$artifactId.embed.tsx` (or nested)  
-- [ ] `e2e/*.spec.ts`  
-- [ ] `public/templates/*` previews  
-
-### Modify heavily
-
-- [x] `src/components/app-shell/Canvas.tsx`  
-- [ ] `src/components/app-shell/MessageList.tsx`  
-- [ ] `src/components/app-shell/Composer.tsx`  
-- [x] `src/components/app-shell/CommandPalette.tsx`  
-- [x] `src/routes/_authenticated/chat.$threadId.tsx`  
-- [ ] `src/routes/index.tsx`  
-- [x] `src/routes/a.$artifactId.tsx`  
-- [ ] `src/styles.css`  
-
-### Consume only (Grok APIs)
-
-- [ ] `truncateThreadMessagesAfter`  
-- [ ] `listArtifactVersions` / `restoreArtifactVersion`  
-- [ ] stream data parts `data-artifact-created`, `data-memory-saved`  
-- [ ] `suggestFollowups` (if shipped)  
-
----
-
-## 5. Acceptance — “Cursor half done”
-
-Cursor track hits **C★** when:
-
-- [x] Monaco code + DiffEditor live on Canvas  
-- [x] Console filters + Network panel  
-- [~] Edit/retry wired to Grok truncate (soft-wire ready; waiting on Grok fn)  
-- [ ] Templates index + detail SEO + Use CTA  
-- [ ] First-run tour once  
-- [ ] Landing shows public artifacts or hides cleanly  
-- [ ] Share modal v2 + embed route  
-- [ ] Playwright happy path green locally  
-- [ ] a11y smoke (axe or Lighthouse) on public routes  
-- [x] No regression: Plan/Build toggle, starters, 420 mobile, safe-area  
-
----
-
-## 6. Daily standup template (Cursor)
-
-```
-Cursor standup:
-- Done:
-- Doing:
-- Blocked (waiting on Grok contract?):
-- Files touched:
-- Visual QA (mobile 420 / desktop):
-- e2e:
+## How to use this file (Cursor: read first)
+
+1. Work **only** steps marked **READY** or **IN PROGRESS**.  
+2. Skip steps marked **WAIT:Grok** until handoff says ✅.  
+3. One phase per session preferred; commit on `developeredit` when a phase’s acceptance is green.  
+4. After each phase: `bunx tsc --noEmit` (and `bun test` if you touch shared pure helpers — rare).  
+5. Update the **Progress tracker** (§ bottom) when a letter is done.
+
+```text
+START → A → B → C → D → E → F → G → H → I → J → K → L → C★ DONE
+         ↑                    ↑
+    can start now      wait Grok G2 for version timeline
 ```
 
 ---
 
-## 7. Handoff requests → Grok
-
-Append when blocked:
-
-| Date | Need | Why | Priority |
-|------|------|-----|----------|
-| 2026-07-20 | `truncateThreadMessagesAfter` | edit/retry integrity | ✅ Grok shipped + wired |
-| 2026-07-20 | `listArtifactVersions` + restore | timeline UI | P1 |
-| _optional_ | `suggestFollowups` server fn | chips without non-Mistral | P2 |
-| _optional_ | `data-artifact-created` stream part | live canvas focus | P1 |
-
----
-
-## 8. Explicit out of scope (Cursor)
-
-- Changing tool `execute` implementations  
-- Mistral provider / API key plumbing  
-- Fence parser algorithms  
-- BPI scoring math (fill scores only if human asks; Grok owns sample pipeline)  
-- Force-push, rebase of published Lovable history  
-- Reintroducing GPT/Gemini chat models in UI chips  
-
----
-
-## 9. Design tokens / UX notes
-
-- Keep dark OKLCH system; no random purple clichés in **our** chrome  
-- Touch targets ≥ 44px (`min-h-11`) already started — extend to new buttons  
-- Respect `prefers-reduced-motion` for Monaco / tour / palette  
-- cmdk palette: portal, Esc, focus return  
-
----
-
-## 10. OmniOps hard rules (reminder)
+## 0. Ground rules (non-negotiable)
 
 | Rule | |
 |------|--|
 | Workspace | `/Users/erikbabcan/lovable-builder-cosyapp` only |
 | Branch | `developeredit` |
-| `main` | locked — PR only, human merge order |
-| AI product | Mistral only |
+| `main` | locked — human merges via PR only |
+| Grok files | **do not edit** (see § MUST NOT) |
+| Consume only | `useServerFn(...)`, stream `data-*` parts, tool result fields |
 | Secrets | never commit |
-| After prod | smoke `/api/ai-status` + `/chat` |
+| Lint | fix what you touch; no mass prettier rewrite of whole repo |
+
+### MUST edit freely
+
+```
+src/components/app-shell/**
+src/components/ai-elements/**
+src/components/ui/**
+src/components/canvas/**          # create (Monaco)
+src/components/templates/**       # create
+src/components/onboarding/**      # create
+src/hooks/**
+src/lib/starters.ts
+src/lib/export-artifact.ts
+src/lib/utils.ts
+src/styles.css
+src/routes/index.tsx
+src/routes/auth.tsx               # SEO / UI only
+src/routes/a.$artifactId.tsx
+src/routes/a.$artifactId.embed.tsx   # create
+src/routes/templates*.tsx         # create
+src/routes/_authenticated/**      # UI careful — don't rip transport
+e2e/**
+docs/keyboard.md
+docs/cursortodo.md
+public/**
+```
+
+### MUST NOT touch
+
+```
+src/routes/api/chat.ts
+src/routes/api/ai-status.ts
+src/lib/agent/**
+src/lib/models.ts
+src/lib/ai-gateway.server.ts
+supabase/migrations/**
+```
+
+### Shared (small patches only)
+
+| File | You may |
+|------|---------|
+| `chat.$threadId.tsx` | palette props, canvas focus on `data-artifact-created`, layout, suggestions UI |
+| `MessageList.tsx` | chips, tool cards, quote, actions polish |
+| `threads.functions.ts` | **read / call only** — never invent tools execute logic |
+
+---
+
+## 1. What is already DONE (do not rebuild)
+
+| Area | Status | Notes |
+|------|--------|--------|
+| Auth shell, threads, streaming chat | ✅ | Mistral hybrid + fence |
+| Grok G0: truncate edit/retry | ✅ | `truncateThreadMessagesAfter` wired |
+| Grok G1: tools, fetch/web flags, stream data parts | ✅ | toasts partial on `onData` |
+| Canvas preview/code/simple diff, ZIP, share embed copy | ✅ | textarea code view |
+| Device **420**, safe-area, reduced-motion | ✅ | |
+| Cmd+K palette, starters, image attach, memory UI | ✅ | polish still open |
+| Chat error/notFound, skeletons | ✅ | |
+| CI unit+typecheck+build on `developeredit` | ✅ | |
+
+### Grok contracts ready for you
+
+| Contract | Where | Use for |
+|----------|--------|---------|
+| `truncateThreadMessagesAfter` | `threads.functions` | already wired — don't break |
+| `data-artifact-created` | stream `onData` | **focus canvas + select artifact** |
+| `data-memory-saved` | stream | toast (exists) |
+| `data-plan` | stream | optional plan card |
+| `edit_file` → `beforeSnippet` / `afterSnippet` | tool output | Monaco DiffEditor |
+| `exportArtifactDownload` | `lib/export-artifact.ts` | palette Export ZIP |
+| `STARTERS` | `lib/starters.ts` | empty state / palette |
+| Docs | `docs/agent-tools.md` | tool UX labels |
+
+### Grok contracts for later phases
+
+| Contract | Status | Needed for |
+|----------|--------|------------|
+| `listArtifactVersions` / `restoreArtifactVersion` | ✅ **G2 ready** (after SQL migration applied) | **H** version timeline |
+| `suggestFollowups` server fn (optional) | ⏳ optional | **E** chips — static fallback first |
+
+---
+
+## 2. A→Z execution plan
+
+---
+
+### **A — Orient & smoke-safe UI** · READY · ~30 min
+
+**Goal:** Confirm branch health; zero regressions before big UI.
+
+**Do**
+1. `git status` / pull `developeredit`.  
+2. `bun test` + `bunx tsc --noEmit` (expect green).  
+3. Manual smoke in browser (or leave for human): edit/retry, Build artifact, Plan no code.  
+4. Read `docs/agent-tools.md` once.
+
+**Acceptance**
+- [ ] typecheck green  
+- [ ] no edits to `src/lib/agent/**` or `api/chat.ts`
+
+---
+
+### **B — Unify & tidy (quick wins)** · READY · ~1 h
+
+**Goal:** Kill P2 polish debt.
+
+| Task | Detail |
+|------|--------|
+| B1 | `a.$artifactId.tsx` mobile width **390 → 420** (match Canvas) |
+| B2 | `chat.$threadId.tsx`: wrap `artifacts` in `useMemo` (hooks warning) |
+| B3 | Confirm hooks order on public artifact page (no conditional hooks) |
+| B4 | Icon buttons: missing `aria-label` pass on Header / Canvas / MessageList |
+
+**Files:** `a.$artifactId.tsx`, `chat.$threadId.tsx`, shell components  
+**Acceptance:** tsc clean; 420 everywhere; no hooks lint on those files.
+
+---
+
+### **C — Command palette complete** · READY · ~2 h
+
+**Goal:** Power-user palette matches keyboard.md.
+
+| Task | Behavior |
+|------|----------|
+| C1 | **Export ZIP** → call `exportArtifactDownload(activeArtifact)` (prop from chat page) |
+| C2 | **Copy share link** if artifact public |
+| C3 | All 4 `STARTERS` group (not only 3) |
+| C4 | Models → existing `updateThreadModel` |
+| C5 | Memory → “Open settings” (no duplicate CRUD) |
+| C6 | Sync `docs/keyboard.md` with real bindings |
+
+**Files:** `CommandPalette.tsx`, `chat.$threadId.tsx`, `keyboard.md`  
+**Acceptance:** Cmd+K can export + switch model + pick starter without mouse on rest of UI.
+
+---
+
+### **D — Stream UX: artifact focus** · READY · ~1 h
+
+**Goal:** When Grok emits `data-artifact-created`, user *sees* canvas.
+
+**Do**
+1. In `chat.$threadId.tsx` `onData` for `data-artifact-created`:  
+   - `setActiveArtifactId(artifactId)`  
+   - `setView("preview")` on mobile  
+   - keep toast  
+2. Optional: highlight tool card in MessageList when `create_artifact` succeeds.
+
+**Files:** `chat.$threadId.tsx`, maybe `MessageList.tsx`  
+**Acceptance:** tool create → canvas jumps to new artifact without full reload wait.
+
+---
+
+### **E — Chat UX depth** · READY (static chips) / WAIT optional API · ~3 h
+
+**Goal:** Message actions + suggestions feel finished.
+
+| Task | Detail |
+|------|--------|
+| E1 | **Quote** → insert `> …` into composer draft (lift draft state or callback) |
+| E2 | Tool cards labels from `agent-tools.md` (create / edit / remember…) |
+| E3 | **Suggestion chips** under last assistant: static 3 prompts from starters **or** call `suggestFollowups` |
+| E4 | Grok shipped `suggestFollowups({ lastAssistantText })` → `{ suggestions, source }`. Optional: try API, fallback static |
+| E5 | Drag-and-drop images on Composer (max 4, size toast) — data URLs OK |
+| E6 | Branch button: disabled + tooltip “Coming soon” (needs Grok schema) |
+
+**Do not** build Storage bucket or non-Mistral models.  
+**Acceptance:** quote works; chips fill composer; drop image works; no GPT chips.
+
+---
+
+### **F — Canvas Pro: Monaco** · READY · ~1 day
+
+**Goal:** Code tab = real editor.
+
+**Deps:** `@monaco-editor/react` (+ peer as needed). Lazy + client-only (no SSR `window`).
+
+**Create**
+```
+src/components/canvas/MonacoEditor.tsx
+src/components/canvas/monaco-theme.ts
+```
+
+**Do**
+1. Replace Canvas **code** textarea with Monaco.  
+2. Languages: html, css, js, ts, json, markdown.  
+3. Minimap off `< md`.  
+4. Keep `edits` map + Save → `updateArtifactFiles`.  
+5. Keep 400ms auto-refresh preview.
+
+**Acceptance**
+- [ ] Multi-file tabs switch without full Canvas remount crash  
+- [ ] Save + preview refresh work  
+- [ ] No hydration error on `/chat/$id`  
+- [ ] `bun run build` green  
+
+---
+
+### **G — Canvas DiffEditor** · READY · ~4 h
+
+**Goal:** Diff tab uses Monaco Diff + tool snippets.
+
+**Create:** `src/components/canvas/MonacoDiff.tsx`
+
+**Do**
+1. Diff tab: original vs local edit (existing).  
+2. When tool `edit_file` returns `beforeSnippet`/`afterSnippet` (from tool parts in messages), offer “Show model change” Diff.  
+3. Buttons: Accept (dismiss) / Revert (restore via `updateArtifactFiles` or undo stack).  
+4. Until Grok versions: client `undoStack` is enough.
+
+**Acceptance:** after model edit, user can see before/after in Diff tab.
+
+---
+
+### **H — Version timeline** · READY (G2 code) · needs migration applied · ~4 h
+
+**Server fns (Grok shipped):**
+```ts
+useServerFn(listArtifactVersions)  // { data: { artifactId, limit? } }
+useServerFn(restoreArtifactVersion) // { data: { versionId } }
+```
+See `docs/agent-tools.md` § Artifact versions.
+
+**If queries 404 / relation missing:** human must apply  
+`supabase/migrations/20260720120000_artifact_versions.sql` on the project.
+
+**Do**
+1. Timeline list/slider in Canvas header (newest first).  
+2. Show `source` badge: tool / fence / user_save / restore.  
+3. Restore confirm dialog → `restoreArtifactVersion` → invalidate thread.  
+4. Empty state: “No versions yet — save or let the agent edit.”
+
+---
+
+### **I — Console + Network + preview UX** · READY · ~3 h
+
+| Task | Detail |
+|------|--------|
+| I1 | Console filter chips: all / log / warn / error |
+| I2 | Network: inject fetch interceptor next to `CONSOLE_BRIDGE` |
+| I3 | Fullscreen preview (`F` outside inputs) + Esc |
+| I4 | Custom width input + `localStorage` `builder:device:{threadId}` |
+| I5 | Confirm iframe sandbox (document choice in comment) |
+
+**Acceptance:** filters work; network shows ≥1 fetch from sample HTML; fullscreen OK.
+
+---
+
+### **J — Templates + onboarding + landing** · READY (static first) · ~1–2 days
+
+**Strategy:** static seed first → Supabase later if human adds migration.
+
+**Create**
+```
+src/lib/templates.seed.ts          # 8–12 templates offline
+src/routes/templates.tsx
+src/routes/templates.$slug.tsx
+src/components/templates/*
+src/components/onboarding/Tour.tsx
+```
+
+**Do**
+1. `/templates` grid + category chips + SEO `head()`.  
+2. `/templates/$slug` detail + “Use template” → createThread + seed prompt in composer (**not** auto-send).  
+3. Unauth: `sessionStorage` + redirect auth.  
+4. Tour 3 steps: Composer → Canvas → Cmd+K (once; localStorage if no `onboarded_at`).  
+5. Landing `/`: “Made with Builder” — hide if no public artifacts; don’t invent og:image on root if project forbids.
+
+**Acceptance:** SEO titles unique; Use template lands on chat with prompt; tour once.
+
+---
+
+### **K — Share v2 + embed route + a11y** · READY · ~1 day
+
+| Task | Detail |
+|------|--------|
+| K1 | Share modal: preview card, copy link, copy embed, ZIP |
+| K2 | Route `/a/$id/embed` — minimal chrome + “Made with Builder” |
+| K3 | Optional QR lazy (`qrcode`) |
+| K4 | a11y: `role="log"` messages, skip-link, focus-visible audit |
+| K5 | Empty states: ThreadList / Canvas / memory consistency |
+
+**Acceptance:** public share + embed loads; Lighthouse a11y stretch goal ≥90 public routes (best effort).
+
+---
+
+### **L — Playwright e2e (local only)** · READY after A–G stable · ~4 h
+
+**Do not** wire into CI yet (secrets / noise).
+
+```
+e2e/chat-smoke.spec.ts      # optional auth fixture
+e2e/palette.spec.ts
+e2e/share-public.spec.ts
+```
+
+| Spec | Assert |
+|------|--------|
+| Palette | Cmd+K opens, Esc closes |
+| Share | public `/a/$id` 200 if fixture exists |
+| Plan | soft: mode toggle visible |
+
+**Acceptance:** `bunx playwright test` green locally when deps installed.
+
+---
+
+## 3. Definition of done — **C★**
+
+Cursor track is complete when:
+
+- [ ] **B–G** shipped (Monaco + Diff + focus + palette)  
+- [ ] **I** console/network/fullscreen  
+- [ ] **J** templates + tour + landing section  
+- [ ] **K** share/embed + a11y pass  
+- [ ] **H** timeline if Grok G2 ready (else documented blocked)  
+- [ ] **L** local e2e optional but preferred  
+- [ ] No OpenAI/Gemini reintroduced  
+- [ ] `developeredit` CI still green  
+- [ ] `main` never force-pushed  
+
+---
+
+## 4. Session playbooks (copy-paste to Cursor)
+
+### Session 1 — letters A+B+C+D
+```
+You are Cursor on OmniOps Builder.
+Branch: developeredit only. Never push main.
+Read docs/cursortodo.md and execute phases A→D only.
+Do not edit src/lib/agent/** or src/routes/api/chat.ts.
+Run tsc --noEmit when done. Summarize files changed.
+```
+
+### Session 2 — letter E
+```
+Execute docs/cursortodo.md phase E only (chat UX depth).
+Static suggestion chips OK. Mistral only. No new AI providers.
+```
+
+### Session 3 — letters F+G
+```
+Execute docs/cursortodo.md phases F and G (Monaco + DiffEditor).
+Use edit_file beforeSnippet/afterSnippet from tool outputs when present.
+Ensure SSR-safe lazy Monaco. bun run build must pass.
+```
+
+### Session 4 — letter I
+```
+Execute phase I only: console filters, network interceptor, fullscreen, device localStorage.
+```
+
+### Session 5 — letter J
+```
+Execute phase J: static templates seed, routes, tour, landing section.
+No Supabase migration unless human provides it — use templates.seed.ts.
+```
+
+### Session 6 — letter K (+ L if time)
+```
+Execute phase K share/embed/a11y. Optional L Playwright local only, not CI.
+```
+
+### Session 7 — letter H (G2 ready)
+```
+Execute docs/cursortodo.md phase H: version timeline.
+Use listArtifactVersions + restoreArtifactVersion from threads.functions.
+If DB errors about missing table, note that migration 20260720120000 must be applied — do not invent schema.
+```
+
+---
+
+## 5. Handoff log (update when blocked / unblocked)
+
+| Date | From | Item | Status |
+|------|------|------|--------|
+| 2026-07-20 | Grok | truncate + stream data parts + edit snippets | ✅ ready |
+| 2026-07-20 | Grok | CI green on developeredit | ✅ |
+| 2026-07-20 | Grok | `listArtifactVersions` / restore + migration | ✅ for **H** (apply SQL) |
+| 2026-07-20 | Grok | `suggestFollowups` server fn | ✅ optional for **E** |
+| — | Human | live smoke + BPI samples | parallel, not Cursor |
+
+---
+
+## 6. Progress tracker (Cursor updates this)
+
+| Letter | Name | Status | Date | Notes |
+|--------|------|--------|------|-------|
+| A | Orient | ✅ | 2026-07-20 | test + tsc green; agent-tools read |
+| B | Unify & tidy | ✅ | 2026-07-20 | 420 already; artifacts useMemo; aria-labels |
+| C | Palette complete | ✅ | 2026-07-20 | Export ZIP, share link, 4 starters, model, memory |
+| D | Artifact focus | ✅ | 2026-07-20 | onData → setActiveArtifactId + setView(preview) |
+| E | Chat UX depth | ✅ | 2026-07-20 | quote, tool labels, chips fill, DnD images, Branch stub |
+| F | Monaco | ✅ | 2026-07-20 | lazy + mount gate; edits/Save/400ms kept |
+| G | DiffEditor | ✅ | 2026-07-20 | local undo + edit_file before/after snippets |
+| H | Versions UI | ☐ READY | | needs migration apply |
+| I | Console/Network | ☐ | | |
+| J | Templates/Tour | ☐ | | |
+| K | Share/a11y | ☐ | | |
+| L | Playwright local | ☐ | | |
+| **C★** | Done | ☐ | | |
+
+---
+
+## 7. Explicit out of scope (Cursor)
+
+- Changing tool `execute` / fence parser / model routing  
+- BPI scoring math / sample HTML generation pipeline (Grok + human)  
+- Billing, collab, voice, public API  
+- ESLint-as-CI gate  
+- Pushing or merging `main`  
+
+---
+
+## 8. OmniOps reminder
+
+| | |
+|--|--|
+| After any deploy | human smokes `/api/ai-status` + `/chat` |
+| PR to main | only on explicit human order |
+| Parallel | Grok does G2/G3 while you do **B→G** now |
+
+**First command for Cursor:** start at **A**, then **B → C → D** without waiting for Grok.
