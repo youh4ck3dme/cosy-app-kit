@@ -112,7 +112,7 @@ This is **not** service_role. RLS remains the real security boundary.
 ### GitHub Actions
 
 - Use **repo Secrets**, never hardcode JWTs in workflows  
-- CI job name (branch protection): `Install · typecheck · build`
+- CI job name (branch protection): `Install · test · typecheck · build`
 
 ### Forbidden in git
 

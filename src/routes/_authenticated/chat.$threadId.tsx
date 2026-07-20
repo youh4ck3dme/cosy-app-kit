@@ -220,7 +220,7 @@ function ChatPage() {
           id: "artifact-created",
           description:
             typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches
-              ? "Tap Preview in the header to open the canvas"
+              ? "Tap Preview in the header (Chat | Preview)"
               : undefined,
         });
         qc.invalidateQueries({ queryKey: ["thread", threadId] });

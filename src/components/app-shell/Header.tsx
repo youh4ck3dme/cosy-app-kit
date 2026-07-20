@@ -74,7 +74,12 @@ export function Header({
               </span>
             </Link>
             <div className="hidden h-5 w-px bg-border-subtle sm:block" />
-            <div className="hidden items-center rounded-lg border border-border-subtle bg-surface-1/70 p-0.5 text-[11px] font-mono font-medium sm:flex">
+            {/* Always visible — mobile must reach Preview after artifact without opening the menu */}
+            <div
+              className="flex items-center rounded-lg border border-border-subtle bg-surface-1/70 p-0.5 text-[11px] font-mono font-medium"
+              role="group"
+              aria-label="Chat or preview"
+            >
               {(["chat", "preview"] as const).map((v) => (
                 <button
                   key={v}
@@ -83,7 +88,7 @@ export function Header({
                   aria-label={v === "chat" ? "Show chat view" : "Show preview canvas"}
                   aria-pressed={view === v}
                   className={cn(
-                    "rounded-md px-3 py-1 uppercase tracking-wider transition-all",
+                    "min-h-9 rounded-md px-2.5 py-1 uppercase tracking-wider transition-all sm:px-3",
                     view === v
                       ? "bg-surface-3 text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground",

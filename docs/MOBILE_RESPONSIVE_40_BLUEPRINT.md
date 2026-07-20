@@ -330,5 +330,3 @@ bun test && tsc. Update docs/progress.md only after human live smoke note.
 **Stop lying with `maxWidth:100%` alone; simulate real CSS viewports; score HTML; one-tap fix; lock with fixtures.**
 
 That stack is the **single best +40%** over prompt-only or UI-only fixes.
-```
-)

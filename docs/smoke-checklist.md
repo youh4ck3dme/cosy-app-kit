@@ -14,6 +14,12 @@
 - [ ] `GET /api/ai-status` → `ok: true`, `mistralKeyPresent: true`, `lovableGatewayDisabled: true`
 - [ ] Tools list includes create/edit/read/remember/plan (and optional fetch/web)
 
+## 1b. Mobile Chat | Preview (Mission A)
+
+- [ ] On a phone / narrow viewport: Chat stays visible after artifact create (no auto-jump to Preview)
+- [ ] Header shows **Chat | Preview** without opening the hamburger
+- [ ] Artifact pill / toast → Preview opens canvas; Chat tab returns to messages
+
 ## 2. Build mode
 
 - [ ] New chat → starter or: *dark ops dashboard Chart.js Week/Month/Year*
