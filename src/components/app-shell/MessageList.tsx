@@ -35,6 +35,9 @@ import {
 
 const ARTIFACT_RE = /```(?:html|markdown|md)(?:\s+[^\n`]*)?\s*\n[\s\S]*?```/gi;
 const MULTI_FILE_RE = /```[^\n`]*\bpath=[^\n`]*\n[\s\S]*?```/gi;
+/** Open fence without a closing ``` — must not go through Streamdown (freezes on large HTML). */
+const INCOMPLETE_ARTIFACT_FENCE_RE =
+  /```(html|markdown|md)(?:[^\n`]*)?\r?\n([\s\S]*)$/i;
 const SPLIT_MARK = "\u0000ARTIFACT\u0000";
 
 const EMPTY_PROMPTS = STARTERS.slice(0, 3);
@@ -301,6 +304,55 @@ function splitAroundArtifacts(text: string): string[] {
   return text.replace(multi, SPLIT_MARK).replace(artifact, SPLIT_MARK).split(SPLIT_MARK);
 }
 
+function countCompleteFences(text: string): number {
+  const multi = new RegExp(MULTI_FILE_RE.source, MULTI_FILE_RE.flags);
+  const artifact = new RegExp(ARTIFACT_RE.source, ARTIFACT_RE.flags);
+  return (text.match(multi)?.length ?? 0) + (text.match(artifact)?.length ?? 0);
+}
+
+/** Split prose from complete fences; strip incomplete open fences for safe streaming display. */
+function partitionAssistantText(text: string): {
+  chunks: string[];
+  completeFenceCount: number;
+  incomplete: { lang: string; chars: number; lines: number } | null;
+} {
+  const completeFenceCount = countCompleteFences(text);
+  const chunks = splitAroundArtifacts(text);
+  if (chunks.length === 0) {
+    return { chunks: [""], completeFenceCount, incomplete: null };
+  }
+
+  const lastIdx = chunks.length - 1;
+  const last = chunks[lastIdx] ?? "";
+  const open = INCOMPLETE_ARTIFACT_FENCE_RE.exec(last);
+  if (!open) {
+    return { chunks, completeFenceCount, incomplete: null };
+  }
+
+  const lang = (open[1] ?? "html").toLowerCase();
+  const body = open[2] ?? "";
+  const before = last.slice(0, open.index);
+  const nextChunks = [...chunks];
+  nextChunks[lastIdx] = before;
+
+  return {
+    chunks: nextChunks,
+    completeFenceCount,
+    incomplete: {
+      lang,
+      chars: body.length,
+      lines: body.length === 0 ? 0 : body.split("\n").length,
+    },
+  };
+}
+
+function formatBuildProgress(chars: number, lines: number): string {
+  if (chars >= 1000) {
+    return `${(chars / 1000).toFixed(1)}k chars · ${lines} lines`;
+  }
+  return `${chars} chars · ${lines} lines`;
+}
+
 export function MessageList({
   messages,
   status,
@@ -529,7 +581,10 @@ function MessageRow({
     [parts],
   );
 
-  const chunks = useMemo(() => splitAroundArtifacts(textConcat), [textConcat]);
+  const partitioned = useMemo(() => partitionAssistantText(textConcat), [textConcat]);
+  const chunks = partitioned.chunks;
+  const incompleteFence = partitioned.incomplete;
+  const completeFenceCount = partitioned.completeFenceCount;
 
   if (isUser) {
     return (
@@ -600,8 +655,14 @@ function MessageRow({
     );
   }
 
-  const hasChunks = chunks.some((c) => c.length > 0) || chunks.length > 1;
-  const hasBody = hasChunks || toolParts.length > 0 || nonToolErrors.length > 0;
+  const hasProse = chunks.some((c) => c.trim().length > 0);
+  const hasArtifactMarkers = completeFenceCount > 0 || chunks.length > 1;
+  const hasBody =
+    hasProse ||
+    hasArtifactMarkers ||
+    incompleteFence !== null ||
+    toolParts.length > 0 ||
+    nonToolErrors.length > 0;
 
   return (
     <div className="flex min-w-0 gap-3 animate-in-fade" aria-label="Assistant message">
@@ -611,10 +672,10 @@ function MessageRow({
           {!hasBody && !isStreaming && (
             <p className="text-[13px] italic text-muted-foreground">No response content.</p>
           )}
-          {hasChunks &&
+          {(hasProse || hasArtifactMarkers) &&
             chunks.map((chunk, i) => (
               <div key={i} className="contents">
-                {chunk && (
+                {chunk.trim() && (
                   <MessageResponse
                     className="min-w-0 overflow-x-auto text-[14.5px] leading-relaxed"
                     // Streamdown animate + rapid streaming causes removeChild DOM errors
@@ -627,7 +688,18 @@ function MessageRow({
                 {i < chunks.length - 1 && <ArtifactPill onFocusCanvas={onFocusCanvas} />}
               </div>
             ))}
-          {isStreaming && hasChunks && (
+          {/* Complete fence with no surrounding prose still needs a visible chat anchor */}
+          {completeFenceCount > 0 && !hasProse && chunks.length <= 1 && (
+            <ArtifactPill onFocusCanvas={onFocusCanvas} />
+          )}
+          {incompleteFence && (
+            <BuildingArtifactCard
+              lang={incompleteFence.lang}
+              chars={incompleteFence.chars}
+              lines={incompleteFence.lines}
+            />
+          )}
+          {isStreaming && hasProse && !incompleteFence && (
             <span
               className="inline-flex items-center gap-1.5 font-mono text-[10px] tracking-wider text-muted-foreground/80"
               role="status"
@@ -793,6 +865,59 @@ function MessageActions({
   );
 }
 
+/** Progress card while an open ```html fence streams — never feed raw HTML to Streamdown. */
+function BuildingArtifactCard({
+  lang,
+  chars,
+  lines,
+}: {
+  lang: string;
+  chars: number;
+  lines: number;
+}) {
+  return (
+    <div
+      className="my-1 w-full max-w-md rounded-xl border border-accent-primary/30 bg-surface-1/70 px-3 py-3 shadow-sm"
+      role="status"
+      aria-live="polite"
+      aria-label="Building artifact"
+    >
+      <div className="flex items-start gap-2.5">
+        <span
+          aria-hidden
+          className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-primary/15 text-accent-primary"
+        >
+          <Loader2 className="h-4 w-4 animate-spin" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <p className="text-sm font-medium text-foreground">Building {lang} artifact…</p>
+            <span className="font-mono text-[10px] tracking-wide text-muted-foreground">
+              {formatBuildProgress(chars, lines)}
+            </span>
+          </div>
+          <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
+            Streaming code without freezing the chat. When saved, use the Artifact card or Preview
+            tab to open the canvas.
+          </p>
+          <div
+            className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-border-subtle"
+            aria-hidden
+          >
+            <div
+              className="h-full rounded-full bg-accent-primary/70 transition-[width] duration-300 ease-out"
+              style={{
+                // Soft indeterminate-ish progress from size (caps ~85% until complete)
+                width: `${Math.min(85, 8 + Math.sqrt(Math.max(chars, 1)) * 1.1)}%`,
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ArtifactPill({ onFocusCanvas }: { onFocusCanvas?: () => void }) {
   const interactive = Boolean(onFocusCanvas);
   const className = cn(
@@ -809,9 +934,9 @@ function ArtifactPill({ onFocusCanvas }: { onFocusCanvas?: () => void }) {
       >
         <FileCode2 className="h-3 w-3" />
       </span>
-      <span className="min-w-0 wrap-break-word">Artifact rendered on canvas</span>
+      <span className="min-w-0 wrap-break-word">Artifact ready on canvas</span>
       <span aria-hidden className="h-1 w-1 shrink-0 rounded-full bg-accent-primary/70" />
-      <span className="shrink-0 text-accent-primary/90">{interactive ? "Open" : "live"}</span>
+      <span className="shrink-0 text-accent-primary/90">{interactive ? "Open preview" : "live"}</span>
     </>
   );
 

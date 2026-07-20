@@ -210,9 +210,19 @@ function ChatPage() {
         const artifactId = typeof p.data.artifactId === "string" ? p.data.artifactId : null;
         const title = typeof p.data.title === "string" ? p.data.title : "Artifact";
         if (artifactId) setActiveArtifactId(artifactId);
-        // Mobile swaps chat ↔ canvas via `view`; desktop keeps both panes.
-        setView("preview");
-        toast.success(`Created «${title}»`, { id: "artifact-created" });
+        // Desktop: both panes visible; optional focus on preview tab state.
+        // Mobile: do NOT auto-hide chat — stream + history must stay on screen.
+        // User can tap Preview in the header when ready.
+        if (typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches) {
+          setView("preview");
+        }
+        toast.success(`Created «${title}»`, {
+          id: "artifact-created",
+          description:
+            typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches
+              ? "Tap Preview in the header to open the canvas"
+              : undefined,
+        });
         qc.invalidateQueries({ queryKey: ["thread", threadId] });
       } else if (p.type === "data-memory-saved") {
         const key = typeof p.data.key === "string" ? p.data.key : "preference";
@@ -277,12 +287,8 @@ function ChatPage() {
 
   const editSnippets = useMemo(() => extractEditFileSnippets(messages), [messages]);
 
-  const artifactCount = artifacts.length;
-  useEffect(() => {
-    if (artifactCount > 0 && window.matchMedia("(max-width: 767px)").matches) {
-      setView("preview");
-    }
-  }, [artifactCount]);
+  // Intentionally no auto setView("preview") when artifacts load on mobile —
+  // that hid the entire chat column after build and looked like messages vanished.
 
   const handleModelChange = async (model: string) => {
     await updateModel({ data: { threadId, model } });
