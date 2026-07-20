@@ -120,6 +120,14 @@ function isHtmlPath(path: string): boolean {
   return /\.html?$/i.test(path);
 }
 
+/** Short chip label for multi-page HTML (index.html → Home). */
+function htmlPageLabel(path: string): string {
+  const base = path.split("/").pop() ?? path;
+  const stem = base.replace(/\.html?$/i, "");
+  if (!stem || stem === "index") return "Home";
+  return stem.charAt(0).toUpperCase() + stem.slice(1);
+}
+
 function fileList(a: Artifact): ArtifactFile[] {
   if (a.files && a.files.length > 0) return a.files;
   const path =
@@ -250,6 +258,8 @@ export function Canvas({
 
   const rawFiles = artifact ? fileList(artifact) : [];
   const files = rawFiles.map((f) => ({ ...f, content: edits[f.path] ?? f.content }));
+  const htmlFiles = files.filter((f) => isHtmlPath(f.path));
+  const multiPage = htmlFiles.length > 1;
   const isDirty = Object.keys(edits).length > 0;
   const filePathsKey = rawFiles.map((f) => f.path).join("\0");
   const filePaths = useMemo(() => (filePathsKey ? filePathsKey.split("\0") : []), [filePathsKey]);
@@ -388,6 +398,19 @@ export function Canvas({
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Revert failed");
     }
+  };
+
+  const selectHtmlPage = (path: string) => {
+    setActiveFile(path);
+    if (!isHtmlPath(path)) return;
+    setPreviewPath(path);
+    setLogs([]);
+    setNetwork([]);
+    bridgeTokenRef.current =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `tok-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setKey((k) => k + 1);
   };
 
   useEffect(() => {
@@ -807,27 +830,80 @@ export function Canvas({
         </div>
       </div>
 
-      {artifact && (files.length > 1 || view === "code" || view === "diff") && (
+      {artifact && multiPage && view === "preview" && (
+        <div
+          className="relative z-10 flex flex-none items-center gap-2 overflow-x-auto border-b border-border-subtle bg-surface-1/40 px-2 py-1.5 no-scrollbar"
+          role="navigation"
+          aria-label="Preview pages"
+        >
+          <span className="shrink-0 px-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground tabular-nums">
+            {htmlFiles.length} pages
+          </span>
+          <label className="flex min-h-11 min-w-0 flex-1 items-center sm:hidden">
+            <span className="sr-only">Select page</span>
+            <select
+              className="min-h-11 w-full rounded-md border border-border-subtle bg-surface-1 px-2 font-mono text-[12px] text-foreground"
+              value={resolvedPreviewPath ?? htmlFiles[0]?.path ?? ""}
+              onChange={(e) => selectHtmlPage(e.target.value)}
+              aria-label="Select preview page"
+            >
+              {htmlFiles.map((f) => (
+                <option key={f.path} value={f.path}>
+                  {htmlPageLabel(f.path)} ({f.path})
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="hidden min-w-0 flex-1 items-center gap-1 sm:flex">
+            {htmlFiles.map((f) => {
+              const active = f.path === resolvedPreviewPath;
+              const edited = edits[f.path] !== undefined;
+              return (
+                <button
+                  key={f.path}
+                  type="button"
+                  onClick={() => selectHtmlPage(f.path)}
+                  aria-pressed={active}
+                  aria-label={`Preview ${f.path}`}
+                  title={f.path}
+                  className={cn(
+                    "min-h-11 shrink-0 rounded-lg border px-3 py-1.5 font-mono text-[11px] transition-colors",
+                    active
+                      ? "border-accent-primary/50 bg-accent-primary/15 text-foreground shadow-sm"
+                      : "border-transparent text-muted-foreground hover:border-border-subtle hover:bg-surface-2 hover:text-foreground",
+                  )}
+                >
+                  {htmlPageLabel(f.path)}
+                  {edited && <span className="ml-1.5 text-accent-primary">●</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {artifact && (view === "code" || view === "diff") && files.length > 1 && (
         <div className="relative z-10 flex flex-none items-center gap-0.5 overflow-x-auto border-b border-border-subtle bg-surface-1/40 px-2 no-scrollbar">
+          {multiPage && (
+            <span className="shrink-0 px-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground tabular-nums">
+              {htmlFiles.length} pages
+            </span>
+          )}
           {files.map((f) => {
             const active = currentFile?.path === f.path;
             const edited = edits[f.path] !== undefined;
             return (
               <button
                 key={f.path}
+                type="button"
                 onClick={() => {
-                  setActiveFile(f.path);
                   if (isHtmlPath(f.path)) {
-                    setPreviewPath(f.path);
-                    setLogs([]);
-                    setNetwork([]);
-                    bridgeTokenRef.current =
-                      typeof crypto !== "undefined" && crypto.randomUUID
-                        ? crypto.randomUUID()
-                        : `tok-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-                    setKey((k) => k + 1);
+                    selectHtmlPage(f.path);
+                  } else {
+                    setActiveFile(f.path);
                   }
                 }}
+                aria-pressed={active}
                 className={cn(
                   "min-h-11 shrink-0 border-b-2 px-3 py-1.5 font-mono text-[11px] transition-colors",
                   active

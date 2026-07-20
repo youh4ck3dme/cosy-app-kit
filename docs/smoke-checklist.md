@@ -20,6 +20,21 @@
 - [ ] Header shows **Chat | Preview** without opening the hamburger
 - [ ] Artifact pill / toast → Preview opens canvas; Chat tab returns to messages
 
+## 1c. Multi-page canvas (Mission B · LMAP)
+
+- [ ] Build: *multi-page web Home/About/Contact/Pricing…* → tool `launch_site` / Launch multi-page site
+- [ ] Artifact has 4 HTML files (+ optional `blueprint.json`); canvas shows **N pages** label
+- [ ] Desktop: page chips (Home / About / …); active = current preview; click swaps preview
+- [ ] Mobile (~390): page **select** picker works; Preview stays usable
+- [ ] Click in-preview About/Contact nav → page changes (Phase 1 bridge)
+- [ ] Single-file HTML artifact: **no** page chip strip / picker chrome
+
+## 1d. Console → Fix in chat
+
+- [ ] Break preview JS or open Console; real errors show (not only empty)
+- [ ] **Fix in chat** / wand fills composer with console errors (+ file hint)
+- [ ] Send → agent edits; preview errors clear or reduce
+
 ## 2. Build mode
 
 - [ ] New chat → starter or: *dark ops dashboard Chart.js Week/Month/Year*
