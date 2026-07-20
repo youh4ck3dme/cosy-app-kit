@@ -130,6 +130,14 @@
     letter-spacing: -0.011em;
     font-feature-settings: "cv11", "ss01", "ss03";
   }
+  /* Authenticated chat shell: lock document rubber-band (iOS). Safe-area lives on chrome. */
+  html.app-viewport-lock,
+  html.app-viewport-lock body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: manipulation;
+  }
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-thumb {
     background: color-mix(in oklab, var(--color-foreground) 10%, transparent);
@@ -240,11 +248,7 @@
   100% { background-position: -200% 0; }
 }
 
-/* iPhone / safe-area + reduced motion (M6) */
-html {
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
-    env(safe-area-inset-left);
-}
+/* Safe-area is applied on Header / Composer chrome — not on html (avoids >100dvh scroll). */
 
 @media (prefers-reduced-motion: reduce) {
   *,

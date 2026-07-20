@@ -29,6 +29,7 @@ import { AgentSettingsPanel } from "@/components/app-shell/AgentSettingsPanel";
 import { CommandPalette, ShortcutsHelp } from "@/components/app-shell/CommandPalette";
 import { Tour } from "@/components/onboarding/Tour";
 import { useHotkey } from "@/hooks/use-hotkeys";
+import { useAppViewportLock } from "@/hooks/use-app-viewport-lock";
 import { userFacingChatError } from "@/lib/agent/error-handling";
 import { exportArtifactDownload } from "@/lib/export-artifact";
 import { truncateThreadMessagesClient } from "@/lib/truncate-messages";
@@ -101,6 +102,7 @@ function ChatPage() {
   const updateModel = useServerFn(updateThreadModel);
   const create = useServerFn(createThread);
   const truncateMessages = useServerFn(truncateThreadMessagesAfter);
+  useAppViewportLock(true);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["thread", threadId],
@@ -407,7 +409,7 @@ function ChatPage() {
   }
 
   return (
-    <div className="flex h-dvh flex-col bg-background text-foreground pt-[env(safe-area-inset-top)]">
+    <div className="fixed inset-0 z-0 flex h-dvh max-h-dvh flex-col overflow-hidden bg-background text-foreground">
       <a
         href="#chat-main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground"
@@ -423,10 +425,10 @@ function ChatPage() {
         onViewChange={setView}
       />
 
-      <div className="flex min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         <aside
           className={cn(
-            "hidden w-64 shrink-0 border-r border-border md:block",
+            "hidden min-h-0 w-64 shrink-0 overflow-y-auto overscroll-y-contain border-r border-border md:block",
             !sidebarOpen && "md:hidden",
           )}
         >
@@ -444,13 +446,13 @@ function ChatPage() {
         <section
           id="chat-main"
           className={cn(
-            "flex min-h-0 w-full flex-col border-r border-border md:w-[440px] lg:w-[520px] md:flex",
+            "flex min-h-0 w-full flex-col overflow-hidden border-r border-border md:w-[440px] lg:w-[520px] md:flex",
             view === "chat" ? "flex" : "hidden md:flex",
           )}
         >
-          {/* StickToBottom scrolls internally; root is positioning context for Latest pill. */}
+          {/* StickToBottom is the only vertical scroller in chat column. */}
           <StickToBottom
-            className="relative min-h-0 flex-1"
+            className="relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
             resize="smooth"
             initial="instant"
           >
@@ -481,7 +483,7 @@ function ChatPage() {
             </StickToBottom.Content>
             <JumpToLatest />
           </StickToBottom>
-          <div className="flex-none p-3 sm:p-4">
+          <div className="flex-none overscroll-none border-t border-border-subtle bg-background/95 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md sm:px-4 supports-[backdrop-filter]:bg-background/85">
             <Composer
               onSend={({ text, attachments }) => sendText(text, attachments)}
               disabled={streaming}
@@ -495,7 +497,7 @@ function ChatPage() {
 
         <section
           className={cn(
-            "min-h-0 flex-1 flex-col md:flex",
+            "min-h-0 flex-1 flex-col overflow-hidden md:flex",
             view === "preview" ? "flex" : "hidden md:flex",
           )}
         >

@@ -279,7 +279,7 @@ export function MessageList({
 function EmptyState({ onPick }: { onPick?: (prompt: string) => void }) {
   return (
     <section
-      className="relative flex h-full min-h-[280px] flex-col items-center justify-center overflow-hidden py-12 text-center animate-in-fade"
+      className="relative flex min-h-0 flex-col items-center justify-center overflow-hidden py-6 text-center animate-in-fade sm:py-10"
       aria-labelledby="chat-empty-heading"
     >
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-mesh-glow opacity-40" />

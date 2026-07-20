@@ -152,7 +152,7 @@ export function Composer({
 
   return (
     <div
-      className="relative w-full pb-[env(safe-area-inset-bottom)]"
+      className="relative w-full"
       onDragEnter={(e) => {
         e.preventDefault();
         e.stopPropagation();

@@ -1,8 +1,11 @@
-# Claude PR #3 → `developeredit` port checklist
+# Claude PR #3 / GitHub → `developeredit` port inventory (final)
 
-**Source:** branch `origin/claude/app-quality-overhaul-y6cv3u` · [PR #3](https://github.com/youh4ck3dme/cosy-app-kit/pull/3)  
-**Target:** `developeredit` only · **Never** merge PR #3 into `main` as-is  
-**Compare (GitLens):** From `origin/developeredit` → To `origin/claude/app-quality-overhaul-y6cv3u`
+**Source:** `origin/claude/app-quality-overhaul-y6cv3u` · [PR #3](https://github.com/youh4ck3dme/cosy-app-kit/pull/3)  
+**Also on history:** `main` absorbed #3 (`fa59014`); light mode `1707f67`; CodeRabbit tests `0f048f7`  
+**Target product line:** `developeredit` only  
+**Policy:** **cherry-pick / hand-wire** · **never** full-merge Claude/`main` into product without conflict session  
+
+**Last sync:** 2026-07-20
 
 ---
 
@@ -10,47 +13,85 @@
 
 | Decision | |
 |----------|--|
-| Full merge Claude → developeredit | ❌ Avoid |
-| PR #3 → main raw | ❌ Avoid |
-| Cherry-pick slices | ✅ Do this |
+| Full merge Claude → developeredit | ❌ |
+| PR #3 / main raw onto product | ❌ |
+| Cherry-pick valuable slices | ✅ done for S1–S7 |
+| Light mode from `1707f67` | 🟡 **NEXT optional** (isolated TAKE) |
 
 ---
 
-## TAKE / SKIP / LATER
+## GitHub Claude commits (what they are)
 
-| Path / feature | Tag | Status |
-|----------------|-----|--------|
-| `public/manifest.webmanifest`, `sw.js`, `offline.html`, `icons/*` | **TAKE** | ✅ ported |
-| `src/lib/register-sw.ts` + root register | **TAKE** | ✅ ported |
-| `src/lib/haptics.ts` | **TAKE** | ✅ ported (+ send haptic) |
-| `src/lib/motion.ts` | **TAKE** | ✅ lib only (wire later if needed) |
-| `use-thread-mutations.ts` | **TAKE** | ✅ S3 wired ThreadList |
-| Stick-to-bottom scroll | **LATER** | MessageList already C★ |
-| Canvas postMessage token | **LATER** | S5 careful on Monaco canvas |
-| `use-global-shortcuts` / ShortcutsDialog | **SKIP** merge | Use ours; gap-fill only |
-| Claude CommandPalette | **SKIP** | Ours richer |
-| Claude `templates.ts` | **SKIP** | Have seed + routes |
-| Claude `20260720090000_artifact_versions.sql` | **SKIP** | Keep Grok `20260720120000_*` |
-| Claude version UI in Canvas | **SKIP** | Have VersionTimeline |
-| `scripts/smoke.ts` + `__tests__` | **LATER** | S7 optional |
-| Prettier mass ai-elements | **SKIP** | Noise |
+| Commit | Topic | Use? |
+|--------|--------|------|
+| `de558f4` | App quality: a11y, PWA, optimistic UI, delight | Sliced → S1–S7 ✅ |
+| `5b25a3e` | bun tests + Playwright smoke script | ✅ smoke + vitest (ours paths) |
+| `1647434` | test tooling / prettier pass | partial / skip mass prettier |
+| `82f7a94` | CodeRabbit review fixes | absorbed selectively |
+| `fa59014` | Merge PR #3 → main | history only — do not re-merge |
+| `1707f67` | **Light mode** + `theme.ts` + Header toggle + CSS | 🟡 **best remaining TAKE** |
+| `0f048f7` | CodeRabbit theme unit tests expansion | 🟡 with light mode |
 
 ---
 
-## Done this port session
+## Path-level TAKE / SKIP / DONE
 
-- [x] Inventory doc  
-- [x] S1 PWA  
-- [x] S2 haptics/motion libs + send haptic  
-- [x] S3 optimistic threads + AlertDialog delete  
-- [ ] S5 canvas bridge token  
-- [x] Board `docs/claudetodo.md` + parallel prompts  
-
+| Path / feature | Tag | Status on developeredit |
+|----------------|-----|-------------------------|
+| PWA public/* + register-sw | TAKE | ✅ |
+| haptics + motion | TAKE | ✅ |
+| use-thread-mutations + optimistic ThreadList | TAKE | ✅ |
+| Stick-to-bottom / Latest | TAKE | ✅ (S4) |
+| Canvas postMessage token | TAKE | ✅ (S5) |
+| Shortcut gaps (Esc) | TAKE | ✅ (S6) — not Claude palette |
+| scripts/smoke + pwa tests | TAKE | ✅ (S7) |
+| iOS viewport lock / shell scroll | TAKE | ✅ (this finalize: `use-app-viewport-lock`) |
+| Claude CommandPalette / ShortcutsDialog | SKIP | Ours richer |
+| Claude `templates.ts` | SKIP | seed + routes (C★) |
+| Claude versions SQL `…090000…` | SKIP | Keep Grok `20260720120000_*` |
+| Claude Canvas mass rewrite | SKIP | Monaco + MR-40 ours |
+| Light mode `src/lib/theme.ts` + styles + Header | **NEXT** | Not ported yet |
+| theme.test.ts (CodeRabbit) | NEXT | With light mode |
+| group-threads tests path | OK | We have group-threads usage |
+| Mass ai-elements prettier | SKIP | Noise |
 
 ---
 
-## Human
+## What NOT to pull from GitHub Claude/main
 
-1. Push `developeredit` (incl. C★ + this port) with write credentials.  
-2. On PR #3: “Do not merge — cherry-picking into developeredit.”  
-3. Apply Grok SQL migration for versions restore.  
+1. **Full merge** — ~13 conflict files, Canvas/chat critical (`docs/merge-sim-report.md`).  
+2. **Second CommandPalette / ShortcutsDialog** wholesale.  
+3. **Second artifact_versions migration**.  
+4. **Claude agent/tools** if any differ — OmniOps Mistral path wins.
+
+---
+
+## Optional next port (only if product wants light mode)
+
+```text
+1. git show origin/claude/app-quality-overhaul-y6cv3u:src/lib/theme.ts → src/lib/theme.ts
+2. Hand-merge styles.css light tokens (do not wipe dark tokens)
+3. Header theme toggle only (no Claude Header rewrite)
+4. THEME_BOOTSTRAP_SCRIPT in __root.tsx head
+5. Port theme tests; bun test && tsc
+```
+
+Est. 2–4 h · one focused PR on `developeredit`.
+
+---
+
+## Human residual (not Claude)
+
+| # | Action |
+|---|--------|
+| 1 | ✅ push developeredit (ongoing) |
+| 2 | SQL `20260720120000` for versions restore |
+| 3 | Manual smoke checklist |
+| 4 | Lovable Publish for prod polyfill / OAuth LAN |
+
+---
+
+## Closed
+
+Claude **quality-overhaul cherry-pick program (S1–S7 + viewport lock)** = **done**.  
+Remaining Claude GitHub value = **light mode package only** (+ its tests).

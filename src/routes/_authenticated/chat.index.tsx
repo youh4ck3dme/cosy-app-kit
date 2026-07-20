@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Loader2 } from "lucide-react";
 import { listThreads, createThread } from "@/lib/threads.functions";
 import { ThreadList } from "@/components/app-shell/ThreadList";
+import { useAppViewportLock } from "@/hooks/use-app-viewport-lock";
 
 export const Route = createFileRoute("/_authenticated/chat/")({
   component: ChatIndex,
@@ -29,6 +30,7 @@ function ChatIndex() {
   const list = useServerFn(listThreads);
   const create = useServerFn(createThread);
   const { data, isLoading } = useQuery({ queryKey: ["threads"], queryFn: () => list() });
+  useAppViewportLock(true);
 
   useEffect(() => {
     if (isLoading) return;
@@ -44,8 +46,8 @@ function ChatIndex() {
   }, [data, isLoading, navigate, create, qc]);
 
   return (
-    <div className="flex h-full">
-      <aside className="hidden w-64 shrink-0 border-r border-border md:block">
+    <div className="fixed inset-0 flex h-dvh max-h-dvh overflow-hidden">
+      <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-border md:block">
         <ThreadList />
       </aside>
       <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">

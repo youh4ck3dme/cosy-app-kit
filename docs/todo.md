@@ -1,8 +1,8 @@
 # Builder roadmap hub (OmniOps · Mistral)
 
-> **Status 2026-07-20:** Product line = **`developeredit` only.**  
-> **Grok G0–G2** + **Cursor C★** + **Claude cherry-pick S1–S7 ✅** (S8 = human).  
-> Boards: [`groktodo.md`](./groktodo.md) · [`cursortodo.md`](./cursortodo.md) · [`claudetodo.md`](./claudetodo.md)
+> **Status 2026-07-20 (finalized):** Product line = **`developeredit` only** · pushed.  
+> **Grok G0–G2** + **Cursor C★** + **Claude S1–S7 + viewport-lock** + **MR-40** + storage polyfill.  
+> Boards: [`groktodo.md`](./groktodo.md) · [`cursortodo.md`](./cursortodo.md) · [`claudetodo.md`](./claudetodo.md) · Claude inventory [`claude-pr3-port.md`](./claude-pr3-port.md)
 
 ---
 
@@ -10,9 +10,9 @@
 
 | Track | Board | Focus now |
 |-------|-------|-----------|
-| **Grok** | [`groktodo.md`](./groktodo.md) | BPI after smoke; agent P2 only if needed |
-| **Cursor** | [`cursortodo.md`](./cursortodo.md) | **C★ done** + Claude S4/S6 committed |
-| **Claude port** | [`claudetodo.md`](./claudetodo.md) | **S1–S7 ✅** · **S8** human push/SQL/smoke |
+| **Grok** | [`groktodo.md`](./groktodo.md) | Idle / BPI after human smoke; optional light-mode port help |
+| **Cursor** | [`cursortodo.md`](./cursortodo.md) | **C★ closed** — bugfix only |
+| **Claude port** | [`claudetodo.md`](./claudetodo.md) | **Program closed** · optional **S10 light mode** · human SQL/smoke |
 
 **Do not** full-merge Claude remote branches into `developeredit`.  
 **Inventory:** [`claude-pr3-port.md`](./claude-pr3-port.md) · **Sim:** [`merge-sim-report.md`](./merge-sim-report.md) (~30% full merge / ~85% cherry-pick)
@@ -42,7 +42,11 @@
 | Optimistic threads (Claude S3) | ✅ |
 | Stick-to-bottom + Esc gaps (S4/S6) | ✅ |
 | Canvas token + smoke (S5/S7) | ✅ |
-| Vitest | 57 |
+| MR-40 mobile frame + gate + polish | ✅ |
+| Sandbox localStorage polyfill | ✅ |
+| LAN OAuth bridge | ✅ |
+| iOS viewport lock (chat shell) | ✅ |
+| Vitest | 87+ |
 
 ---
 
@@ -50,10 +54,12 @@
 
 | # | Akcia | Kedy |
 |---|--------|------|
-| 1 | `git push origin developeredit` | Hneď (agent push často 403) |
+| 1 | `git push origin developeredit` | ✅ done (keep pushing after commits) |
 | 2 | SQL `20260720120000` | Pred restore versions |
 | 3 | Smoke checklist | Pred demom |
-| 4 | BPI samples | Keď chceš skóre v progress.md |
+| 4 | Lovable Publish | Aby prod mal polyfill / LAN OAuth |
+| 5 | BPI samples | Keď chceš skóre v progress.md |
+| 6 | Optional: Claude **light mode** | Pozri `claude-pr3-port.md` S10 |
 
 ---
 
@@ -71,6 +77,6 @@
 
 | Who | First task |
 |-----|------------|
-| **Human** | Push + SQL + smoke |
-| **Grok** | Optional BPI live suite after smoke |
+| **Human** | SQL + smoke + Publish |
+| **Grok** | Optional BPI / light mode if ordered |
 | **Cursor** | Idle unless UI bugfix |
