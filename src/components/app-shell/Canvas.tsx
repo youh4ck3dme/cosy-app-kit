@@ -45,6 +45,7 @@ import {
   type PreviewMode,
 } from "@/lib/preview-frame";
 import { analyzeResponsiveHtml, type ResponsiveReport } from "@/lib/agent/responsive-gate";
+import { injectScriptIntoHtmlHead } from "@/lib/preview-storage-polyfill";
 
 export type ArtifactFile = { path: string; language: string; content: string };
 export type Artifact = {
@@ -142,15 +143,8 @@ function previewBridge(token: string): string {
 }
 
 function injectBridge(html: string, token: string): string {
-  const bridge = previewBridge(token);
   // Polyfill MUST run before artifact scripts (localStorage in init).
-  if (/<head[^>]*>/i.test(html)) {
-    return html.replace(/<head[^>]*>/i, (open) => `${open}\n${bridge}`);
-  }
-  if (/<html[^>]*>/i.test(html)) {
-    return html.replace(/<html[^>]*>/i, (open) => `${open}\n${bridge}`);
-  }
-  return `${bridge}\n${html}`;
+  return injectScriptIntoHtmlHead(html, previewBridge(token));
 }
 
 function fileList(a: Artifact): ArtifactFile[] {
