@@ -32,10 +32,7 @@ import { MonacoEditor } from "@/components/canvas/MonacoEditor";
 import { MonacoDiff } from "@/components/canvas/MonacoDiff";
 import { NetworkPanel, type NetworkEntry } from "@/components/canvas/NetworkPanel";
 import { VersionTimeline } from "@/components/canvas/VersionTimeline";
-import {
-  latestSnippetForFile,
-  type EditFileSnippet,
-} from "@/lib/edit-snippets";
+import { latestSnippetForFile, type EditFileSnippet } from "@/lib/edit-snippets";
 import {
   computeFrame,
   defaultPreviewModeForHost,
@@ -82,7 +79,8 @@ function isHtmlPath(path: string): boolean {
 
 function fileList(a: Artifact): ArtifactFile[] {
   if (a.files && a.files.length > 0) return a.files;
-  const path = a.kind === "html" ? "index.html" : a.kind === "markdown" ? "README.md" : "artifact.txt";
+  const path =
+    a.kind === "html" ? "index.html" : a.kind === "markdown" ? "README.md" : "artifact.txt";
   return [{ path, language: a.kind, content: a.content }];
 }
 
@@ -205,10 +203,7 @@ export function Canvas({
   const files = rawFiles.map((f) => ({ ...f, content: edits[f.path] ?? f.content }));
   const isDirty = Object.keys(edits).length > 0;
   const filePathsKey = rawFiles.map((f) => f.path).join("\0");
-  const filePaths = useMemo(
-    () => (filePathsKey ? filePathsKey.split("\0") : []),
-    [filePathsKey],
-  );
+  const filePaths = useMemo(() => (filePathsKey ? filePathsKey.split("\0") : []), [filePathsKey]);
   const entryPath =
     (artifact?.entry_path && files.some((f) => f.path === artifact.entry_path)
       ? artifact.entry_path
@@ -235,7 +230,9 @@ export function Canvas({
     if (diffMode === "model" && !modelSnippet) setDiffMode("local");
   }, [diffMode, modelSnippet]);
 
-  const iframeBaseHeight = fullscreen ? Math.max(480, (typeof window !== "undefined" ? window.innerHeight : 800) - 160) : 720;
+  const iframeBaseHeight = fullscreen
+    ? Math.max(480, (typeof window !== "undefined" ? window.innerHeight : 800) - 160)
+    : 720;
 
   const frame = useMemo(
     () =>
@@ -257,7 +254,8 @@ export function Canvas({
       return injectBridge(entry.content, bridgeTokenRef.current);
     }
     return null;
-  }, [artifact, files, key, resolvedPreviewPath]);
+    // iframe remount uses React key={key}; content deps only (not key)
+  }, [artifact, files, resolvedPreviewPath]);
 
   const entryHtml = useMemo(() => {
     if (!artifact || !resolvedPreviewPath) return null;
@@ -326,7 +324,9 @@ export function Canvas({
     }
     try {
       const nextFiles = rawFiles.map((f) =>
-        f.path === currentFile.path ? originalCurrent : { ...f, content: nextEdits[f.path] ?? f.content },
+        f.path === currentFile.path
+          ? originalCurrent
+          : { ...f, content: nextEdits[f.path] ?? f.content },
       );
       await saveFiles({
         data: {
@@ -410,9 +410,7 @@ export function Canvas({
           );
         } else if (d.phase === "end") {
           setNetwork((prev) =>
-            prev.map((row) =>
-              row.id === d.id ? { ...row, status: d.status, ms: d.ms } : row,
-            ),
+            prev.map((row) => (row.id === d.id ? { ...row, status: d.status, ms: d.ms } : row)),
           );
         }
       }
@@ -508,7 +506,10 @@ export function Canvas({
         fullscreen && "fixed inset-0 z-50 bg-background",
       )}
     >
-      <div aria-hidden className="pointer-events-none absolute inset-0 bg-grid-pattern bg-grid-fade opacity-70" />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-grid-pattern bg-grid-fade opacity-70"
+      />
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-mesh-glow opacity-40" />
 
       <div className="relative z-10 flex flex-none items-center justify-between gap-2 border-b border-border-subtle glass px-3 py-2">
@@ -708,7 +709,11 @@ export function Canvas({
                 title={artifact.is_public ? "Public — click to unshare" : "Share publicly"}
                 aria-label={artifact.is_public ? "Disable public share" : "Share publicly"}
               >
-                {artifact.is_public ? <Check className="h-3.5 w-3.5" /> : <Share2 className="h-3.5 w-3.5" />}
+                {artifact.is_public ? (
+                  <Check className="h-3.5 w-3.5" />
+                ) : (
+                  <Share2 className="h-3.5 w-3.5" />
+                )}
                 <span className="hidden sm:inline">{artifact.is_public ? "Shared" : "Share"}</span>
               </button>
             </>
@@ -880,9 +885,7 @@ export function Canvas({
                         )}
                         title={
                           responsiveReport.hints[0] ??
-                          (responsiveReport.ok
-                            ? "Responsive gate OK"
-                            : "Responsive gate warnings")
+                          (responsiveReport.ok ? "Responsive gate OK" : "Responsive gate warnings")
                         }
                       >
                         m{responsiveReport.score}
@@ -1121,9 +1124,7 @@ export function Canvas({
           </div>
         )}
 
-        {showNetwork && (
-          <NetworkPanel entries={network} onClear={() => setNetwork([])} />
-        )}
+        {showNetwork && <NetworkPanel entries={network} onClear={() => setNetwork([])} />}
       </div>
     </div>
   );
@@ -1145,8 +1146,8 @@ function EmptyCanvas() {
         anything.
       </h1>
       <p className="mx-auto mt-6 max-w-md text-sm text-muted-foreground">
-        Describe what you want on the left. Watch it render here — Monaco edit, live preview,
-        console + network.
+        Describe what you want in Chat. Watch it render here — live preview, Monaco edit, console +
+        network. On mobile, switch with Chat | Preview in the header.
       </p>
       <div className="mt-8 grid w-full max-w-md grid-cols-3 gap-2 text-left">
         {[
