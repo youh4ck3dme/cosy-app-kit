@@ -61,6 +61,49 @@ type View = "preview" | "code" | "diff";
 type ConsoleEntry = { level: "log" | "warn" | "error"; args: string[]; ts: number };
 type ConsoleFilter = "all" | "log" | "warn" | "error";
 
+/** Build a chat prompt from live preview console errors (magic wand). */
+export function buildConsoleFixPrompt(
+  logs: ConsoleEntry[],
+  opts?: { fileHint?: string | null; networkFails?: string[] },
+): string {
+  const errors = logs.filter((l) => l.level === "error").slice(-12);
+  const warns = logs.filter((l) => l.level === "warn").slice(-6);
+  const lines: string[] = [
+    "Build mode. Fix the current canvas artifact (prefer edit_file on the open HTML file).",
+    "Preview console reported runtime issues — keep brand and layout, only fix the bugs.",
+    "",
+  ];
+  if (opts?.fileHint) {
+    lines.push(`Primary file: ${opts.fileHint}`);
+    lines.push("");
+  }
+  if (errors.length) {
+    lines.push("Errors:");
+    for (const e of errors) {
+      lines.push(`- ${e.args.join(" ").slice(0, 280)}`);
+    }
+    lines.push("");
+  }
+  if (warns.length) {
+    lines.push("Warnings:");
+    for (const w of warns) {
+      lines.push(`- ${w.args.join(" ").slice(0, 200)}`);
+    }
+    lines.push("");
+  }
+  if (opts?.networkFails?.length) {
+    lines.push("Failed network requests:");
+    for (const n of opts.networkFails.slice(-8)) {
+      lines.push(`- ${n}`);
+    }
+    lines.push("");
+  }
+  lines.push(
+    "After fixes, ensure: no uncaught JS errors, mobile sidebar works, localStorage in try/catch.",
+  );
+  return lines.join("\n");
+}
+
 /**
  * Sandboxed iframe uses srcDoc (opaque origin "null") so postMessage target is "*".
  * Authenticate with a per-mount random token + event.source === iframe.contentWindow.
@@ -93,6 +136,7 @@ export function Canvas({
   threadId,
   editSnippets = [],
   onPolishMobile,
+  onFixFromConsole,
 }: {
   artifact?: Artifact;
   threadId?: string;
@@ -100,6 +144,11 @@ export function Canvas({
   editSnippets?: EditFileSnippet[];
   /** One-tap “Make mobile-first” → parent sends polish prompt (MR-40 M3). */
   onPolishMobile?: () => void;
+  /**
+   * Magic wand: parent fills composer (or auto-sends) with a fix prompt built from
+   * live preview console errors. Prefer fill-composer so user can edit before send.
+   */
+  onFixFromConsole?: (prompt: string) => void;
 }) {
   const [previewMode, setPreviewMode] = useState<PreviewMode>(() => defaultPreviewModeForHost());
   const [customWidth, setCustomWidth] = useState<number | null>(null);
@@ -391,7 +440,14 @@ export function Canvas({
         return;
       }
       if (d.__builder_console === token) {
-        setLogs((prev) => [...prev.slice(-199), { level: d.level, args: d.args, ts: Date.now() }]);
+        const level: ConsoleEntry["level"] =
+          d.level === "error" || d.level === "warn" || d.level === "log" ? d.level : "log";
+        const args = Array.isArray(d.args)
+          ? d.args.map((a: unknown) => (typeof a === "string" ? a : String(a)))
+          : [String(d.args ?? "")];
+        setLogs((prev) => [...prev.slice(-199), { level, args, ts: Date.now() }]);
+        // Surface real runtime failures immediately
+        if (level === "error") setShowConsole(true);
       }
       if (d.__builder_network === token) {
         if (d.phase === "start") {
@@ -498,6 +554,11 @@ export function Canvas({
 
   const filteredLogs =
     consoleFilter === "all" ? logs : logs.filter((l) => l.level === consoleFilter);
+  const errorCount = logs.filter((l) => l.level === "error").length;
+  const warnCount = logs.filter((l) => l.level === "warn").length;
+  const networkFails = network
+    .filter((n) => n.status === 0 || (typeof n.status === "number" && n.status >= 400))
+    .map((n) => `${n.method} ${n.url} → ${n.status ?? "?"}`);
 
   return (
     <div
@@ -651,16 +712,24 @@ export function Canvas({
                     ? "bg-surface-3 text-foreground"
                     : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
                 )}
-                title="Console"
+                title={
+                  errorCount
+                    ? `Console — ${errorCount} error(s) from preview`
+                    : "Console — live logs from sandboxed preview"
+                }
                 aria-label="Toggle console"
               >
                 <Terminal className="h-3.5 w-3.5" />
                 <span className="hidden md:inline">Console</span>
-                {logs.length > 0 && (
+                {errorCount > 0 ? (
+                  <span className="rounded-full bg-destructive/20 px-1.5 text-[10px] font-mono text-destructive tabular-nums">
+                    {errorCount}
+                  </span>
+                ) : logs.length > 0 ? (
                   <span className="rounded-full bg-accent-primary/20 px-1.5 text-[10px] font-mono text-accent-primary tabular-nums">
                     {logs.length}
                   </span>
-                )}
+                ) : null}
               </button>
               <button
                 onClick={() => {
@@ -1085,6 +1154,28 @@ export function Canvas({
                 </div>
               </div>
               <div className="flex items-center gap-1">
+                {onFixFromConsole &&
+                  (errorCount > 0 || warnCount > 0 || networkFails.length > 0) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const prompt = buildConsoleFixPrompt(logs, {
+                          fileHint: resolvedPreviewPath ?? artifact?.entry_path ?? "index.html",
+                          networkFails,
+                        });
+                        onFixFromConsole(prompt);
+                        toast.message("Fix prompt ready in chat", {
+                          description: "Review and send — Build mode preferred",
+                        });
+                      }}
+                      className="inline-flex min-h-8 items-center gap-1 rounded-md border border-accent-primary/40 bg-accent-primary/10 px-2 py-0.5 text-[11px] font-medium text-accent-primary hover:bg-accent-primary/20"
+                      title="Fill chat with a prompt to fix these console errors"
+                      aria-label="Suggest fix prompt from console errors"
+                    >
+                      <Wand2 className="h-3 w-3" aria-hidden />
+                      Fix in chat
+                    </button>
+                  )}
                 <button
                   onClick={() => setLogs([])}
                   className="rounded px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-surface-2 hover:text-foreground"
@@ -1103,7 +1194,8 @@ export function Canvas({
             <div className="min-h-0 flex-1 overflow-auto px-3 py-2 font-mono text-[11.5px] leading-relaxed">
               {filteredLogs.length === 0 && (
                 <div className="py-2 text-muted-foreground/70">
-                  No output yet — logs from the preview will appear here.
+                  Live preview console — JS errors, warns, and logs from the sandboxed iframe appear
+                  here (not mocked).
                 </div>
               )}
               {filteredLogs.map((l, i) => (

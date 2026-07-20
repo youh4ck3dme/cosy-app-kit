@@ -539,6 +539,11 @@ function ChatPage() {
                 void sendMessage({ text: MOBILE_FIRST_POLISH_PROMPT });
                 setView("preview");
               }}
+              onFixFromConsole={(prompt) => {
+                setMode("Build");
+                setView("chat");
+                fillComposer(prompt, "replace");
+              }}
             />
           )}
         </section>
