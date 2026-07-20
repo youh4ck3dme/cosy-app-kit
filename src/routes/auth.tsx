@@ -30,10 +30,10 @@ export const Route = createFileRoute("/auth")({
       typeof s.next === "string" && s.next.startsWith("/") && !s.next.startsWith("//")
         ? s.next
         : "",
-    // Local-dev OAuth staging (set by localhost when hopping to published /auth)
+    // Always present so `to: "/auth", search: { next }` typechecks; empty = unset.
     oauth_stage: s.oauth_stage === "1" || s.oauth_stage === 1 ? "1" : "",
     lr: typeof s.lr === "string" ? s.lr : "",
-    provider: typeof s.provider === "string" ? s.provider : "google",
+    provider: typeof s.provider === "string" ? s.provider : "",
   }),
   component: AuthPage,
 });
@@ -74,7 +74,7 @@ function AuthPage() {
             : "google"
         ) as "google" | "apple" | "microsoft" | "lovable";
         startPublishedOAuthAfterStage(provider, lrParam, nextPath);
-        return; // full-page navigate away
+        return;
       }
 
       // ── 2) Tokens in URL (hash/query) after OAuth broker ──

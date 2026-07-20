@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { UIMessage } from "ai";
 import {
   Check,
+  Circle,
   Copy,
   FileCode2,
   GitBranch,
+  Loader2,
   Pencil,
   Quote,
   RefreshCw,
@@ -129,6 +131,168 @@ function messageHasVisibleContent(message: UIMessage | undefined): boolean {
     if (p.type === "file") return true;
     return getNonToolErrorText(p) !== null;
   });
+}
+
+/** Soft “inner monologue” while waiting — not model tokens, honest UX scaffold. */
+const THINK_PIPELINE: { title: string; thought: string }[] = [
+  {
+    title: "Reading your brief",
+    thought: "What should this look like? Constraints, language, no-CDN, mobile-first…",
+  },
+  {
+    title: "Sketching structure",
+    thought: "Sidebar, header, KPIs, table, detail panel — what ships first?",
+  },
+  {
+    title: "Choosing interactions",
+    thought: "Filters, search, dark mode, toasts — what must actually work in JS?",
+  },
+  {
+    title: "Preparing to write",
+    thought: "One self-contained HTML file, semantic markup, accessible controls…",
+  },
+];
+
+const WRITE_PIPELINE: { title: string; thought: string }[] = [
+  {
+    title: "Writing markup & styles",
+    thought: "Building layout tokens, responsive rules, and components…",
+  },
+  {
+    title: "Wiring behaviour",
+    thought: "State, filters, panels, keyboard Esc, light/dark toggle…",
+  },
+  {
+    title: "Filling realistic data",
+    thought: "SK mock orders, technicians, SLA — no lorem ipsum…",
+  },
+  {
+    title: "Polishing for preview",
+    thought: "390px check, overflow, touch targets, then ship the artifact…",
+  },
+];
+
+function toolThought(name: string): string {
+  switch (name) {
+    case "create_artifact":
+      return "Saving a new canvas artifact from the generated HTML…";
+    case "edit_file":
+      return "Applying a surgical edit to an existing file…";
+    case "read_artifact":
+      return "Reading the current artifact so changes stay consistent…";
+    case "remember":
+      return "Storing a note in thread memory for later turns…";
+    case "plan_steps":
+      return "Structuring the plan into concrete steps…";
+    case "fetch_url":
+      return "Fetching a public URL for grounding…";
+    case "web_search":
+      return "Searching the web for references…";
+    default:
+      return `Running tool “${toolLabel(name)}”…`;
+  }
+}
+
+function ThinkingWorkPanel({
+  phase,
+  toolParts,
+}: {
+  phase: "submitted" | "streaming";
+  toolParts: ToolPart[];
+}) {
+  const pipeline = phase === "submitted" ? THINK_PIPELINE : WRITE_PIPELINE;
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    setStep(0);
+    const id = window.setInterval(() => {
+      setStep((s) => (s + 1) % pipeline.length);
+    }, 2200);
+    return () => window.clearInterval(id);
+  }, [phase, pipeline.length]);
+
+  const active = pipeline[step] ?? pipeline[0]!;
+  return (
+    <div className="mt-1.5 flex min-w-0 max-w-md flex-col gap-2">
+      <div className="flex flex-col gap-0.5">
+        <Shimmer className="text-sm">
+          {phase === "submitted" ? "Thinking…" : "Working…"}
+        </Shimmer>
+        <p className="text-[13px] leading-snug text-muted-foreground">
+          <span className="font-medium text-foreground/90">{active.title}</span>
+          <span className="text-muted-foreground/80"> — {active.thought}</span>
+        </p>
+      </div>
+
+      <ol className="mt-1 space-y-1 border-l border-border-subtle pl-3" aria-label="Work progress">
+        {pipeline.map((row, i) => {
+          const done = i < step;
+          const current = i === step;
+          return (
+            <li
+              key={row.title}
+              className={cn(
+                "flex items-start gap-2 text-[11px] leading-snug",
+                current
+                  ? "text-foreground"
+                  : done
+                    ? "text-muted-foreground/80"
+                    : "text-muted-foreground/45",
+              )}
+            >
+              {current ? (
+                <Loader2
+                  className="mt-0.5 h-3 w-3 shrink-0 animate-spin text-accent-primary"
+                  aria-hidden
+                />
+              ) : done ? (
+                <Check className="mt-0.5 h-3 w-3 shrink-0 text-accent-primary/80" aria-hidden />
+              ) : (
+                <Circle className="mt-0.5 h-3 w-3 shrink-0 opacity-40" aria-hidden />
+              )}
+              <span>{row.title}</span>
+            </li>
+          );
+        })}
+      </ol>
+
+      {toolParts.length > 0 && (
+        <div className="mt-2 rounded-lg border border-border-subtle bg-surface-1/50 px-2.5 py-2">
+          <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            Tools
+          </div>
+          <ul className="space-y-1.5">
+            {toolParts.map((tp, i) => {
+              const name = toolNameOf(tp);
+              const running =
+                tp.state === "input-streaming" ||
+                tp.state === "input-available" ||
+                tp.state === "approval-requested";
+              const ok = tp.state === "output-available" || tp.state === "approval-responded";
+              const err = tp.state === "output-error" || tp.state === "output-denied";
+              return (
+                <li key={toolKey(tp, i)} className="flex items-start gap-2 text-[11px]">
+                  {running ? (
+                    <Loader2 className="mt-0.5 h-3 w-3 shrink-0 animate-spin text-accent-primary" />
+                  ) : ok ? (
+                    <Check className="mt-0.5 h-3 w-3 shrink-0 text-emerald-500" />
+                  ) : err ? (
+                    <Circle className="mt-0.5 h-3 w-3 shrink-0 text-destructive" />
+                  ) : (
+                    <Circle className="mt-0.5 h-3 w-3 shrink-0 opacity-40" />
+                  )}
+                  <div className="min-w-0">
+                    <div className="font-medium text-foreground/90">{toolLabel(name)}</div>
+                    <div className="text-muted-foreground">{toolThought(name)}</div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function splitAroundArtifacts(text: string): string[] {
@@ -256,12 +420,10 @@ export function MessageList({
       {showWaitingRow && (
         <div className="flex items-start gap-3 animate-in-fade" role="status" aria-live="polite">
           <Logo size={26} decorative />
-          <div className="mt-1.5 flex flex-col gap-1">
-            <Shimmer className="text-sm">{isSubmitted ? "Thinking…" : "Writing…"}</Shimmer>
-            <span className="font-mono text-[10px] tracking-wider text-muted-foreground/70">
-              {isSubmitted ? "Preparing response" : "Streaming tokens"}
-            </span>
-          </div>
+          <ThinkingWorkPanel
+            phase={isSubmitted ? "submitted" : "streaming"}
+            toolParts={(lastAssistant?.parts ?? []).filter(isToolPart)}
+          />
         </div>
       )}
       {showStatusError && (
