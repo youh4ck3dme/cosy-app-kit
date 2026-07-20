@@ -22,6 +22,7 @@ test.describe("Public routes", () => {
   });
 
   test("unknown public artifact shows 404 chrome", async ({ page }) => {
+    // Cold Vite + parallel workers: /a/:id loader often 20–35s (timeout was the real fail).
     test.setTimeout(60_000);
     await page.goto(`/a/${MISSING_PUBLIC_ID}`);
     await expect(page.getByTestId("public-artifact-not-found")).toBeVisible({

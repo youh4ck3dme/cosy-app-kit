@@ -11,6 +11,7 @@ test.describe("Public share", () => {
   });
 
   test("public artifact missing id shows 404", async ({ page }) => {
+    // Cold Vite + parallel workers: allow slow first /a/:id paint.
     test.setTimeout(60_000);
     await page.goto(`/a/${MISSING_PUBLIC_ID}`);
     await expect(page.getByTestId("public-artifact-not-found")).toBeVisible({
