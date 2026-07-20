@@ -16,8 +16,26 @@ import {
 import { toast } from "sonner";
 import { Loader2, Zap } from "lucide-react";
 
+/**
+ * Shared shell for:
+ * - route pendingComponent (ssr:false Suspense / ClientOnly fallback)
+ * - OAuth bridge bootstrap
+ * Must stay identical so SSR HTML and first client paint match (no hydration mismatch).
+ */
+function AuthPendingShell({ label = "Completing sign-in…" }: { label?: string }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
+      <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+      {label}
+    </div>
+  );
+}
+
 export const Route = createFileRoute("/auth")({
   ssr: false,
+  // Critical: Match wraps ssr:false in Suspense + ClientOnly; without this the
+  // server fallback is null while the client paints AuthPage → hydration error.
+  pendingComponent: AuthPendingShell,
   head: () => ({
     meta: [
       { title: "Sign in — Builder" },
@@ -46,7 +64,10 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  // true until client OAuth/session bootstrap finishes — same UI as pendingComponent
   const [bridging, setBridging] = useState(true);
+  // Avoid isLocalHost() (window) on any pre-effect paint of the form copy.
+  const [localHint, setLocalHint] = useState(false);
 
   const goTo = (path: string) => {
     if (path.startsWith("http")) {
@@ -63,6 +84,7 @@ function AuthPage() {
   // OAuth: stage from local → published OAuth → bounce tokens back to local.
   useEffect(() => {
     let cancelled = false;
+    setLocalHint(isLocalHost());
 
     (async () => {
       // ── 1) Published: local hopped here to STAGE return URL, then start Google ──
@@ -209,12 +231,7 @@ function AuthPage() {
   };
 
   if (bridging) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        Completing sign-in…
-      </div>
-    );
+    return <AuthPendingShell />;
   }
 
   return (
@@ -234,7 +251,7 @@ function AuthPage() {
           </h1>
           <p className="mb-6 text-sm text-muted-foreground">
             {mode === "signin"
-              ? isLocalHost()
+              ? localHint
                 ? "Google: short hop via published app, then returns here. Or use email."
                 : "Continue where you left off."
               : "Start building with your own AI agent."}
