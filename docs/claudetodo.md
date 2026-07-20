@@ -26,12 +26,12 @@
 |----|-------|--------|-------|
 | **S1** | PWA (manifest, sw, offline, icons, register-sw) | ✅ | Grok |
 | **S2** | haptics + motion libs; haptic on send | ✅ | Grok |
-| **S3** | optimistic thread create/delete + AlertDialog | ✅ / this session | Grok |
-| **S4** | MessageList stick-to-bottom / Latest pill | ✅ | Cursor |
-| **S5** | Canvas postMessage token (console bridge) | ☐ | Grok careful |
-| **S6** | Shortcut **gaps only** (not full Claude palette) | ✅ | Cursor |
-| **S7** | `scripts/smoke.ts` + selected `__tests__` | ☐ | Grok |
-| **S8** | Close loop: push developeredit, freeze extra Claude PRs | ☐ | Human |
+| **S3** | optimistic thread create/delete + AlertDialog | ✅ | Grok |
+| **S4** | MessageList stick-to-bottom / Latest pill | ✅ | Cursor (local WIP may exist) |
+| **S5** | Canvas postMessage token (console + network) | ✅ | Grok |
+| **S6** | Shortcut **gaps only** (not full Claude palette) | ✅ | Cursor (local WIP may exist) |
+| **S7** | `scripts/smoke.ts` + pwa/haptics vitest | ✅ | Grok |
+| **S8** | Push + SQL + smoke | ☐ **TY** → [`HUMAN_NOW.md`](./HUMAN_NOW.md) |
 
 ---
 
