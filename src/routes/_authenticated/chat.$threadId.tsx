@@ -5,6 +5,8 @@ import { DefaultChatTransport, type UIMessage } from "ai";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { ArrowDown } from "lucide-react";
+import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 
 import {
   createThread,
@@ -139,7 +141,6 @@ function ChatPage() {
   useEffect(() => {
     modeRef.current = mode;
   }, [mode]);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const transport = useMemo(
     () =>
@@ -245,10 +246,6 @@ function ChatPage() {
       id: `chat-err-${threadId}`,
     });
   }, [status, chatError, messages, threadId]);
-
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, status]);
 
   const artifacts = useMemo(
     () => (data?.artifacts ?? []) as Artifact[],
@@ -368,6 +365,21 @@ function ChatPage() {
     },
     { allowInInput: false },
   );
+  useHotkey(
+    "escape",
+    (e) => {
+      if (shortcutsOpen) {
+        e.preventDefault();
+        setShortcutsOpen(false);
+        return;
+      }
+      if (paletteOpen) {
+        e.preventDefault();
+        setPaletteOpen(false);
+      }
+    },
+    { allowInInput: true },
+  );
 
   if (isError) {
     throw error instanceof Error ? error : new Error("Failed to load thread");
@@ -415,31 +427,39 @@ function ChatPage() {
             view === "chat" ? "flex" : "hidden md:flex",
           )}
         >
-          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 sm:px-6">
-            {isLoading ? (
-              <div className="space-y-4 pt-8">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <Skeleton key={i} className={cn("h-16 rounded-xl", i % 2 ? "ml-8" : "mr-8")} />
-                ))}
-              </div>
-            ) : (
-              <MessageList
-                messages={messages}
-                status={status}
-                onRegenerate={() => regenerate()}
-                onRetryFrom={onRetryFrom}
-                onEditUserMessage={onEditUserMessage}
-                errorBanner={chatError?.message}
-                onPickPrompt={(p) => fillComposer(p, "replace")}
-                onFillComposer={(p) => fillComposer(p, "replace")}
-                onQuote={(text) => fillComposer(text, "quote")}
-                onFocusCanvas={() => {
-                  setView("preview");
-                  if (artifacts[0]) setActiveArtifactId(artifacts[0].id);
-                }}
-              />
-            )}
-          </div>
+          {/* StickToBottom scrolls internally; root is positioning context for Latest pill. */}
+          <StickToBottom
+            className="relative min-h-0 flex-1"
+            resize="smooth"
+            initial="instant"
+          >
+            <StickToBottom.Content className="px-4 sm:px-6">
+              {isLoading ? (
+                <div className="space-y-4 pt-8">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className={cn("h-16 rounded-xl", i % 2 ? "ml-8" : "mr-8")} />
+                  ))}
+                </div>
+              ) : (
+                <MessageList
+                  messages={messages}
+                  status={status}
+                  onRegenerate={() => regenerate()}
+                  onRetryFrom={onRetryFrom}
+                  onEditUserMessage={onEditUserMessage}
+                  errorBanner={chatError?.message}
+                  onPickPrompt={(p) => fillComposer(p, "replace")}
+                  onFillComposer={(p) => fillComposer(p, "replace")}
+                  onQuote={(text) => fillComposer(text, "quote")}
+                  onFocusCanvas={() => {
+                    setView("preview");
+                    if (artifacts[0]) setActiveArtifactId(artifacts[0].id);
+                  }}
+                />
+              )}
+            </StickToBottom.Content>
+            <JumpToLatest />
+          </StickToBottom>
           <div className="flex-none p-3 sm:p-4">
             <Composer
               onSend={({ text, attachments }) => sendText(text, attachments)}
@@ -518,6 +538,22 @@ function ChatPage() {
       <ShortcutsHelp open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <Tour enabled={!isLoading} />
     </div>
+  );
+}
+
+function JumpToLatest() {
+  const { isAtBottom, scrollToBottom } = useStickToBottomContext();
+  if (isAtBottom) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => scrollToBottom()}
+      className="absolute bottom-3 left-1/2 z-20 inline-flex min-h-9 -translate-x-1/2 items-center gap-1.5 rounded-full border border-border-subtle bg-panel/95 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-elevated backdrop-blur hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      aria-label="Jump to latest messages"
+    >
+      <ArrowDown className="h-3.5 w-3.5" aria-hidden />
+      Latest
+    </button>
   );
 }
 

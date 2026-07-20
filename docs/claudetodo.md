@@ -5,7 +5,7 @@
 > **Claude source:** `origin/claude/app-quality-overhaul-y6cv3u` (already on remote history — we **port slices**, we do not re-merge whole PR).  
 > **Sister boards:** [`todo.md`](./todo.md) · [`groktodo.md`](./groktodo.md) · [`cursortodo.md`](./cursortodo.md)  
 > **Inventory:** [`claude-pr3-port.md`](./claude-pr3-port.md) · **Merge sim:** [`merge-sim-report.md`](./merge-sim-report.md)  
-> **Last sync:** 2026-07-20 — S1–S4 + S6 done; S5/S7 remain
+> **Last sync:** 2026-07-20 — S1–S7 ✅ on developeredit; S8 = human push/SQL/smoke
 
 ---
 
@@ -27,9 +27,9 @@
 | **S1** | PWA (manifest, sw, offline, icons, register-sw) | ✅ | Grok |
 | **S2** | haptics + motion libs; haptic on send | ✅ | Grok |
 | **S3** | optimistic thread create/delete + AlertDialog | ✅ | Grok |
-| **S4** | MessageList stick-to-bottom / Latest pill | ✅ | Cursor (local WIP may exist) |
+| **S4** | MessageList stick-to-bottom / Latest pill | ✅ | Cursor |
 | **S5** | Canvas postMessage token (console + network) | ✅ | Grok |
-| **S6** | Shortcut **gaps only** (not full Claude palette) | ✅ | Cursor (local WIP may exist) |
+| **S6** | Shortcut **gaps only** (not full Claude palette) | ✅ | Cursor |
 | **S7** | `scripts/smoke.ts` + pwa/haptics vitest | ✅ | Grok |
 | **S8** | Push + SQL + smoke | ☐ **TY** → [`HUMAN_NOW.md`](./HUMAN_NOW.md) |
 
@@ -91,6 +91,6 @@ Full checklist: **[`docs/HUMAN_NOW.md`](./HUMAN_NOW.md)**
 - [x] Optimistic threads  
 - [x] S4 stick-to-bottom / Latest pill  
 - [x] S6 Esc closes shortcuts/palette (via use-hotkeys)  
-- [ ] S5, S7 as needed  
-- [ ] developeredit pushed + CI green  
+- [x] S5 canvas token + S7 smoke/vitest  
+- [ ] developeredit pushed + CI green (S8 / HUMAN_NOW)  
 - [ ] No full Claude branch merge  

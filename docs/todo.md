@@ -1,7 +1,7 @@
 # Builder roadmap hub (OmniOps · Mistral)
 
 > **Status 2026-07-20:** Product line = **`developeredit` only.**  
-> **Grok G0–G2** + **Cursor C★** + **Claude cherry-pick S1–S3** (in progress).  
+> **Grok G0–G2** + **Cursor C★** + **Claude cherry-pick S1–S7 ✅** (S8 = human).  
 > Boards: [`groktodo.md`](./groktodo.md) · [`cursortodo.md`](./cursortodo.md) · [`claudetodo.md`](./claudetodo.md)
 
 ---
@@ -10,9 +10,9 @@
 
 | Track | Board | Focus now |
 |-------|-------|-----------|
-| **Grok** | [`groktodo.md`](./groktodo.md) | Agent health, BPI after smoke, S5/S7 ports |
-| **Cursor** | [`cursortodo.md`](./cursortodo.md) | **C★ done** — optional S4/S6 polish |
-| **Claude port** | [`claudetodo.md`](./claudetodo.md) | Cherry-pick only — **S1–S3 ✅**; S4–S7 open |
+| **Grok** | [`groktodo.md`](./groktodo.md) | BPI after smoke; agent P2 only if needed |
+| **Cursor** | [`cursortodo.md`](./cursortodo.md) | **C★ done** + Claude S4/S6 committed |
+| **Claude port** | [`claudetodo.md`](./claudetodo.md) | **S1–S7 ✅** · **S8** human push/SQL/smoke |
 
 **Do not** full-merge Claude remote branches into `developeredit`.  
 **Inventory:** [`claude-pr3-port.md`](./claude-pr3-port.md) · **Sim:** [`merge-sim-report.md`](./merge-sim-report.md) (~30% full merge / ~85% cherry-pick)
@@ -39,8 +39,10 @@
 | artifact_versions code + list/restore | ✅ (SQL apply human) |
 | Cursor A–Z C★ (Monaco, templates, embed, e2e local) | ✅ |
 | PWA + haptics (Claude S1–S2) | ✅ |
-| Optimistic threads (Claude S3) | ✅ this session |
-| Vitest | 54+ |
+| Optimistic threads (Claude S3) | ✅ |
+| Stick-to-bottom + Esc gaps (S4/S6) | ✅ |
+| Canvas token + smoke (S5/S7) | ✅ |
+| Vitest | 57 |
 
 ---
 
@@ -70,5 +72,5 @@
 | Who | First task |
 |-----|------------|
 | **Human** | Push + SQL + smoke |
-| **Grok** | S5 canvas token / S7 smoke tests / BPI |
-| **Cursor** | S4 scroll or S6 shortcut gaps only |
+| **Grok** | Optional BPI live suite after smoke |
+| **Cursor** | Idle unless UI bugfix |

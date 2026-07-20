@@ -11,7 +11,7 @@ function isEditableTarget(t: EventTarget | null): boolean {
 
 /**
  * Register a global hotkey. Use `allowInInput` when the shortcut should fire
- * even while typing (e.g. Cmd+Enter to send).
+ * even while typing (e.g. Esc to dismiss overlays, Cmd+Enter to send).
  */
 export function useHotkey(
   combo: string,
@@ -27,7 +27,7 @@ export function useHotkey(
       if (!allowInInput && isEditableTarget(e.target)) return;
 
       const parts = combo.toLowerCase().split("+");
-      const key = parts[parts.length - 1];
+      const key = parts[parts.length - 1]!;
       const needMeta = parts.includes("meta") || parts.includes("cmd") || parts.includes("mod");
       const needCtrl = parts.includes("ctrl");
       const needShift = parts.includes("shift");
@@ -39,13 +39,17 @@ export function useHotkey(
       if (needShift && !e.shiftKey) return;
       if (needAlt && !e.altKey) return;
       // When combo asks for mod, don't require BOTH meta and ctrl.
-      if (!needMeta && !needCtrl && (e.metaKey || e.ctrlKey)) return;
+      if (!needMeta && !needCtrl && (e.metaKey || e.ctrlKey) && key !== "escape") return;
 
-      const pressed = e.key.length === 1 ? e.key.toLowerCase() : e.key.toLowerCase();
-      if (pressed !== key && e.code.toLowerCase() !== `key${key}`) {
-        // Allow "/" and "?" etc.
-        if (pressed !== key) return;
-      }
+      const pressed = e.key.toLowerCase();
+      const codeMatch =
+        e.code.toLowerCase() === `key${key}` ||
+        e.code.toLowerCase() === key ||
+        (key === "escape" && e.code === "Escape") ||
+        (key === "/" && (e.code === "Slash" || pressed === "/")) ||
+        (key === "?" && (pressed === "?" || (e.shiftKey && e.code === "Slash")));
+
+      if (pressed !== key && !codeMatch) return;
 
       handler(e);
     },
