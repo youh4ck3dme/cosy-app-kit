@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyRewrite,
   applySearchReplace,
+  MAX_FILE_BYTES,
   sanitizeRelativePath,
 } from "@/lib/agent/patch";
 import { assertSafeUrl, htmlToText } from "@/lib/agent/web";
@@ -57,6 +59,24 @@ describe("applySearchReplace", () => {
   });
   it("missing search fails", () => {
     expect(applySearchReplace({ content: "x", search: "nope" }).ok).toBe(false);
+  });
+  it("empty search fails", () => {
+    const r = applySearchReplace({ content: "x", search: "" });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/search is required/i);
+  });
+});
+
+describe("applyRewrite", () => {
+  it("rejects content over MAX_FILE_BYTES", () => {
+    const r = applyRewrite("x".repeat(MAX_FILE_BYTES + 1));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/exceeds/);
+  });
+  it("accepts small rewrite", () => {
+    const r = applyRewrite("hello");
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.content).toBe("hello");
   });
 });
 
