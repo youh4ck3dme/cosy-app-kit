@@ -207,8 +207,7 @@ function ChatPage() {
       const p = part as { type?: string; data?: Record<string, unknown> };
       if (!p?.type || !p.data) return;
       if (p.type === "data-artifact-created") {
-        const artifactId =
-          typeof p.data.artifactId === "string" ? p.data.artifactId : null;
+        const artifactId = typeof p.data.artifactId === "string" ? p.data.artifactId : null;
         const title = typeof p.data.title === "string" ? p.data.title : "Artifact";
         if (artifactId) setActiveArtifactId(artifactId);
         // Mobile swaps chat ↔ canvas via `view`; desktop keeps both panes.
@@ -270,10 +269,7 @@ function ChatPage() {
     });
   }, [status, chatError, messages, threadId]);
 
-  const artifacts = useMemo(
-    () => (data?.artifacts ?? []) as Artifact[],
-    [data?.artifacts],
-  );
+  const artifacts = useMemo(() => (data?.artifacts ?? []) as Artifact[], [data?.artifacts]);
   useEffect(() => {
     if (!activeArtifactId && artifacts.length > 0) setActiveArtifactId(artifacts[0].id);
   }, [artifacts, activeArtifactId]);
@@ -483,7 +479,7 @@ function ChatPage() {
             </StickToBottom.Content>
             <JumpToLatest />
           </StickToBottom>
-          <div className="flex-none overscroll-none border-t border-border-subtle bg-background/95 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md sm:px-4 supports-[backdrop-filter]:bg-background/85">
+          <div className="flex-none overscroll-none border-t border-border-subtle bg-background/95 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md sm:px-4 supports-backdrop-filter:bg-background/85">
             <Composer
               onSend={({ text, attachments }) => sendText(text, attachments)}
               disabled={streaming}
@@ -562,11 +558,7 @@ function ChatPage() {
         onPickStarter={(prompt) => sendText(prompt)}
         onShowShortcuts={() => setShortcutsOpen(true)}
         activeArtifact={activeArtifact}
-        onExportArtifact={
-          activeArtifact
-            ? () => exportArtifactDownload(activeArtifact)
-            : undefined
-        }
+        onExportArtifact={activeArtifact ? () => exportArtifactDownload(activeArtifact) : undefined}
       />
       <ShortcutsHelp open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <Tour enabled={!isLoading} />

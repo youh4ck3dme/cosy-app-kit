@@ -7,6 +7,23 @@ import { supabase } from "../supabase/client";
 
 export const PUBLISHED_ORIGIN = "https://cosy-app-kit.lovable.app";
 
+/** Default /auth search bag — keep in sync with auth.tsx validateSearch. */
+export const AUTH_SEARCH_DEFAULTS = {
+  next: "",
+  oauth_stage: "",
+  lr: "",
+  provider: "",
+} as const;
+
+export function authSearch(next = ""): {
+  next: string;
+  oauth_stage: string;
+  lr: string;
+  provider: string;
+} {
+  return { ...AUTH_SEARCH_DEFAULTS, next };
+}
+
 /** sessionStorage keys on the published domain (survive OAuth round-trip). */
 export const OAUTH_SS_LR = "builder_oauth_lr";
 export const OAUTH_SS_NEXT = "builder_oauth_next";

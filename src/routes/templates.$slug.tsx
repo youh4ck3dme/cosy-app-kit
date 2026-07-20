@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { createThread } from "@/lib/threads.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { authSearch } from "@/integrations/lovable";
 import {
   getTemplateBySlug,
   TEMPLATE_PROMPT_STORAGE_KEY,
@@ -39,7 +40,7 @@ function TemplateDetailPage() {
       const { data } = await supabase.auth.getSession();
       if (!data.session) {
         sessionStorage.setItem(TEMPLATE_PROMPT_STORAGE_KEY, t.prompt);
-        navigate({ to: "/auth", search: { next: "/chat" } });
+        navigate({ to: "/auth", search: authSearch("/chat") });
         return;
       }
       const { id } = await create({ data: {} });

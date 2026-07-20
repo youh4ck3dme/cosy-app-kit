@@ -1,10 +1,13 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Monitor, Smartphone, Tablet, ExternalLink } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
+import { buildPreviewBridgeScript } from "@/lib/preview-bridge";
+import { resolvePreviewNavTarget } from "@/lib/preview-nav";
+import { injectScriptIntoHtmlHead } from "@/lib/preview-storage-polyfill";
 
 const getPublicArtifact = createServerFn({ method: "GET" })
   .validator((input: unknown) => z.object({ id: z.uuid() }).parse(input))
@@ -91,6 +94,14 @@ function PublicArtifactPage() {
     if (window.innerWidth < 1024) return "tablet";
     return "desktop";
   });
+  const [previewPath, setPreviewPath] = useState<string | null>(null);
+  const [frameKey, setFrameKey] = useState(0);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const bridgeTokenRef = useRef(
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `tok-${Date.now()}`,
+  );
 
   const files = useMemo(() => {
     if (!artifact) return [];
@@ -98,19 +109,52 @@ function PublicArtifactPage() {
     return [{ path: "index.html", language: artifact.kind, content: artifact.content }];
   }, [artifact]);
 
+  const filePaths = useMemo(() => files.map((f) => f.path), [files]);
+
+  const entryPath =
+    (artifact?.entry_path && files.some((f) => f.path === artifact.entry_path)
+      ? artifact.entry_path
+      : null) ??
+    files.find((f) => /\.html?$/i.test(f.path))?.path ??
+    files[0]?.path ??
+    null;
+
+  const resolvedPreviewPath =
+    (previewPath && files.some((f) => f.path === previewPath) ? previewPath : null) ?? entryPath;
+
   const entry = useMemo(() => {
-    if (!artifact || !files.length) return null;
-    return files.find((f: { path: string }) => f.path === artifact.entry_path) ?? files[0];
-  }, [artifact, files]);
+    if (!resolvedPreviewPath) return null;
+    return files.find((f) => f.path === resolvedPreviewPath) ?? null;
+  }, [files, resolvedPreviewPath]);
 
   const isHtml = Boolean(
     artifact && entry && (artifact.kind === "html" || /\.html?$/i.test(entry.path)),
   );
 
-  const srcDoc = useMemo(
-    () => (isHtml && entry ? entry.content : null),
-    [entry, isHtml],
-  );
+  const srcDoc = useMemo(() => {
+    if (!isHtml || !entry) return null;
+    return injectScriptIntoHtmlHead(entry.content, buildPreviewBridgeScript(bridgeTokenRef.current));
+  }, [entry, isHtml, frameKey]);
+
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => {
+      if (iframeRef.current && e.source !== iframeRef.current.contentWindow) return;
+      const d = e.data;
+      if (!d || typeof d !== "object") return;
+      if (d.__builder_navigate !== bridgeTokenRef.current || typeof d.href !== "string") return;
+      const current = resolvedPreviewPath ?? entryPath ?? "index.html";
+      const target = resolvePreviewNavTarget(d.href, { filePaths, currentPath: current });
+      if (target.kind !== "internal") return;
+      setPreviewPath(target.path);
+      bridgeTokenRef.current =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `tok-${Date.now()}`;
+      setFrameKey((k) => k + 1);
+    };
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, [entryPath, filePaths, resolvedPreviewPath]);
 
   if (!artifact || !entry) return null;
 
@@ -122,6 +166,11 @@ function PublicArtifactPage() {
           <span className="hidden rounded-full border border-border-subtle bg-surface-1/70 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground sm:inline-block">
             Public artifact
           </span>
+          {files.length > 1 && resolvedPreviewPath && (
+            <span className="hidden font-mono text-[10px] text-muted-foreground sm:inline">
+              {resolvedPreviewPath}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {isHtml && (
@@ -166,6 +215,8 @@ function PublicArtifactPage() {
             style={{ width: WIDTHS[device], maxWidth: "100%" }}
           >
             <iframe
+              key={frameKey}
+              ref={iframeRef}
               srcDoc={srcDoc}
               sandbox="allow-scripts allow-forms"
               className="block w-full border-0 bg-white"

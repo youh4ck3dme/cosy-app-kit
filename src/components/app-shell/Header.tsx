@@ -2,6 +2,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Settings, Menu, X, ChevronDown, LogOut, Rocket, Sun, Moon, Monitor } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { authSearch } from "@/integrations/lovable";
 import { AVAILABLE_MODELS, resolveKnownModelId } from "@/lib/models";
 import { useTheme, type Theme } from "@/lib/theme";
 import { AppDialog } from "./AppDialog";
@@ -58,7 +59,7 @@ export function Header({
   const signOut = async () => {
     await supabase.auth.signOut();
     toast.success("Signed out");
-    navigate({ to: "/auth", search: { next: "" } });
+    navigate({ to: "/auth", search: authSearch("") });
   };
 
   return (
