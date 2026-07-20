@@ -53,7 +53,10 @@ export function Header({
               {(["chat", "preview"] as const).map((v) => (
                 <button
                   key={v}
+                  type="button"
                   onClick={() => onViewChange(v)}
+                  aria-label={v === "chat" ? "Show chat view" : "Show preview canvas"}
+                  aria-pressed={view === v}
                   className={cn(
                     "rounded-md px-3 py-1 uppercase tracking-wider transition-all",
                     view === v
@@ -71,8 +74,12 @@ export function Header({
             {activeThreadId && activeModel && (
               <div className="relative hidden md:block">
                 <button
+                  type="button"
                   onClick={() => setModelOpen((v) => !v)}
                   onBlur={() => setTimeout(() => setModelOpen(false), 140)}
+                  aria-label={`Model: ${activeLabel}`}
+                  aria-expanded={modelOpen}
+                  aria-haspopup="listbox"
                   className="group flex items-center gap-2 rounded-full border border-border-subtle bg-surface-1/60 px-3 py-1.5 font-mono text-[11px] text-muted-foreground transition-all hover:border-border-strong hover:bg-surface-2 hover:text-foreground"
                 >
                   <span className="relative flex h-1.5 w-1.5">
@@ -108,14 +115,18 @@ export function Header({
               </div>
             )}
             <button
+              type="button"
               onClick={onOpenSettings}
               className="hidden rounded-md p-2 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground md:inline-flex"
               title="Settings"
+              aria-label="Open settings"
             >
               <Settings className="h-4 w-4" />
             </button>
             <button
+              type="button"
               onClick={() => toast.info("Publish is a preview-only affordance in this build.")}
+              aria-label="Publish"
               className="hidden items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary-foreground shadow-[0_0_24px_-6px_color-mix(in_oklab,white_60%,transparent)] transition-all hover:scale-[1.03] hover:shadow-[0_0_32px_-4px_color-mix(in_oklab,white_70%,transparent)] md:inline-flex"
             >
               <Rocket className="h-3 w-3" />
@@ -156,10 +167,13 @@ export function Header({
                 {(["chat", "preview"] as const).map((v) => (
                   <button
                     key={v}
+                    type="button"
                     onClick={() => {
                       onViewChange(v);
                       setMobileOpen(false);
                     }}
+                    aria-label={v === "chat" ? "Show chat view" : "Show preview canvas"}
+                    aria-pressed={view === v}
                     className={cn(
                       "flex-1 rounded-md px-3 py-2 text-xs font-mono uppercase tracking-wider transition-all",
                       view === v

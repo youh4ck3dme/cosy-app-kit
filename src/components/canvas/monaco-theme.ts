@@ -38,20 +38,30 @@ export function defineBuilderMonacoTheme(monaco: {
   });
 }
 
-export function languageFromPath(path: string, fallback = "plaintext"): string {
+const EXT_LANG: Record<string, string> = {
+  html: "html",
+  htm: "html",
+  css: "css",
+  js: "javascript",
+  mjs: "javascript",
+  cjs: "javascript",
+  jsx: "javascript",
+  ts: "typescript",
+  tsx: "typescript",
+  json: "json",
+  md: "markdown",
+  markdown: "markdown",
+  py: "python",
+};
+
+/** Map artifact `language` field or file path → Monaco language id. */
+export function languageFromPath(path: string, languageHint?: string): string {
+  const hint = (languageHint ?? "").toLowerCase().trim();
+  if (hint === "html" || hint === "css" || hint === "json" || hint === "markdown") return hint;
+  if (hint === "javascript" || hint === "js") return "javascript";
+  if (hint === "typescript" || hint === "ts") return "typescript";
+  if (hint === "md") return "markdown";
+  // artifact.kind "code" / unknown → infer from path
   const ext = path.split(".").pop()?.toLowerCase() ?? "";
-  const map: Record<string, string> = {
-    html: "html",
-    htm: "html",
-    css: "css",
-    js: "javascript",
-    jsx: "javascript",
-    ts: "typescript",
-    tsx: "typescript",
-    json: "json",
-    md: "markdown",
-    markdown: "markdown",
-    py: "python",
-  };
-  return map[ext] ?? fallback;
+  return EXT_LANG[ext] ?? (hint && hint !== "code" ? hint : "plaintext");
 }

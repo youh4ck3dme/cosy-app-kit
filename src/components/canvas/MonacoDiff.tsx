@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * Client-only Monaco DiffEditor.
+ * SSR-safe: mount gate + React.lazy — never touch `window` during SSR.
+ */
 import { lazy, Suspense, useEffect, useState } from "react";
 import { BUILDER_MONACO_THEME, defineBuilderMonacoTheme, languageFromPath } from "./monaco-theme";
 
@@ -11,13 +15,15 @@ export function MonacoDiff({
   path,
   original,
   modified,
+  language,
 }: {
   path: string;
   original: string;
   modified: string;
+  language?: string;
 }) {
   const [mounted, setMounted] = useState(false);
-  const [wide, setWide] = useState(true);
+  const [wide, setWide] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -36,7 +42,7 @@ export function MonacoDiff({
     );
   }
 
-  const lang = languageFromPath(path);
+  const lang = languageFromPath(path, language);
 
   return (
     <Suspense

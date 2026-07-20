@@ -130,7 +130,7 @@ export function CommandPalette({
                 close();
               }}
             >
-              Export current artifact
+              Export ZIP
             </CommandItem>
           )}
           {activeArtifact?.is_public && (
@@ -142,7 +142,7 @@ export function CommandPalette({
                 close();
               }}
             >
-              Copy public share link
+              Copy share link
             </CommandItem>
           )}
           {onShowShortcuts && (
@@ -262,6 +262,7 @@ export function ShortcutsHelp({ open, onClose }: { open: boolean; onClose: () =>
     ["⌘/Ctrl+Enter", "Send message"],
     ["F", "Fullscreen preview (canvas)"],
     ["?", "This help"],
+    ["Esc", "Close palette / fullscreen / help"],
   ];
   return (
     <div

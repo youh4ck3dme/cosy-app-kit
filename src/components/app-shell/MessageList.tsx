@@ -1,6 +1,15 @@
 import { useMemo, useState } from "react";
 import type { UIMessage } from "ai";
-import { Check, Copy, FileCode2, Pencil, RefreshCw, Sparkles } from "lucide-react";
+import {
+  Check,
+  Copy,
+  FileCode2,
+  GitBranch,
+  Pencil,
+  Quote,
+  RefreshCw,
+  Sparkles,
+} from "lucide-react";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import {
   Tool,
@@ -15,12 +24,51 @@ import { cn } from "@/lib/utils";
 import { STARTERS } from "@/lib/starters";
 import { userFacingChatError } from "@/lib/agent/error-handling";
 import { Logo } from "./Logo";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const ARTIFACT_RE = /```(?:html|markdown|md)(?:\s+[^\n`]*)?\s*\n[\s\S]*?```/gi;
 const MULTI_FILE_RE = /```[^\n`]*\bpath=[^\n`]*\n[\s\S]*?```/gi;
 const SPLIT_MARK = "\u0000ARTIFACT\u0000";
 
-const EMPTY_PROMPTS = STARTERS.slice(0, 3).map((s) => s.prompt);
+const EMPTY_PROMPTS = STARTERS.slice(0, 3);
+
+/** Static follow-ups under the last assistant message (fill composer, no auto-send). */
+const FOLLOWUP_CHIPS = [
+  {
+    label: STARTERS[0]!.title,
+    prompt: STARTERS[0]!.prompt,
+  },
+  {
+    label: "Polish mobile layout",
+    prompt:
+      "Improve mobile responsiveness, spacing, and tap targets on the latest artifact without changing the overall concept.",
+  },
+  {
+    label: "Add one interaction",
+    prompt:
+      "Add one polished interactive detail (hover state, toggle, or micro-animation) to the latest artifact—keep the existing structure.",
+  },
+] as const;
+
+/** Friendly labels aligned with docs/agent-tools.md */
+const TOOL_LABELS: Record<string, string> = {
+  create_artifact: "Create artifact",
+  edit_file: "Edit file",
+  read_artifact: "Read artifact",
+  remember: "Remember",
+  plan_steps: "Plan steps",
+  fetch_url: "Fetch URL",
+  web_search: "Web search",
+};
+
+function toolLabel(name: string): string {
+  return TOOL_LABELS[name] ?? name.replace(/_/g, " ");
+}
 
 function getNonToolErrorText(part: UIMessage["parts"][number]): string | null {
   if (typeof part !== "object" || part === null) return null;
@@ -48,6 +96,22 @@ function toolHasError(tp: ToolPart): boolean {
   if (tp.state === "output-error") return true;
   const errorText = (tp as { errorText?: unknown }).errorText;
   return typeof errorText === "string" && Boolean(errorText.trim());
+}
+
+function toolNameOf(tp: ToolPart): string {
+  if (tp.type === "dynamic-tool" && "toolName" in tp && typeof tp.toolName === "string") {
+    return tp.toolName;
+  }
+  if (typeof tp.type === "string" && tp.type.startsWith("tool-")) {
+    return tp.type.slice("tool-".length);
+  }
+  return "";
+}
+
+function isSuccessfulCreateArtifact(tp: ToolPart): boolean {
+  if (toolNameOf(tp) !== "create_artifact" || tp.state !== "output-available") return false;
+  if (!("output" in tp) || tp.output == null || typeof tp.output !== "object") return false;
+  return (tp.output as { ok?: unknown }).ok === true;
 }
 
 function toolKey(tp: ToolPart, index: number): string {
@@ -81,6 +145,8 @@ export function MessageList({
   onEditUserMessage,
   onFocusCanvas,
   onPickPrompt,
+  onQuote,
+  onFillComposer,
   errorBanner,
 }: {
   messages: UIMessage[];
@@ -89,7 +155,10 @@ export function MessageList({
   onRetryFrom?: (messageId: string) => void;
   onEditUserMessage?: (messageId: string, text: string) => void;
   onFocusCanvas?: () => void;
+  /** Empty-state starters — should fill composer, not auto-send. */
   onPickPrompt?: (prompt: string) => void;
+  onQuote?: (text: string) => void;
+  onFillComposer?: (text: string) => void;
   errorBanner?: string | null;
 }) {
   const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
@@ -104,6 +173,11 @@ export function MessageList({
     ),
   );
   const showStatusError = status === "error" && !showWaitingRow && !lastAssistantHasInlineError;
+  const showFollowups =
+    status === "ready" &&
+    Boolean(lastAssistantId) &&
+    !showWaitingRow &&
+    Boolean(onFillComposer);
 
   if (messages.length === 0) {
     return <EmptyState onPick={onPickPrompt} />;
@@ -155,10 +229,30 @@ export function MessageList({
                 ? (text) => onEditUserMessage(m.id, text)
                 : undefined
             }
+            onQuote={onQuote}
             onFocusCanvas={onFocusCanvas}
           />
         );
       })}
+      {showFollowups && (
+        <div
+          className="ml-9 flex flex-wrap gap-2"
+          role="group"
+          aria-label="Suggested follow-ups"
+        >
+          {FOLLOWUP_CHIPS.map((chip) => (
+            <button
+              key={chip.label}
+              type="button"
+              onClick={() => onFillComposer?.(chip.prompt)}
+              className="inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-full border border-border-subtle bg-surface-1/60 px-3 py-2 text-xs text-muted-foreground transition-colors hover:border-accent-primary/40 hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Sparkles className="h-3 w-3 shrink-0 text-accent-primary/70" aria-hidden />
+              <span className="truncate">{chip.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
       {showWaitingRow && (
         <div className="flex items-start gap-3 animate-in-fade" role="status" aria-live="polite">
           <Logo size={26} decorative />
@@ -209,18 +303,21 @@ function EmptyState({ onPick }: { onPick?: (prompt: string) => void }) {
         </p>
         {onPick && (
           <ul className="mt-7 flex w-full list-none flex-col gap-2 p-0">
-            {EMPTY_PROMPTS.map((prompt) => (
-              <li key={prompt.slice(0, 40)}>
+            {EMPTY_PROMPTS.map((starter) => (
+              <li key={starter.id}>
                 <button
                   type="button"
-                  onClick={() => onPick(prompt)}
+                  onClick={() => onPick(starter.prompt)}
                   className="group flex min-h-11 w-full items-start gap-2.5 rounded-xl border border-border-subtle bg-surface-1/50 px-3.5 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-accent-primary/35 hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <Sparkles
                     aria-hidden
                     className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent-primary/70 transition-colors group-hover:text-accent-primary"
                   />
-                  <span className="line-clamp-2">{prompt}</span>
+                  <span className="min-w-0">
+                    <span className="block font-medium text-foreground/90">{starter.title}</span>
+                    <span className="mt-0.5 line-clamp-2 text-xs">{starter.prompt}</span>
+                  </span>
                 </button>
               </li>
             ))}
@@ -238,6 +335,7 @@ function MessageRow({
   isLastAssistant,
   onRegenerate,
   onEditUser,
+  onQuote,
   onFocusCanvas,
 }: {
   message: UIMessage;
@@ -246,6 +344,7 @@ function MessageRow({
   isLastAssistant?: boolean;
   onRegenerate?: () => void;
   onEditUser?: (text: string) => void;
+  onQuote?: (text: string) => void;
   onFocusCanvas?: () => void;
 }) {
   const isUser = message.role === "user";
@@ -308,19 +407,31 @@ function MessageRow({
             </div>
           )}
         </MessageContent>
-        {showActions && onEditUser && !editing && (
-          <div className="mt-1.5 flex justify-end" role="group" aria-label="Message actions">
-            <button
-              type="button"
-              className="inline-flex min-h-11 items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label="Edit message"
-              onClick={() => {
-                setDraft(textConcat);
-                setEditing(true);
-              }}
-            >
-              <Pencil className="h-3 w-3" aria-hidden /> Edit
-            </button>
+        {showActions && !editing && (
+          <div className="mt-1.5 flex justify-end gap-1" role="group" aria-label="Message actions">
+            {onQuote && textConcat.trim() && (
+              <button
+                type="button"
+                className="inline-flex min-h-11 items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Quote message"
+                onClick={() => onQuote(textConcat)}
+              >
+                <Quote className="h-3 w-3" aria-hidden /> Quote
+              </button>
+            )}
+            {onEditUser && (
+              <button
+                type="button"
+                className="inline-flex min-h-11 items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Edit message"
+                onClick={() => {
+                  setDraft(textConcat);
+                  setEditing(true);
+                }}
+              >
+                <Pencil className="h-3 w-3" aria-hidden /> Edit
+              </button>
+            )}
           </div>
         )}
       </Message>
@@ -362,31 +473,45 @@ function MessageRow({
               Streaming
             </span>
           )}
-          {toolParts.map((tp, i) => (
-            <Tool key={toolKey(tp, i)} defaultOpen={toolHasError(tp) || isLastAssistant}>
-              {tp.type === "dynamic-tool" ? (
-                <ToolHeader
-                  type="dynamic-tool"
-                  state={tp.state}
-                  toolName={
-                    "toolName" in tp && typeof tp.toolName === "string" ? tp.toolName : "tool"
-                  }
-                />
-              ) : (
-                <ToolHeader type={tp.type as `tool-${string}`} state={tp.state} />
-              )}
-              <ToolContent>
-                {"input" in tp && tp.input !== undefined && <ToolInput input={tp.input} />}
-                {(("output" in tp && tp.output !== undefined) ||
-                  ("errorText" in tp && tp.errorText)) && (
-                  <ToolOutput
-                    output={"output" in tp ? tp.output : undefined}
-                    errorText={"errorText" in tp ? tp.errorText : undefined}
+          {toolParts.map((tp, i) => {
+            const name = toolNameOf(tp);
+            const label = toolLabel(name);
+            return (
+              <Tool
+                key={toolKey(tp, i)}
+                defaultOpen={toolHasError(tp) || isLastAssistant}
+                className={cn(
+                  isSuccessfulCreateArtifact(tp) &&
+                    "ring-1 ring-accent-primary/50 border-accent-primary/40",
+                )}
+              >
+                {tp.type === "dynamic-tool" ? (
+                  <ToolHeader
+                    type="dynamic-tool"
+                    state={tp.state}
+                    toolName={name || "tool"}
+                    title={label}
+                  />
+                ) : (
+                  <ToolHeader
+                    type={tp.type as `tool-${string}`}
+                    state={tp.state}
+                    title={label}
                   />
                 )}
-              </ToolContent>
-            </Tool>
-          ))}
+                <ToolContent>
+                  {"input" in tp && tp.input !== undefined && <ToolInput input={tp.input} />}
+                  {(("output" in tp && tp.output !== undefined) ||
+                    ("errorText" in tp && tp.errorText)) && (
+                    <ToolOutput
+                      output={"output" in tp ? tp.output : undefined}
+                      errorText={"errorText" in tp ? tp.errorText : undefined}
+                    />
+                  )}
+                </ToolContent>
+              </Tool>
+            );
+          })}
           {nonToolErrors.map((errorText, i) => (
             <div
               key={`err-${i}-${errorText.slice(0, 24)}`}
@@ -401,6 +526,7 @@ function MessageRow({
           <MessageActions
             text={textConcat}
             onRegenerate={onRegenerate}
+            onQuote={onQuote}
             regenerateLabel={isLastAssistant ? "Retry" : "Retry from here"}
           />
         )}
@@ -412,10 +538,12 @@ function MessageRow({
 function MessageActions({
   text,
   onRegenerate,
+  onQuote,
   regenerateLabel = "Retry",
 }: {
   text: string;
   onRegenerate?: () => void;
+  onQuote?: (text: string) => void;
   regenerateLabel?: string;
 }) {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
@@ -434,7 +562,11 @@ function MessageActions({
   };
 
   return (
-    <div className="mt-1.5 ml-1 flex items-center gap-1" role="group" aria-label="Message actions">
+    <div
+      className="mt-1.5 ml-1 flex flex-wrap items-center gap-1"
+      role="group"
+      aria-label="Message actions"
+    >
       <button
         type="button"
         onClick={copy}
@@ -456,6 +588,16 @@ function MessageActions({
             ? "Copy failed"
             : ""}
       </span>
+      {onQuote && canCopy && (
+        <button
+          type="button"
+          onClick={() => onQuote(text)}
+          className="inline-flex min-h-11 items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label="Quote message"
+        >
+          <Quote className="h-3 w-3" aria-hidden /> Quote
+        </button>
+      )}
       {onRegenerate && (
         <button
           type="button"
@@ -466,6 +608,23 @@ function MessageActions({
           <RefreshCw className="h-3 w-3" aria-hidden /> {regenerateLabel}
         </button>
       )}
+      <TooltipProvider delayDuration={200}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex">
+              <button
+                type="button"
+                disabled
+                className="inline-flex min-h-11 items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground opacity-50"
+                aria-label="Branch conversation (coming soon)"
+              >
+                <GitBranch className="h-3 w-3" aria-hidden /> Branch
+              </button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>Coming soon</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
   );
 }

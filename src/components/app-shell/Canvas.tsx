@@ -30,6 +30,10 @@ import { exportArtifactDownload } from "@/lib/export-artifact";
 import { MonacoEditor } from "@/components/canvas/MonacoEditor";
 import { MonacoDiff } from "@/components/canvas/MonacoDiff";
 import { NetworkPanel, type NetworkEntry } from "@/components/canvas/NetworkPanel";
+import {
+  latestSnippetForFile,
+  type EditFileSnippet,
+} from "@/lib/edit-snippets";
 
 export type ArtifactFile = { path: string; language: string; content: string };
 export type Artifact = {
@@ -96,7 +100,16 @@ function deviceStorageKey(threadId?: string) {
   return threadId ? `builder:device:${threadId}` : "builder:device:global";
 }
 
-export function Canvas({ artifact, threadId }: { artifact?: Artifact; threadId?: string }) {
+export function Canvas({
+  artifact,
+  threadId,
+  editSnippets = [],
+}: {
+  artifact?: Artifact;
+  threadId?: string;
+  /** From chat tool parts — enables Diff “Show model change”. */
+  editSnippets?: EditFileSnippet[];
+}) {
   const [device, setDevice] = useState<Device>("desktop");
   const [customWidth, setCustomWidth] = useState<number | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -114,6 +127,7 @@ export function Canvas({ artifact, threadId }: { artifact?: Artifact; threadId?:
   const [saving, setSaving] = useState(false);
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [undoStack, setUndoStack] = useState<Record<string, string>[]>([]);
+  const [diffMode, setDiffMode] = useState<"local" | "model">("local");
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const share = useServerFn(setArtifactPublic);
   const saveFiles = useServerFn(updateArtifactFiles);
@@ -149,6 +163,15 @@ export function Canvas({ artifact, threadId }: { artifact?: Artifact; threadId?:
     files.find((f) => f.path === artifact?.entry_path) ??
     files[0];
   const originalCurrent = rawFiles.find((f) => f.path === currentFile?.path);
+
+  const modelSnippet = currentFile
+    ? latestSnippetForFile(editSnippets, currentFile.path, artifact?.id)
+    : null;
+
+  useEffect(() => {
+    // Fall back to local when switching files without a model snippet
+    if (diffMode === "model" && !modelSnippet) setDiffMode("local");
+  }, [diffMode, modelSnippet]);
 
   const previewWidth = customWidth && customWidth > 0 ? customWidth : WIDTHS[device];
 
@@ -401,7 +424,8 @@ export function Canvas({ artifact, threadId }: { artifact?: Artifact; threadId?:
                           : "text-muted-foreground hover:text-foreground",
                       )}
                       title={d}
-                      aria-label={d}
+                      aria-label={`${d} preview width`}
+                      aria-pressed={active}
                     >
                       <Icon className="h-3.5 w-3.5" />
                     </button>
@@ -602,9 +626,27 @@ export function Canvas({ artifact, threadId }: { artifact?: Artifact; threadId?:
           )}
           {view === "diff" && (
             <>
+              {modelSnippet && (
+                <button
+                  type="button"
+                  onClick={() => setDiffMode((m) => (m === "model" ? "local" : "model"))}
+                  className={cn(
+                    "inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[11px] hover:bg-surface-2",
+                    diffMode === "model"
+                      ? "bg-accent-primary/15 text-accent-primary"
+                      : "text-muted-foreground",
+                  )}
+                  title="Compare edit_file beforeSnippet / afterSnippet from the model"
+                >
+                  {diffMode === "model" ? "Showing model change" : "Show model change"}
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() => setView("preview")}
+                onClick={() => {
+                  setDiffMode("local");
+                  setView("preview");
+                }}
                 className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-surface-2"
               >
                 Accept
@@ -686,11 +728,27 @@ export function Canvas({ artifact, threadId }: { artifact?: Artifact; threadId?:
           )}
 
           {artifact && view === "diff" && currentFile && (
-            <MonacoDiff
-              path={currentFile.path}
-              original={originalCurrent?.content ?? ""}
-              modified={currentFile.content}
-            />
+            <div className="flex w-full max-w-6xl flex-col gap-2">
+              <p className="px-1 text-[11px] text-muted-foreground">
+                {diffMode === "model" && modelSnippet
+                  ? "Model change — edit_file beforeSnippet → afterSnippet"
+                  : "Local edits — saved file vs current buffer (undo stack if you Reset)"}
+              </p>
+              <MonacoDiff
+                path={currentFile.path}
+                language={currentFile.language}
+                original={
+                  diffMode === "model" && modelSnippet
+                    ? modelSnippet.beforeSnippet
+                    : (originalCurrent?.content ?? "")
+                }
+                modified={
+                  diffMode === "model" && modelSnippet
+                    ? modelSnippet.afterSnippet
+                    : currentFile.content
+                }
+              />
+            </div>
           )}
         </div>
 

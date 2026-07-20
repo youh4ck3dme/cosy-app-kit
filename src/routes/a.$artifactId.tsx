@@ -115,7 +115,11 @@ function PublicArtifactPage() {
                 return (
                   <button
                     key={d}
+                    type="button"
                     onClick={() => setDevice(d)}
+                    title={d}
+                    aria-label={`${d} preview width`}
+                    aria-pressed={active}
                     className={cn(
                       "flex items-center justify-center rounded-md p-1.5",
                       active

@@ -16,16 +16,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/app-shell/Header";
 import { ThreadList } from "@/components/app-shell/ThreadList";
 import { Canvas, type Artifact } from "@/components/app-shell/Canvas";
-import { Composer, type BuilderMode } from "@/components/app-shell/Composer";
+import {
+  Composer,
+  type BuilderMode,
+  type ComposerFillRequest,
+} from "@/components/app-shell/Composer";
 import { MessageList } from "@/components/app-shell/MessageList";
 import { AppDialog } from "@/components/app-shell/AppDialog";
 import { AgentSettingsPanel } from "@/components/app-shell/AgentSettingsPanel";
 import { CommandPalette, ShortcutsHelp } from "@/components/app-shell/CommandPalette";
 import { useHotkey } from "@/hooks/use-hotkeys";
 import { userFacingChatError } from "@/lib/agent/error-handling";
-import { STARTERS } from "@/lib/starters";
 import { exportArtifactDownload } from "@/lib/export-artifact";
 import { truncateThreadMessagesClient } from "@/lib/truncate-messages";
+import { extractEditFileSnippets } from "@/lib/edit-snippets";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -114,6 +118,11 @@ function ChatPage() {
   const [view, setView] = useState<"chat" | "preview">("chat");
   const [activeArtifactId, setActiveArtifactId] = useState<string | null>(null);
   const [mode, setMode] = useState<BuilderMode>("Build");
+  const [composerFill, setComposerFill] = useState<ComposerFillRequest | null>(null);
+  const fillComposer = useCallback((text: string, mode: "replace" | "quote" = "replace") => {
+    setComposerFill({ id: Date.now(), text, mode });
+    setView("chat");
+  }, []);
   const modeRef = useRef<BuilderMode>("Build");
   useEffect(() => {
     modeRef.current = mode;
@@ -162,7 +171,12 @@ function ChatPage() {
       const p = part as { type?: string; data?: Record<string, unknown> };
       if (!p?.type || !p.data) return;
       if (p.type === "data-artifact-created") {
+        const artifactId =
+          typeof p.data.artifactId === "string" ? p.data.artifactId : null;
         const title = typeof p.data.title === "string" ? p.data.title : "Artifact";
+        if (artifactId) setActiveArtifactId(artifactId);
+        // Mobile swaps chat ↔ canvas via `view`; desktop keeps both panes.
+        setView("preview");
         toast.success(`Created «${title}»`, { id: "artifact-created" });
         qc.invalidateQueries({ queryKey: ["thread", threadId] });
       } else if (p.type === "data-memory-saved") {
@@ -232,6 +246,8 @@ function ChatPage() {
     if (!activeArtifactId && artifacts.length > 0) setActiveArtifactId(artifacts[0].id);
   }, [artifacts, activeArtifactId]);
   const activeArtifact = artifacts.find((a) => a.id === activeArtifactId) ?? artifacts[0];
+
+  const editSnippets = useMemo(() => extractEditFileSnippets(messages), [messages]);
 
   const artifactCount = artifacts.length;
   useEffect(() => {
@@ -402,7 +418,9 @@ function ChatPage() {
                 onRetryFrom={onRetryFrom}
                 onEditUserMessage={onEditUserMessage}
                 errorBanner={chatError?.message}
-                onPickPrompt={(p) => sendText(p)}
+                onPickPrompt={(p) => fillComposer(p, "replace")}
+                onFillComposer={(p) => fillComposer(p, "replace")}
+                onQuote={(text) => fillComposer(text, "quote")}
                 onFocusCanvas={() => {
                   setView("preview");
                   if (artifacts[0]) setActiveArtifactId(artifacts[0].id);
@@ -417,7 +435,7 @@ function ChatPage() {
               streaming={streaming}
               mode={mode}
               onModeChange={setMode}
-              suggestions={messages.length === 0 ? STARTERS.slice(0, 3).map((s) => s.prompt) : []}
+              fillRequest={composerFill}
             />
           </div>
         </section>
@@ -454,7 +472,7 @@ function ChatPage() {
               <Skeleton className="h-[60%] w-[80%] rounded-2xl" />
             </div>
           ) : (
-            <Canvas artifact={activeArtifact} threadId={threadId} />
+            <Canvas artifact={activeArtifact} threadId={threadId} editSnippets={editSnippets} />
           )}
         </section>
       </div>
