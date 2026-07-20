@@ -24,11 +24,18 @@ export default defineTool({
     const sb = supabaseForUser(ctx);
     const [thread, messages] = await Promise.all([
       sb.from("threads").select("*").eq("id", thread_id).maybeSingle(),
-      sb.from("messages").select("id, role, parts, created_at").eq("thread_id", thread_id).order("created_at"),
+      sb
+        .from("messages")
+        .select("id, role, parts, created_at")
+        .eq("thread_id", thread_id)
+        .order("created_at"),
     ]);
-    if (thread.error) return { content: [{ type: "text", text: thread.error.message }], isError: true };
-    if (!thread.data) return { content: [{ type: "text", text: "Thread not found" }], isError: true };
-    if (messages.error) return { content: [{ type: "text", text: messages.error.message }], isError: true };
+    if (thread.error)
+      return { content: [{ type: "text", text: thread.error.message }], isError: true };
+    if (!thread.data)
+      return { content: [{ type: "text", text: "Thread not found" }], isError: true };
+    if (messages.error)
+      return { content: [{ type: "text", text: messages.error.message }], isError: true };
     const payload = { thread: thread.data, messages: messages.data };
     return {
       content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
