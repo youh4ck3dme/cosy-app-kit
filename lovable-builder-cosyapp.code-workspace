@@ -3,12 +3,6 @@
     {
       "name": "cosy-app-kit",
       "path": "."
-    },
-    {
-      "path": "../lovable-builder-k.d/.claude"
-    },
-    {
-      "path": "../lovable-builder-k.d/scripts"
     }
   ],
   "settings": {

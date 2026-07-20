@@ -39,6 +39,7 @@ jobs:
       - name: Unit tests
         run: bun run test
 
+      # Hard gate (no continue-on-error): tsc is green on developeredit; soft-fail hid real breaks.
       - name: Typecheck
         run: bun run typecheck
 
