@@ -64,6 +64,7 @@ const TOOL_LABELS: Record<string, string> = {
   read_artifact: "Read artifact",
   remember: "Remember",
   plan_steps: "Plan steps",
+  launch_site: "Launch multi-page site",
   fetch_url: "Fetch URL",
   web_search: "Web search",
 };
@@ -176,6 +177,8 @@ function toolThought(name: string): string {
   switch (name) {
     case "create_artifact":
       return "Saving a new canvas artifact from the generated HTML…";
+    case "launch_site":
+      return "Blueprint + parallel page workers → 4-page mini-site…";
     case "edit_file":
       return "Applying a surgical edit to an existing file…";
     case "read_artifact":
@@ -839,8 +842,8 @@ function BuildingArtifactCard({
             </span>
           </div>
           <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
-            Streaming code without freezing the chat. When saved, use the Artifact card or Preview
-            tab to open the canvas.
+            Streaming code without freezing the chat. When ready, tap the Artifact card or use Chat |
+            Preview in the header.
           </p>
           <div
             className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-border-subtle"
@@ -863,7 +866,7 @@ function BuildingArtifactCard({
 function ArtifactPill({ onFocusCanvas }: { onFocusCanvas?: () => void }) {
   const interactive = Boolean(onFocusCanvas);
   const className = cn(
-    "my-1 inline-flex w-fit max-w-full items-center gap-2 rounded-lg border border-border-subtle bg-surface-1/60 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors",
+    "my-1 inline-flex min-h-11 w-fit max-w-full items-center gap-2 rounded-lg border border-border-subtle bg-surface-1/60 px-3 py-2 text-xs font-medium text-muted-foreground transition-colors",
     interactive &&
       "cursor-pointer hover:border-accent-primary/40 hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
   );

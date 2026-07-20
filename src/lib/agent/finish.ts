@@ -24,10 +24,10 @@ function asRecord(v: unknown): Record<string, unknown> | null {
   return v as Record<string, unknown>;
 }
 
-/** True when any tool result is a successful create_artifact. */
+/** True when any tool result successfully created a canvas artifact. */
 export function toolCreatedArtifact(results: ToolResultLike[]): boolean {
   for (const r of results) {
-    if (r.toolName !== "create_artifact") continue;
+    if (r.toolName !== "create_artifact" && r.toolName !== "launch_site") continue;
     const out = asRecord(r.output);
     if (!out) continue;
     if (out.ok === true && (typeof out.artifactId === "string" || out.artifactId)) {
@@ -59,13 +59,15 @@ function formatOne(r: ToolResultLike): string | null {
   }
 
   switch (name) {
-    case "create_artifact": {
+    case "create_artifact":
+    case "launch_site": {
       if (out.ok === true) {
         const title = typeof out.title === "string" ? out.title : "Artifact";
         const id = typeof out.artifactId === "string" ? out.artifactId.slice(0, 8) : "";
-        return id
-          ? `Created artifact «${title}» (${id}…)`
-          : `Created artifact «${title}»`;
+        const n = typeof out.filesCount === "number" ? out.filesCount : null;
+        const multi = r.toolName === "launch_site" || (n != null && n > 1);
+        const label = multi ? "Created multi-page site" : "Created artifact";
+        return id ? `${label} «${title}» (${id}…)` : `${label} «${title}»`;
       }
       return null;
     }

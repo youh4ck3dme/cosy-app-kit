@@ -40,7 +40,10 @@ export function toolResultToDataParts(result: ToolResultLike): BuilderDataPart[]
   const out = asRecord(result.output);
   if (!name || !out || out.ok !== true) return [];
 
-  if (name === "create_artifact" && typeof out.artifactId === "string") {
+  if (
+    (name === "create_artifact" || name === "launch_site") &&
+    typeof out.artifactId === "string"
+  ) {
     return [
       {
         type: "data-artifact-created",

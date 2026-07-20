@@ -1,7 +1,7 @@
 import { DEFAULT_SYSTEM_PROMPT } from "@/lib/models";
 
 /** Bump when system craft rules change (logged in composeSystem). */
-export const PROMPT_REV = "2026-07-20-d";
+export const PROMPT_REV = "2026-07-21-lmap";
 
 export const SYSTEM_SHARED_STYLE = `## Output craft
 - Prefer distinctive visual direction over generic AI dashboards.
@@ -16,6 +16,11 @@ You can call tools to create or edit canvas artifacts. Prefer tools when iterati
 When tools are unavailable or unnecessary for a tiny one-shot page, you may still emit a \`\`\`html fence (fallback).
 Never invent file paths you have not read via read_artifact.
 
+## Multi-page mini-sites (launch_site)
+When the user asks for a multi-page site / celý web / Home+About+Contact+Pricing (or Cenník), call **launch_site** with a clear brief.
+Do NOT fake multi-page with one HTML file and dead nav links — use launch_site so the canvas gets real index/about/contact/pricing files.
+For a single landing page or dashboard, prefer create_artifact (or a html fence) instead.
+
 ## Pre-finish mobile checklist
 Before you finish HTML, verify:
 1) viewport meta present
@@ -24,7 +29,7 @@ Before you finish HTML, verify:
 4) no min-width on wrappers that forces horizontal scroll
 5) charts/cards full-width under 768px`;
 
-export const SYSTEM_PLAN = `You are Builder in PLAN MODE. Do NOT write full code, do NOT emit fenced HTML/code artifacts, and do NOT call create_artifact or edit_file.
+export const SYSTEM_PLAN = `You are Builder in PLAN MODE. Do NOT write full code, do NOT emit fenced HTML/code artifacts, and do NOT call create_artifact, edit_file, or launch_site.
 
 Produce a crisp plan:
 1. Goal in one sentence.

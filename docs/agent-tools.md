@@ -8,8 +8,8 @@ Fence HTML fallback still runs when Build mode finishes **without** a successful
 
 | Mode | Tools |
 |------|--------|
-| **Build** | `create_artifact`, `edit_file`, `read_artifact`, `remember`, optional `fetch_url` / `web_search` |
-| **Plan** | `plan_steps`, `read_artifact`, `remember`, optional `fetch_url` / `web_search` — **no** create/edit |
+| **Build** | `create_artifact`, `edit_file`, `launch_site`, `read_artifact`, `remember`, optional `fetch_url` / `web_search` |
+| **Plan** | `plan_steps`, `read_artifact`, `remember`, optional `fetch_url` / `web_search` — **no** create/edit/launch |
 
 Flags default: create/edit/read/remember/plan **on**; `web_search` / `fetch_url` **off** until user enables in Agent Settings.
 
@@ -29,6 +29,17 @@ Flags default: create/edit/read/remember/plan **on**; `web_search` / `fetch_url`
 **Guards:** path sanitize (no `..`, no absolute); max file size 500k.  
 **Output:** `{ ok, artifactId, title, kind, filesCount }`  
 **Stream part:** `data-artifact-created` `{ artifactId, title, kind? }`
+
+### `launch_site` (Build · LMAP)
+
+| Input | |
+|-------|--|
+| `brief` | string 10–4000 — business brief for a 4-page mini-site |
+
+**Pipeline:** blueprint (Mistral Small → Large retry) → deterministic shell → parallel Codestral pages → assemble `index.html` / `about.html` / `contact.html` / `pricing.html` + `blueprint.json`.  
+**Output:** `{ ok, artifactId, title, kind, filesCount, entry_path, timings, pageFallbacks }`  
+**Stream part:** same as create — `data-artifact-created`  
+**Docs:** [`LAUNCH_MULTIAGENT.md`](./LAUNCH_MULTIAGENT.md)
 
 ### `edit_file` (Build)
 

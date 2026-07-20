@@ -86,6 +86,14 @@ describe("toolResultToDataParts", () => {
     });
     expect(parts[0]?.type).toBe("data-artifact-created");
   });
+  it("maps launch_site like create_artifact", () => {
+    const parts = toolResultToDataParts({
+      toolName: "launch_site",
+      output: { ok: true, artifactId: "id-2", title: "Salon", kind: "html" },
+    });
+    expect(parts[0]?.type).toBe("data-artifact-created");
+    expect(parts[0]?.data).toMatchObject({ artifactId: "id-2", title: "Salon" });
+  });
   it("maps remember", () => {
     const parts = toolResultToDataParts({
       toolName: "remember",

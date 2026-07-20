@@ -23,6 +23,8 @@ export type ToolFlags = {
   plan_steps?: boolean;
   web_search?: boolean;
   fetch_url?: boolean;
+  /** Multi-page mini-site pipeline (LMAP). Default on in Build. */
+  launch_site?: boolean;
 };
 
 export type BuildToolsArgs = {
@@ -88,6 +90,7 @@ export function buildTools({ mode, threadId, supabase, flags }: BuildToolsArgs):
     plan_steps: flags?.plan_steps !== false,
     web_search: flags?.web_search === true,
     fetch_url: flags?.fetch_url === true,
+    launch_site: flags?.launch_site !== false,
   };
 
   const read_artifact = tool({
@@ -439,5 +442,74 @@ export function buildTools({ mode, threadId, supabase, flags }: BuildToolsArgs):
     },
   });
 
-  return { create_artifact, edit_file, read_artifact, remember, ...grounding };
+  const launch_site = tool({
+    description:
+      "Build a 4-page mini-site (Home/About/Contact/Pricing) from a business brief via blueprint + parallel HTML workers. Use for multi-page / celý web / Home+About+Contact+Cenník requests instead of a single HTML with fake links.",
+    inputSchema: z.object({
+      brief: z.string().min(10).max(4000),
+    }),
+    execute: async ({ brief }) => {
+      if (!f.launch_site) {
+        return { ok: false as const, error: "launch_site is disabled in agent settings" };
+      }
+      try {
+        const { runLaunchPipeline } = await import("@/lib/launch/orchestrate");
+        const result = await runLaunchPipeline(brief);
+        const { assembled, timings, pageFallbacks } = result;
+        const sanitized = sanitizeFiles(
+          assembled.files.map((x) => ({
+            path: x.path,
+            language: x.language,
+            content: x.content,
+          })),
+        );
+        if (!sanitized.ok) return { ok: false as const, error: sanitized.error };
+        const files = sanitized.files;
+        const resolvedEntry = assembled.entry_path;
+        const main = files.find((x) => x.path === resolvedEntry) ?? files[0]!;
+        const { data, error } = await supabase
+          .from("artifacts")
+          .insert({
+            thread_id: threadId,
+            kind: "html",
+            title: assembled.title.slice(0, 120),
+            content: main.content,
+            files: asFiles(files),
+            entry_path: resolvedEntry,
+          })
+          .select("id,title,kind,entry_path")
+          .single();
+        if (error) return { ok: false as const, error: error.message };
+        await snapshotArtifactVersion(supabase, {
+          artifactId: data.id,
+          files,
+          content: main.content,
+          entry_path: resolvedEntry,
+          title: data.title,
+          source: "tool",
+        });
+        await supabase
+          .from("threads")
+          .update({ updated_at: new Date().toISOString() })
+          .eq("id", threadId);
+        return {
+          ok: true as const,
+          artifactId: data.id,
+          title: data.title,
+          kind: data.kind,
+          filesCount: files.length,
+          entry_path: resolvedEntry,
+          timings,
+          pageFallbacks,
+        };
+      } catch (e) {
+        return {
+          ok: false as const,
+          error: e instanceof Error ? e.message : String(e),
+        };
+      }
+    },
+  });
+
+  return { create_artifact, edit_file, read_artifact, remember, launch_site, ...grounding };
 }

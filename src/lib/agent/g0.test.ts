@@ -91,6 +91,22 @@ describe("toolCreatedArtifact + summarize", () => {
     expect(summarizeToolResults(results)).toMatch(/Created artifact «Dash»/);
   });
 
+  it("detects successful launch_site as artifact creation", () => {
+    expect(
+      toolCreatedArtifact([
+        {
+          toolName: "launch_site",
+          output: {
+            ok: true,
+            artifactId: "550e8400-e29b-41d4-a716-446655440001",
+            title: "Salon",
+            filesCount: 5,
+          },
+        },
+      ]),
+    ).toBe(true);
+  });
+
   it("ignores failed create", () => {
     expect(
       toolCreatedArtifact([
