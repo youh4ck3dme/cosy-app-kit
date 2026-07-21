@@ -54,7 +54,7 @@ export const Route = createFileRoute("/a/$artifactId/embed")({
     ],
   }),
   notFoundComponent: () => (
-    <div className="flex min-h-[240px] items-center justify-center bg-background text-sm text-muted-foreground">
+    <div className="flex min-h-60 items-center justify-center bg-background text-sm text-muted-foreground">
       Not found
     </div>
   ),
@@ -64,9 +64,7 @@ export const Route = createFileRoute("/a/$artifactId/embed")({
 function EmbedPage() {
   const artifact = Route.useLoaderData();
   const bridgeTokenRef = useRef(
-    typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `tok-${Date.now()}`,
+    typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `tok-${Date.now()}`,
   );
 
   const files = useMemo(() => {
@@ -105,7 +103,10 @@ function EmbedPage() {
 
   const srcDoc = useMemo(() => {
     if (!isHtml || !entry || urlMode) return null;
-    return injectScriptIntoHtmlHead(entry.content, buildPreviewBridgeScript(bridgeTokenRef.current));
+    return injectScriptIntoHtmlHead(
+      entry.content,
+      buildPreviewBridgeScript(bridgeTokenRef.current),
+    );
   }, [entry, isHtml, urlMode]);
 
   useEffect(() => {

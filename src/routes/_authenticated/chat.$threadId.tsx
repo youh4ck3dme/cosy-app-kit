@@ -23,7 +23,7 @@ import {
   type BuilderMode,
   type ComposerFillRequest,
 } from "@/components/app-shell/Composer";
-import { MessageList } from "@/components/app-shell/MessageList";
+import { MessageList, type MessageListProps } from "@/components/app-shell/MessageList";
 import { AppDialog } from "@/components/app-shell/AppDialog";
 import { AgentSettingsPanel } from "@/components/app-shell/AgentSettingsPanel";
 import { CommandPalette, ShortcutsHelp } from "@/components/app-shell/CommandPalette";
@@ -473,7 +473,7 @@ function ChatPage() {
           id="chat-main"
           className={cn(
             // Fluid chat column: more canvas room on tablets, cap on wide desktops
-            "flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-r border-border md:w-[min(38vw,380px)] lg:w-[min(36vw,460px)] xl:w-[520px] md:flex",
+            "flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-r border-border md:w-[min(38vw,380px)] lg:w-[min(36vw,460px)] xl:w-130 md:flex",
             view === "chat" ? "flex" : "hidden md:flex",
           )}
         >
@@ -492,19 +492,23 @@ function ChatPage() {
                 </div>
               ) : (
                 <MessageList
-                  messages={messages}
-                  status={status}
-                  onRegenerate={() => regenerate()}
-                  onRetryFrom={onRetryFrom}
-                  onEditUserMessage={onEditUserMessage}
-                  errorBanner={chatError?.message}
-                  onPickPrompt={(p) => fillComposer(p, "replace")}
-                  onFillComposer={(p) => fillComposer(p, "replace")}
-                  onQuote={(text) => fillComposer(text, "quote")}
-                  onFocusCanvas={() => {
-                    setView("preview");
-                    if (artifacts[0]) setActiveArtifactId(artifacts[0].id);
-                  }}
+                  {...({
+                    messages,
+                    status,
+                    onRegenerate: () => {
+                      void regenerate();
+                    },
+                    onRetryFrom,
+                    onEditUserMessage,
+                    errorBanner: chatError?.message,
+                    onPickPrompt: (p: string) => fillComposer(p, "replace"),
+                    onFillComposer: (p: string) => fillComposer(p, "replace"),
+                    onQuote: (text: string) => fillComposer(text, "quote"),
+                    onFocusCanvas: () => {
+                      setView("preview");
+                      if (artifacts[0]) setActiveArtifactId(artifacts[0].id);
+                    },
+                  } satisfies MessageListProps)}
                 />
               )}
             </StickToBottom.Content>
