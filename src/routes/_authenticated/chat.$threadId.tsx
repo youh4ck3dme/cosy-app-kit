@@ -434,7 +434,7 @@ function ChatPage() {
   }
 
   return (
-    <div className="fixed inset-0 z-0 flex h-dvh max-h-dvh flex-col overflow-hidden bg-background text-foreground">
+    <div className="fixed inset-0 z-0 flex h-dvh max-h-dvh max-w-[100vw] flex-col overflow-hidden overscroll-none bg-background text-foreground">
       <a
         href="#chat-main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground"
@@ -450,10 +450,10 @@ function ChatPage() {
         onViewChange={setView}
       />
 
-      <div className="flex min-h-0 flex-1 overflow-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
         <aside
           className={cn(
-            "hidden min-h-0 w-64 shrink-0 overflow-y-auto overscroll-y-contain border-r border-border md:block",
+            "hidden min-h-0 w-56 shrink-0 overflow-y-auto overscroll-y-contain border-r border-border lg:w-64 md:block",
             !sidebarOpen && "md:hidden",
           )}
         >
@@ -471,7 +471,8 @@ function ChatPage() {
         <section
           id="chat-main"
           className={cn(
-            "flex min-h-0 w-full flex-col overflow-hidden border-r border-border md:w-[440px] lg:w-[520px] md:flex",
+            // Fluid chat column: more canvas room on tablets, cap on wide desktops
+            "flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-r border-border md:w-[min(38vw,380px)] lg:w-[min(36vw,460px)] xl:w-[520px] md:flex",
             view === "chat" ? "flex" : "hidden md:flex",
           )}
         >
@@ -481,7 +482,7 @@ function ChatPage() {
             resize="smooth"
             initial="instant"
           >
-            <StickToBottom.Content className="px-4 sm:px-6">
+            <StickToBottom.Content className="px-3 sm:px-5 lg:px-6">
               {isLoading ? (
                 <div className="space-y-4 pt-8">
                   {Array.from({ length: 3 }).map((_, i) => (
@@ -508,7 +509,7 @@ function ChatPage() {
             </StickToBottom.Content>
             <JumpToLatest />
           </StickToBottom>
-          <div className="flex-none overscroll-none border-t border-border-subtle bg-background/95 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md sm:px-4 supports-backdrop-filter:bg-background/85">
+          <div className="flex-none overscroll-none border-t border-border-subtle bg-background/95 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md sm:px-4 supports-backdrop-filter:bg-background/85">
             <Composer
               onSend={({ text, attachments }) => sendText(text, attachments)}
               disabled={streaming}
@@ -522,7 +523,7 @@ function ChatPage() {
 
         <section
           className={cn(
-            "min-h-0 flex-1 flex-col overflow-hidden md:flex",
+            "min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:flex",
             view === "preview" ? "flex" : "hidden md:flex",
           )}
         >

@@ -64,19 +64,19 @@ export function Header({
 
   return (
     <>
-      <header className="z-40 flex-none border-b border-border-subtle glass-strong pt-[env(safe-area-inset-top)]">
-        <div className="flex h-14 items-center justify-between px-3 sm:px-4">
-          <div className="flex items-center gap-3">
-            <Link to="/chat" className="group flex items-center gap-2.5">
+      <header className="z-40 min-w-0 flex-none border-b border-border-subtle glass-strong pt-[env(safe-area-inset-top)]">
+        <div className="flex h-14 min-w-0 items-center justify-between gap-2 px-2 sm:px-4">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <Link to="/chat" className="group flex shrink-0 items-center gap-2.5">
               <Logo size={30} />
               <span className="hidden font-mono text-[13px] font-semibold tracking-tight sm:inline">
                 Builder
               </span>
             </Link>
-            <div className="hidden h-5 w-px bg-border-subtle sm:block" />
+            <div className="hidden h-5 w-px shrink-0 bg-border-subtle sm:block" />
             {/* Always visible — mobile must reach Preview after artifact without opening the menu */}
             <div
-              className="flex items-center rounded-lg border border-border-subtle bg-surface-1/70 p-0.5 text-[11px] font-mono font-medium"
+              className="flex shrink-0 items-center rounded-lg border border-border-subtle bg-surface-1/70 p-0.5 text-[11px] font-mono font-medium"
               role="group"
               aria-label="Chat or preview"
             >
@@ -88,7 +88,7 @@ export function Header({
                   aria-label={v === "chat" ? "Show chat view" : "Show preview canvas"}
                   aria-pressed={view === v}
                   className={cn(
-                    "min-h-9 rounded-md px-2.5 py-1 uppercase tracking-wider transition-all sm:px-3",
+                    "min-h-9 rounded-md px-2 py-1 uppercase tracking-wider transition-all sm:px-3",
                     view === v
                       ? "bg-surface-3 text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground",
@@ -100,7 +100,7 @@ export function Header({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             {activeThreadId && activeModel && (
               <div className="relative hidden md:block">
                 <button
@@ -177,7 +177,7 @@ export function Header({
 
       {/* Mobile full-screen menu */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-background md:hidden animate-in-fade">
+        <div className="fixed inset-0 z-50 flex flex-col bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] md:hidden animate-in-fade">
           <div className="flex h-14 flex-none items-center justify-between border-b border-border-subtle px-4">
             <button
               onClick={() => setMobileOpen(false)}
@@ -192,7 +192,7 @@ export function Header({
             </div>
             <div className="w-9" />
           </div>
-          <div className="flex-1 overflow-y-auto stagger">
+          <div className="flex-1 overflow-y-auto overscroll-y-contain stagger">
             <div className="p-3">
               <div className="mb-2 flex gap-1 rounded-lg border border-border-subtle bg-surface-1/60 p-0.5">
                 {(["chat", "preview"] as const).map((v) => (
@@ -206,7 +206,7 @@ export function Header({
                     aria-label={v === "chat" ? "Show chat view" : "Show preview canvas"}
                     aria-pressed={view === v}
                     className={cn(
-                      "flex-1 rounded-md px-3 py-2 text-xs font-mono uppercase tracking-wider transition-all",
+                      "min-h-11 flex-1 rounded-md px-3 py-2 text-xs font-mono uppercase tracking-wider transition-all",
                       view === v
                         ? "bg-surface-3 text-foreground shadow-sm"
                         : "text-muted-foreground",
@@ -216,23 +216,55 @@ export function Header({
                   </button>
                 ))}
               </div>
+              {activeThreadId && activeModel && onModelChange && (
+                <div className="mb-3 rounded-xl border border-border-subtle bg-surface-1/40 p-2">
+                  <p className="mb-1.5 px-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Model
+                  </p>
+                  <div className="flex flex-col gap-0.5" role="listbox" aria-label="Select model">
+                    {AVAILABLE_MODELS.map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        role="option"
+                        aria-selected={activeModel === m.id}
+                        onClick={() => {
+                          onModelChange(m.id);
+                          setMobileOpen(false);
+                        }}
+                        className={cn(
+                          "flex min-h-11 w-full flex-col items-start rounded-lg px-3 py-2 text-left text-sm transition-colors",
+                          activeModel === m.id
+                            ? "bg-surface-3 text-foreground"
+                            : "hover:bg-surface-2",
+                        )}
+                      >
+                        <span className="font-medium">{m.label}</span>
+                        {m.note && (
+                          <span className="mt-0.5 text-[11px] text-muted-foreground">{m.note}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <ThreadList activeThreadId={activeThreadId} onNavigate={() => setMobileOpen(false)} />
           </div>
           <div className="flex-none space-y-2 border-t border-border-subtle p-3">
-            <ThemeToggle className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm text-muted-foreground hover:bg-surface-2 hover:text-foreground" />
+            <ThemeToggle className="flex min-h-11 w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm text-muted-foreground hover:bg-surface-2 hover:text-foreground" />
             <button
               onClick={() => {
                 setMobileOpen(false);
                 onOpenSettings();
               }}
-              className="flex w-full items-center gap-3 rounded-lg border border-border-subtle bg-surface-1/60 px-3 py-3 text-sm hover:bg-surface-2"
+              className="flex min-h-11 w-full items-center gap-3 rounded-lg border border-border-subtle bg-surface-1/60 px-3 py-3 text-sm hover:bg-surface-2"
             >
               <Settings className="h-4 w-4" /> Settings
             </button>
             <button
               onClick={signOut}
-              className="flex w-full items-center gap-3 rounded-lg border border-border-subtle bg-surface-1/60 px-3 py-3 text-sm hover:bg-surface-2"
+              className="flex min-h-11 w-full items-center gap-3 rounded-lg border border-border-subtle bg-surface-1/60 px-3 py-3 text-sm hover:bg-surface-2"
             >
               <LogOut className="h-4 w-4" /> Sign out
             </button>

@@ -184,7 +184,9 @@
   html.app-viewport-lock,
   html.app-viewport-lock body {
     height: 100%;
+    max-width: 100%;
     overflow: hidden;
+    overflow-x: clip;
     overscroll-behavior: none;
     touch-action: manipulation;
   }

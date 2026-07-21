@@ -289,21 +289,26 @@ export function Canvas({
     if (diffMode === "model" && !modelSnippet) setDiffMode("local");
   }, [diffMode, modelSnippet]);
 
-  const iframeBaseHeight = fullscreen
-    ? Math.max(480, (typeof window !== "undefined" ? window.innerHeight : 800) - 160)
-    : 720;
+  const iframeBaseHeight = useMemo(() => {
+    if (typeof window === "undefined") return 720;
+    const vh = window.innerHeight;
+    if (fullscreen) return Math.max(480, vh - 120);
+    // Fill more of the canvas on short phone viewports; keep desktop roomy.
+    if (vh < 720) return Math.max(360, vh - 200);
+    return 720;
+  }, [fullscreen, hostWidth]);
 
-  const frame = useMemo(
-    () =>
-      computeFrame({
-        mode: previewMode,
-        hostWidth: Math.max(280, hostWidth - 32),
-        zoom,
-        customWidth,
-        iframeHeight: iframeBaseHeight,
-      }),
-    [previewMode, hostWidth, zoom, customWidth, iframeBaseHeight],
-  );
+  const frame = useMemo(() => {
+    // Narrow hosts: less chrome padding so fluid ≈ true device width.
+    const pad = hostWidth < 640 ? 12 : 32;
+    return computeFrame({
+      mode: previewMode,
+      hostWidth: Math.max(280, hostWidth - pad),
+      zoom,
+      customWidth,
+      iframeHeight: iframeBaseHeight,
+    });
+  }, [previewMode, hostWidth, zoom, customWidth, iframeBaseHeight]);
 
   const srcDoc = useMemo(() => {
     if (!artifact || !resolvedPreviewPath) return null;
@@ -596,239 +601,246 @@ export function Canvas({
       />
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-mesh-glow opacity-40" />
 
-      <div className="relative z-10 flex flex-none items-center justify-between gap-2 border-b border-border-subtle glass px-3 py-2">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center rounded-lg border border-border-subtle bg-surface-1/70 p-0.5">
-            {(
-              [
-                { key: "preview", Icon: Eye, label: "Preview" },
-                { key: "code", Icon: Code2, label: "Code" },
-                { key: "diff", Icon: Columns2, label: "Diff" },
-              ] as const
-            ).map(({ key: k, Icon, label }) => {
-              const active = view === k;
-              return (
-                <button
-                  key={k}
-                  onClick={() => setView(k)}
-                  className={cn(
-                    "inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all",
-                    active
-                      ? "bg-surface-3 text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                  title={label}
-                  aria-label={label}
+      {/* Single scrollable chrome row — never overflows Builder shell on phones */}
+      <div className="relative z-10 flex flex-none min-w-0 border-b border-border-subtle glass">
+        <div className="flex min-h-11 w-full min-w-0 items-center gap-1 overflow-x-auto overscroll-x-contain no-scrollbar px-2 py-1.5 sm:gap-2 sm:px-3 sm:py-2">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+            <div className="flex items-center rounded-lg border border-border-subtle bg-surface-1/70 p-0.5">
+              {(
+                [
+                  { key: "preview", Icon: Eye, label: "Preview" },
+                  { key: "code", Icon: Code2, label: "Code" },
+                  { key: "diff", Icon: Columns2, label: "Diff" },
+                ] as const
+              ).map(({ key: k, Icon, label }) => {
+                const active = view === k;
+                return (
+                  <button
+                    key={k}
+                    onClick={() => setView(k)}
+                    className={cn(
+                      "inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all",
+                      active
+                        ? "bg-surface-3 text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                    title={label}
+                    aria-label={label}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {view === "preview" && srcDoc && (
+              <>
+                <div className="hidden h-4 w-px bg-border-subtle sm:block" />
+                {/* M1: fluid + real device sim (scale) — visible on phone too */}
+                <div
+                  className="flex items-center gap-0.5 rounded-lg border border-border-subtle bg-surface-1/70 p-0.5"
+                  role="group"
+                  aria-label="Preview device width"
                 >
-                  <Icon className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">{label}</span>
+                  {(
+                    [
+                      { mode: "fluid" as const, Icon: Scaling, label: "Fluid (host width)" },
+                      { mode: "mobile" as const, Icon: Smartphone, label: "Mobile 390" },
+                      { mode: "tablet" as const, Icon: Tablet, label: "Tablet 768" },
+                      { mode: "desktop" as const, Icon: Monitor, label: "Desktop 1200" },
+                    ] as const
+                  ).map(({ mode, Icon, label }) => {
+                    const active = previewMode === mode && !customWidth;
+                    return (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => {
+                          setCustomWidth(null);
+                          setPreviewMode(mode);
+                        }}
+                        className={cn(
+                          "flex min-h-9 min-w-9 items-center justify-center rounded-md p-1.5 transition-all",
+                          active
+                            ? "bg-surface-3 text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                        title={label}
+                        aria-label={label}
+                        aria-pressed={active}
+                      >
+                        <Icon className="h-3.5 w-3.5" />
+                      </button>
+                    );
+                  })}
+                </div>
+                <label className="hidden items-center gap-1 font-mono text-[10px] text-muted-foreground md:flex">
+                  px
+                  <input
+                    id="preview-custom-width"
+                    name="preview-custom-width"
+                    type="number"
+                    min={280}
+                    max={1600}
+                    value={customWidth ?? ""}
+                    placeholder={String(frame.mediaWidth)}
+                    onChange={(e) => {
+                      const n = Number(e.target.value);
+                      setCustomWidth(Number.isFinite(n) && n > 0 ? n : null);
+                    }}
+                    className="h-8 w-16 rounded-md border border-border-subtle bg-surface-1 px-1.5 text-[11px] text-foreground"
+                    aria-label="Custom preview width"
+                  />
+                </label>
+                <button
+                  onClick={refresh}
+                  className="min-h-9 min-w-9 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+                  title="Refresh preview"
+                  aria-label="Refresh preview"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
                 </button>
-              );
-            })}
+                <button
+                  onClick={() => setFullscreen((v) => !v)}
+                  className="min-h-9 min-w-9 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+                  title="Fullscreen (F)"
+                  aria-label="Toggle fullscreen preview"
+                >
+                  <Maximize2 className="h-3.5 w-3.5" />
+                </button>
+              </>
+            )}
           </div>
 
-          {view === "preview" && srcDoc && (
-            <>
-              <div className="hidden h-4 w-px bg-border-subtle sm:block" />
-              {/* M1: fluid + real device sim (scale) — visible on phone too */}
-              <div className="flex items-center gap-0.5 rounded-lg border border-border-subtle bg-surface-1/70 p-0.5">
-                {(
-                  [
-                    { mode: "fluid" as const, Icon: Scaling, label: "Fluid (host width)" },
-                    { mode: "mobile" as const, Icon: Smartphone, label: "Mobile 390" },
-                    { mode: "tablet" as const, Icon: Tablet, label: "Tablet 768" },
-                    { mode: "desktop" as const, Icon: Monitor, label: "Desktop 1200" },
-                  ] as const
-                ).map(({ mode, Icon, label }) => {
-                  const active = previewMode === mode && !customWidth;
-                  return (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => {
-                        setCustomWidth(null);
-                        setPreviewMode(mode);
-                      }}
-                      className={cn(
-                        "flex min-h-9 min-w-9 items-center justify-center rounded-md p-1.5 transition-all",
-                        active
-                          ? "bg-surface-3 text-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground",
-                      )}
-                      title={label}
-                      aria-label={label}
-                      aria-pressed={active}
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                    </button>
-                  );
-                })}
+          <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
+            {view === "preview" && srcDoc && (
+              <div className="hidden items-center rounded-lg border border-border-subtle bg-surface-1/70 p-0.5 text-xs font-mono text-muted-foreground md:flex">
+                <button
+                  onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(2)))}
+                  className="rounded-md p-1.5 hover:text-foreground"
+                  title="Zoom out"
+                  aria-label="Zoom out"
+                >
+                  <ZoomOut className="h-3.5 w-3.5" />
+                </button>
+                <span className="w-12 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
+                <button
+                  onClick={() => setZoom((z) => Math.min(1.5, +(z + 0.1).toFixed(2)))}
+                  className="rounded-md p-1.5 hover:text-foreground"
+                  title="Zoom in"
+                  aria-label="Zoom in"
+                >
+                  <ZoomIn className="h-3.5 w-3.5" />
+                </button>
               </div>
-              <label className="hidden items-center gap-1 font-mono text-[10px] text-muted-foreground sm:flex">
-                px
-                <input
-                  id="preview-custom-width"
-                  name="preview-custom-width"
-                  type="number"
-                  min={280}
-                  max={1600}
-                  value={customWidth ?? ""}
-                  placeholder={String(frame.mediaWidth)}
-                  onChange={(e) => {
-                    const n = Number(e.target.value);
-                    setCustomWidth(Number.isFinite(n) && n > 0 ? n : null);
+            )}
+            {artifact && srcDoc && (
+              <>
+                <button
+                  onClick={() => {
+                    setShowConsole((s) => !s);
+                    if (!showConsole) setShowNetwork(false);
                   }}
-                  className="h-8 w-16 rounded-md border border-border-subtle bg-surface-1 px-1.5 text-[11px] text-foreground"
-                  aria-label="Custom preview width"
-                />
-              </label>
-              <button
-                onClick={refresh}
-                className="min-h-9 min-w-9 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
-                title="Refresh preview"
-                aria-label="Refresh preview"
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-              </button>
-              <button
-                onClick={() => setFullscreen((v) => !v)}
-                className="min-h-9 min-w-9 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
-                title="Fullscreen (F)"
-                aria-label="Toggle fullscreen preview"
-              >
-                <Maximize2 className="h-3.5 w-3.5" />
-              </button>
-            </>
-          )}
-        </div>
-
-        <div className="flex items-center gap-1">
-          {view === "preview" && srcDoc && (
-            <div className="hidden items-center rounded-lg border border-border-subtle bg-surface-1/70 p-0.5 text-xs font-mono text-muted-foreground sm:flex">
-              <button
-                onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(2)))}
-                className="rounded-md p-1.5 hover:text-foreground"
-                title="Zoom out"
-                aria-label="Zoom out"
-              >
-                <ZoomOut className="h-3.5 w-3.5" />
-              </button>
-              <span className="w-12 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
-              <button
-                onClick={() => setZoom((z) => Math.min(1.5, +(z + 0.1).toFixed(2)))}
-                className="rounded-md p-1.5 hover:text-foreground"
-                title="Zoom in"
-                aria-label="Zoom in"
-              >
-                <ZoomIn className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          )}
-          {artifact && srcDoc && (
-            <>
+                  className={cn(
+                    "inline-flex min-h-9 items-center gap-1.5 rounded-md px-1.5 py-1.5 text-xs font-medium transition-colors sm:px-2",
+                    showConsole
+                      ? "bg-surface-3 text-foreground"
+                      : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
+                  )}
+                  title={
+                    errorCount
+                      ? `Console — ${errorCount} error(s) from preview`
+                      : "Console — live logs from sandboxed preview"
+                  }
+                  aria-label="Toggle console"
+                >
+                  <Terminal className="h-3.5 w-3.5" />
+                  <span className="hidden lg:inline">Console</span>
+                  {errorCount > 0 ? (
+                    <span className="rounded-full bg-destructive/20 px-1.5 text-[10px] font-mono text-destructive tabular-nums">
+                      {errorCount}
+                    </span>
+                  ) : logs.length > 0 ? (
+                    <span className="rounded-full bg-accent-primary/20 px-1.5 text-[10px] font-mono text-accent-primary tabular-nums">
+                      {logs.length}
+                    </span>
+                  ) : null}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowNetwork((s) => !s);
+                    if (!showNetwork) setShowConsole(false);
+                  }}
+                  className={cn(
+                    "inline-flex min-h-9 items-center gap-1.5 rounded-md px-1.5 py-1.5 text-xs font-medium transition-colors sm:px-2",
+                    showNetwork
+                      ? "bg-surface-3 text-foreground"
+                      : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
+                  )}
+                  title="Network"
+                  aria-label="Toggle network panel"
+                >
+                  <Network className="h-3.5 w-3.5" />
+                  <span className="hidden lg:inline">Net</span>
+                  {network.length > 0 && (
+                    <span className="rounded-full bg-accent-primary/20 px-1.5 text-[10px] font-mono text-accent-primary tabular-nums">
+                      {network.length}
+                    </span>
+                  )}
+                </button>
+              </>
+            )}
+            {artifact && (
+              <>
+                <VersionTimeline artifactId={artifact.id} threadId={threadId} />
+                <button
+                  onClick={handleExport}
+                  className="min-h-9 min-w-9 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+                  title="Download"
+                  aria-label="Download artifact"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={handleShare}
+                  disabled={sharing}
+                  className={cn(
+                    "inline-flex min-h-9 items-center gap-1.5 rounded-md px-1.5 py-1.5 text-xs font-medium transition-colors sm:px-2",
+                    artifact.is_public
+                      ? "bg-accent-primary/15 text-accent-primary hover:bg-accent-primary/25"
+                      : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
+                  )}
+                  title={artifact.is_public ? "Public — click to unshare" : "Share publicly"}
+                  aria-label={artifact.is_public ? "Disable public share" : "Share publicly"}
+                >
+                  {artifact.is_public ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : (
+                    <Share2 className="h-3.5 w-3.5" />
+                  )}
+                  <span className="hidden md:inline">{artifact.is_public ? "Shared" : "Share"}</span>
+                </button>
+              </>
+            )}
+            {artifact?.kind === "html" && srcDoc && (
               <button
                 onClick={() => {
-                  setShowConsole((s) => !s);
-                  if (!showConsole) setShowNetwork(false);
+                  const w = window.open("", "_blank");
+                  if (w) {
+                    w.document.open();
+                    w.document.write(srcDoc);
+                    w.document.close();
+                  }
                 }}
-                className={cn(
-                  "inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
-                  showConsole
-                    ? "bg-surface-3 text-foreground"
-                    : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
-                )}
-                title={
-                  errorCount
-                    ? `Console — ${errorCount} error(s) from preview`
-                    : "Console — live logs from sandboxed preview"
-                }
-                aria-label="Toggle console"
+                className="hidden min-h-9 min-w-9 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground sm:inline-flex"
+                title="Open in new tab"
+                aria-label="Open in new tab"
               >
-                <Terminal className="h-3.5 w-3.5" />
-                <span className="hidden md:inline">Console</span>
-                {errorCount > 0 ? (
-                  <span className="rounded-full bg-destructive/20 px-1.5 text-[10px] font-mono text-destructive tabular-nums">
-                    {errorCount}
-                  </span>
-                ) : logs.length > 0 ? (
-                  <span className="rounded-full bg-accent-primary/20 px-1.5 text-[10px] font-mono text-accent-primary tabular-nums">
-                    {logs.length}
-                  </span>
-                ) : null}
+                <ExternalLink className="h-3.5 w-3.5" />
               </button>
-              <button
-                onClick={() => {
-                  setShowNetwork((s) => !s);
-                  if (!showNetwork) setShowConsole(false);
-                }}
-                className={cn(
-                  "inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
-                  showNetwork
-                    ? "bg-surface-3 text-foreground"
-                    : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
-                )}
-                title="Network"
-                aria-label="Toggle network panel"
-              >
-                <Network className="h-3.5 w-3.5" />
-                <span className="hidden md:inline">Net</span>
-                {network.length > 0 && (
-                  <span className="rounded-full bg-accent-primary/20 px-1.5 text-[10px] font-mono text-accent-primary tabular-nums">
-                    {network.length}
-                  </span>
-                )}
-              </button>
-            </>
-          )}
-          {artifact && (
-            <>
-              <VersionTimeline artifactId={artifact.id} threadId={threadId} />
-              <button
-                onClick={handleExport}
-                className="min-h-9 min-w-9 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
-                title="Download"
-                aria-label="Download artifact"
-              >
-                <Download className="h-3.5 w-3.5" />
-              </button>
-              <button
-                onClick={handleShare}
-                disabled={sharing}
-                className={cn(
-                  "inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
-                  artifact.is_public
-                    ? "bg-accent-primary/15 text-accent-primary hover:bg-accent-primary/25"
-                    : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
-                )}
-                title={artifact.is_public ? "Public — click to unshare" : "Share publicly"}
-                aria-label={artifact.is_public ? "Disable public share" : "Share publicly"}
-              >
-                {artifact.is_public ? (
-                  <Check className="h-3.5 w-3.5" />
-                ) : (
-                  <Share2 className="h-3.5 w-3.5" />
-                )}
-                <span className="hidden sm:inline">{artifact.is_public ? "Shared" : "Share"}</span>
-              </button>
-            </>
-          )}
-          {artifact?.kind === "html" && srcDoc && (
-            <button
-              onClick={() => {
-                const w = window.open("", "_blank");
-                if (w) {
-                  w.document.open();
-                  w.document.write(srcDoc);
-                  w.document.close();
-                }
-              }}
-              className="min-h-9 min-w-9 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
-              title="Open in new tab"
-              aria-label="Open in new tab"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-            </button>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
@@ -990,7 +1002,7 @@ export function Canvas({
       <div className="relative z-0 flex min-h-0 flex-1 flex-col">
         <div
           ref={paneRef}
-          className="flex flex-1 items-start justify-center overflow-auto p-4 sm:p-8"
+          className="flex min-h-0 min-w-0 flex-1 items-start justify-center overflow-auto overscroll-contain p-2 sm:p-4 lg:p-8"
         >
           {!artifact && <EmptyCanvas />}
 
@@ -1087,7 +1099,7 @@ export function Canvas({
 
           {artifact && view === "preview" && !srcDoc && artifact.kind === "markdown" && (
             <article
-              className="prose prose-invert prose-sm max-w-3xl rounded-2xl border border-border-subtle bg-panel px-8 py-6 shadow-elevated animate-in-scale"
+              className="prose prose-invert prose-sm w-full max-w-3xl rounded-2xl border border-border-subtle bg-panel px-4 py-5 shadow-elevated animate-in-scale sm:px-8 sm:py-6"
               style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}
             >
               <h2 className="mt-0!">{artifact.title}</h2>

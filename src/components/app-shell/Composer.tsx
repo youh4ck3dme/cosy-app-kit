@@ -221,8 +221,8 @@ export function Composer({
             />
           </PromptInputBody>
 
-          <PromptInputFooter className="px-2 pb-2">
-            <PromptInputTools>
+          <PromptInputFooter className="flex-wrap gap-y-1.5 px-2 pb-2">
+            <PromptInputTools className="min-w-0 flex-1 flex-wrap">
               <input
                 ref={fileRef}
                 id="composer-attachments"
@@ -251,7 +251,7 @@ export function Composer({
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span className="inline-flex">
+                    <span className="hidden sm:inline-flex">
                       <Button
                         type="button"
                         variant="ghost"
@@ -267,7 +267,11 @@ export function Composer({
                   <TooltipContent>Coming soon</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              <div className="ml-1 flex items-center rounded-full border border-border-subtle bg-surface-1/70 p-0.5 text-[12px] font-medium">
+              <div
+                className="ml-0.5 flex items-center rounded-full border border-border-subtle bg-surface-1/70 p-0.5 text-[12px] font-medium sm:ml-1"
+                role="group"
+                aria-label="Build or Plan mode"
+              >
                 {(
                   [
                     { key: "Build", Icon: Hammer },
@@ -280,22 +284,24 @@ export function Composer({
                       key={key}
                       type="button"
                       onClick={() => onModeChange(key)}
+                      aria-pressed={active}
+                      aria-label={`${key} mode`}
                       className={cn(
-                        "flex min-h-9 items-center gap-1.5 rounded-full px-3 py-1.5 transition-all",
+                        "flex min-h-9 items-center gap-1.5 rounded-full px-2.5 py-1.5 transition-all sm:px-3",
                         active
                           ? "bg-surface-3 text-foreground shadow-sm"
                           : "text-muted-foreground hover:text-foreground",
                       )}
                     >
                       <Icon className="h-3.5 w-3.5" />
-                      {key}
+                      <span className="hidden min-[380px]:inline">{key}</span>
                     </button>
                   );
                 })}
               </div>
             </PromptInputTools>
 
-            <div className="flex items-center gap-1">
+            <div className="flex shrink-0 items-center gap-1">
               <PromptInputSubmit
                 status={status}
                 disabled={disabled && !streaming}
