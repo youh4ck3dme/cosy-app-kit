@@ -67,7 +67,7 @@ function ChatIndex() {
   }, [data, isLoading, navigate, create, qc]);
 
   return (
-    <div className="fixed inset-0 flex h-dvh max-h-dvh overflow-hidden">
+    <div className="app-shell-fixed flex flex-col">
       <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-border md:block">
         <ThreadList />
       </aside>

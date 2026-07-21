@@ -17,6 +17,7 @@ import {
   resolveKnownModelId,
 } from "@/lib/models";
 import { Chip } from "./Chip";
+import { SpeedPwaSettings } from "./SpeedPwaSettings";
 import { toast } from "sonner";
 import { Loader2, RotateCcw, Trash2 } from "lucide-react";
 
@@ -104,7 +105,11 @@ export function AgentSettingsPanel({ threadId }: { threadId?: string }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      <SpeedPwaSettings />
+
+      <div className="h-px bg-border-subtle" aria-hidden />
+
       <section>
         <SectionTitle>Model</SectionTitle>
         <p className="mb-3 text-xs text-muted-foreground">
@@ -322,11 +327,8 @@ function ToolRow({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <label
-      htmlFor={id}
-      className="flex cursor-pointer items-start justify-between gap-4 rounded-lg border border-border bg-surface px-3 py-3 hover:bg-elevated"
-    >
-      <div className="min-w-0">
+    <label htmlFor={id} className="settings-row cursor-pointer">
+      <div className="min-w-0 pr-2">
         <div className="flex items-center gap-2 text-sm font-medium">
           {title}
           {wired && (
@@ -342,7 +344,7 @@ function ToolRow({
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="mt-1 h-4 w-4 accent-foreground"
+        className="h-5 w-5 shrink-0 accent-accent-primary"
       />
     </label>
   );
