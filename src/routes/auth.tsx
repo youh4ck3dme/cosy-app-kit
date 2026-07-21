@@ -185,14 +185,17 @@ function AuthPage() {
     setLoading(true);
     try {
       if (mode === "signup") {
-        const redirectPath = next || "/chat";
+        // Must land on /auth so hash tokens (email confirm) are applied via setSession.
+        // Never send confirm links to bare /chat or a wrong Site URL fallback.
+        const nextPath = next || "/chat";
+        const emailRedirectTo = `${window.location.origin}/auth?next=${encodeURIComponent(nextPath)}`;
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${window.location.origin}${redirectPath}` },
+          options: { emailRedirectTo },
         });
         if (error) throw error;
-        toast.success("Account created. You can sign in now.");
+        toast.success("Check your email to confirm, or sign in if confirmation is off.");
         setMode("signin");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
