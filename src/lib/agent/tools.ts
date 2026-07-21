@@ -11,6 +11,7 @@ import {
   sanitizeRelativePath,
 } from "@/lib/agent/patch";
 import { analyzeProjectRuntime } from "@/lib/agent/project-runtime-gate";
+import { formatUnverified, validateProject } from "@/lib/agent/project-validate";
 import { fetchUrlText, webSearch } from "@/lib/agent/web";
 import { snapshotArtifactVersion } from "@/lib/agent/versions";
 
@@ -26,6 +27,13 @@ export type ToolFlags = {
   fetch_url?: boolean;
   /** Multi-page mini-site pipeline (LMAP). Default on in Build. */
   launch_site?: boolean;
+  list_project_files?: boolean;
+  read_project_file?: boolean;
+  write_project_file?: boolean;
+  validate_project_structure?: boolean;
+  validate_links?: boolean;
+  validate_javascript_syntax?: boolean;
+  run_project_smoke?: boolean;
 };
 
 export type BuildToolsArgs = {
@@ -33,6 +41,8 @@ export type BuildToolsArgs = {
   threadId: string;
   supabase: Client;
   flags?: ToolFlags;
+  /** Preferred artifact for QA/edit when client focuses canvas. */
+  activeArtifactId?: string | null;
 };
 
 function asFiles(files: ArtifactFile[]): Json {
@@ -82,7 +92,13 @@ function sanitizeFiles(
   return { ok: true, files: out };
 }
 
-export function buildTools({ mode, threadId, supabase, flags }: BuildToolsArgs): ToolSet {
+export function buildTools({
+  mode,
+  threadId,
+  supabase,
+  flags,
+  activeArtifactId,
+}: BuildToolsArgs): ToolSet {
   const f = {
     create_artifact: flags?.create_artifact !== false,
     edit_file: flags?.edit_file !== false,
@@ -92,7 +108,45 @@ export function buildTools({ mode, threadId, supabase, flags }: BuildToolsArgs):
     web_search: flags?.web_search === true,
     fetch_url: flags?.fetch_url === true,
     launch_site: flags?.launch_site !== false,
+    list_project_files: flags?.list_project_files !== false,
+    read_project_file: flags?.read_project_file !== false,
+    write_project_file: flags?.write_project_file !== false,
+    validate_project_structure: flags?.validate_project_structure !== false,
+    validate_links: flags?.validate_links !== false,
+    validate_javascript_syntax: flags?.validate_javascript_syntax !== false,
+    run_project_smoke: flags?.run_project_smoke !== false,
   };
+
+  async function loadArtifactRow(artifact_id?: string) {
+    const select = "id,title,kind,entry_path,content,files,created_at";
+    if (artifact_id) {
+      const res = await supabase
+        .from("artifacts")
+        .select(select)
+        .eq("id", artifact_id)
+        .eq("thread_id", threadId)
+        .maybeSingle();
+      return res.data;
+    }
+    const preferred = activeArtifactId?.trim();
+    if (preferred) {
+      const res = await supabase
+        .from("artifacts")
+        .select(select)
+        .eq("id", preferred)
+        .eq("thread_id", threadId)
+        .maybeSingle();
+      if (res.data) return res.data;
+    }
+    const res = await supabase
+      .from("artifacts")
+      .select(select)
+      .eq("thread_id", threadId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return res.data;
+  }
 
   const read_artifact = tool({
     description:
@@ -530,5 +584,293 @@ export function buildTools({ mode, threadId, supabase, flags }: BuildToolsArgs):
     },
   });
 
-  return { create_artifact, edit_file, read_artifact, remember, launch_site, ...grounding };
+  const list_project_files = tool({
+    description:
+      "List file paths in the current (or specified) artifact. Prefer this over inventing file trees.",
+    inputSchema: z.object({
+      artifact_id: z.string().uuid().optional(),
+    }),
+    execute: async ({ artifact_id }) => {
+      if (!f.list_project_files) {
+        return {
+          status: "unverified" as const,
+          message: formatUnverified("list_project_files is disabled"),
+        };
+      }
+      const row = await loadArtifactRow(artifact_id);
+      if (!row) {
+        return { ok: false as const, error: "Artifact not found in this thread" };
+      }
+      const files = parseFilesJson(row.files);
+      const paths =
+        files.length > 0
+          ? files.map((x) => x.path)
+          : [row.entry_path || (row.kind === "markdown" ? "README.md" : "index.html")];
+      return {
+        ok: true as const,
+        artifactId: row.id,
+        entry_path: row.entry_path,
+        paths,
+        fileCount: paths.length,
+      };
+    },
+  });
+
+  const read_project_file = tool({
+    description: "Read one file from an artifact by path. Do not invent content.",
+    inputSchema: z.object({
+      artifact_id: z.string().uuid().optional(),
+      path: z.string().min(1).max(240),
+    }),
+    execute: async ({ artifact_id, path }) => {
+      if (!f.read_project_file) {
+        return {
+          status: "unverified" as const,
+          message: formatUnverified("read_project_file is disabled"),
+        };
+      }
+      const clean = sanitizeRelativePath(path);
+      if (!clean.ok) return { ok: false as const, error: clean.error };
+      const row = await loadArtifactRow(artifact_id);
+      if (!row) return { ok: false as const, error: "Artifact not found" };
+      const files = parseFilesJson(row.files);
+      const hit =
+        files.find((x) => x.path === clean.path) ??
+        (row.entry_path === clean.path || (!files.length && clean.path === "index.html")
+          ? {
+              path: clean.path,
+              language: row.kind,
+              content: row.content,
+            }
+          : null);
+      if (!hit) return { ok: false as const, error: `File not found: ${clean.path}` };
+      const content =
+        hit.content.length > 24_000
+          ? hit.content.slice(0, 24_000) + "\n/* …truncated… */"
+          : hit.content;
+      return {
+        ok: true as const,
+        artifactId: row.id,
+        path: hit.path,
+        language: hit.language,
+        content,
+        truncated: hit.content.length > 24_000,
+      };
+    },
+  });
+
+  const write_project_file = tool({
+    description:
+      "Write/replace one file in an existing artifact (does not create a new artifact).",
+    inputSchema: z.object({
+      artifact_id: z.string().uuid(),
+      path: z.string().min(1).max(240),
+      content: z.string().min(1),
+      language: z.string().max(40).optional(),
+    }),
+    execute: async ({ artifact_id, path, content, language }) => {
+      if (!f.write_project_file) {
+        return {
+          status: "unverified" as const,
+          message: formatUnverified("write_project_file is disabled"),
+        };
+      }
+      if (!f.edit_file) {
+        return {
+          status: "unverified" as const,
+          message: formatUnverified("edit_file is disabled"),
+        };
+      }
+      const clean = sanitizeRelativePath(path);
+      if (!clean.ok) return { ok: false as const, error: clean.error };
+      const rewritten = applyRewrite(content);
+      if (!rewritten.ok) return { ok: false as const, error: rewritten.error };
+      const row = await loadArtifactRow(artifact_id);
+      if (!row) return { ok: false as const, error: "Artifact not found" };
+      let files = parseFilesJson(row.files);
+      if (!files.length) {
+        files = [
+          {
+            path: row.entry_path || "index.html",
+            language: row.kind,
+            content: row.content,
+          },
+        ];
+      }
+      const idx = files.findIndex((x) => x.path === clean.path);
+      const nextFile: ArtifactFile = {
+        path: clean.path,
+        language: (language ?? files[idx]?.language ?? "text").slice(0, 40),
+        content: rewritten.content,
+      };
+      if (idx >= 0) files[idx] = nextFile;
+      else files.push(nextFile);
+      const entry = row.entry_path || files.find((x) => /\.html?$/i.test(x.path))?.path || files[0]!.path;
+      const main = files.find((x) => x.path === entry) ?? files[0]!;
+      const { error } = await supabase
+        .from("artifacts")
+        .update({
+          files: asFiles(files),
+          content: main.content,
+          entry_path: entry,
+        })
+        .eq("id", row.id);
+      if (error) return { ok: false as const, error: error.message };
+      await snapshotArtifactVersion(supabase, {
+        artifactId: row.id,
+        files,
+        content: main.content,
+        entry_path: entry,
+        title: row.title,
+        source: "tool",
+      });
+      const quality = analyzeProjectRuntime(files);
+      return {
+        ok: true as const,
+        artifactId: row.id,
+        path: clean.path,
+        filesCount: files.length,
+        quality,
+      };
+    },
+  });
+
+  const validate_project_structure = tool({
+    description: "Deterministic project structure validation (entry, paths, duplicates).",
+    inputSchema: z.object({ artifact_id: z.string().uuid().optional() }),
+    execute: async ({ artifact_id }) => {
+      if (!f.validate_project_structure) {
+        return {
+          status: "unverified" as const,
+          message: formatUnverified("validate_project_structure is disabled"),
+        };
+      }
+      const row = await loadArtifactRow(artifact_id);
+      if (!row) return { ok: false as const, error: "Artifact not found" };
+      const files = parseFilesJson(row.files);
+      const pack =
+        files.length > 0
+          ? files
+          : [{ path: row.entry_path || "index.html", content: row.content }];
+      const result = validateProject(pack, { entryPath: row.entry_path });
+      return {
+        ok: true as const,
+        artifactId: row.id,
+        status: result.status,
+        checks: result.checks,
+        score: result.score,
+        validationOk: result.ok,
+      };
+    },
+  });
+
+  const validate_links = tool({
+    description: "Check relative href/src targets resolve inside the artifact package.",
+    inputSchema: z.object({ artifact_id: z.string().uuid().optional() }),
+    execute: async ({ artifact_id }) => {
+      if (!f.validate_links) {
+        return {
+          status: "unverified" as const,
+          message: formatUnverified("validate_links is disabled"),
+        };
+      }
+      const row = await loadArtifactRow(artifact_id);
+      if (!row) return { ok: false as const, error: "Artifact not found" };
+      const files = parseFilesJson(row.files);
+      const pack =
+        files.length > 0
+          ? files
+          : [{ path: row.entry_path || "index.html", content: row.content }];
+      const result = validateProject(pack, { entryPath: row.entry_path });
+      const linkChecks = result.checks.filter(
+        (c) => c.id === "relative-links" || c.id.startsWith("link:"),
+      );
+      const failed = linkChecks.some((c) => c.status === "fail");
+      return {
+        ok: true as const,
+        artifactId: row.id,
+        status: failed ? ("fail" as const) : ("pass" as const),
+        checks: linkChecks,
+      };
+    },
+  });
+
+  const validate_javascript_syntax = tool({
+    description: "Parse JavaScript files with a real parser (acorn). Never guess PASS.",
+    inputSchema: z.object({ artifact_id: z.string().uuid().optional() }),
+    execute: async ({ artifact_id }) => {
+      if (!f.validate_javascript_syntax) {
+        return {
+          status: "unverified" as const,
+          message: formatUnverified("validate_javascript_syntax is disabled"),
+        };
+      }
+      const row = await loadArtifactRow(artifact_id);
+      if (!row) return { ok: false as const, error: "Artifact not found" };
+      const files = parseFilesJson(row.files);
+      const pack =
+        files.length > 0
+          ? files
+          : [{ path: row.entry_path || "index.html", content: row.content }];
+      const result = validateProject(pack, { entryPath: row.entry_path });
+      const jsChecks = result.checks.filter((c) => c.id.startsWith("javascript-syntax"));
+      const failed = jsChecks.some((c) => c.status === "fail");
+      return {
+        ok: true as const,
+        artifactId: row.id,
+        status: jsChecks.length === 0 ? ("pass" as const) : failed ? ("fail" as const) : ("pass" as const),
+        checks: jsChecks.length
+          ? jsChecks
+          : [{ id: "javascript-syntax", status: "pass" as const, evidence: "No JS files to parse" }],
+      };
+    },
+  });
+
+  const run_project_smoke = tool({
+    description:
+      "Static smoke: entry + links + JS syntax. Does NOT run a browser — never claim visual PASS.",
+    inputSchema: z.object({ artifact_id: z.string().uuid().optional() }),
+    execute: async ({ artifact_id }) => {
+      if (!f.run_project_smoke) {
+        return {
+          status: "unverified" as const,
+          message: formatUnverified("run_project_smoke is disabled"),
+        };
+      }
+      const row = await loadArtifactRow(artifact_id);
+      if (!row) return { ok: false as const, error: "Artifact not found" };
+      const files = parseFilesJson(row.files);
+      const pack =
+        files.length > 0
+          ? files
+          : [{ path: row.entry_path || "index.html", content: row.content }];
+      const result = validateProject(pack, { entryPath: row.entry_path });
+      return {
+        ok: true as const,
+        artifactId: row.id,
+        smoke: "static" as const,
+        note: "Static checks only — not a live browser smoke.",
+        status: result.status,
+        checks: result.checks,
+        score: result.score,
+        validationOk: result.ok,
+      };
+    },
+  });
+
+  return {
+    create_artifact,
+    edit_file,
+    read_artifact,
+    remember,
+    launch_site,
+    list_project_files,
+    read_project_file,
+    write_project_file,
+    validate_project_structure,
+    validate_links,
+    validate_javascript_syntax,
+    run_project_smoke,
+    ...grounding,
+  };
 }

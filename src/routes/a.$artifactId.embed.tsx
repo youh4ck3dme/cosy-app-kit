@@ -1,11 +1,12 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import { buildPreviewBridgeScript } from "@/lib/preview-bridge";
-import { resolvePreviewNavTarget } from "@/lib/preview-nav";
 import { injectScriptIntoHtmlHead } from "@/lib/preview-storage-polyfill";
+import { needsUrlPreview } from "@/lib/project-fs";
+import { buildProjectPreviewUrl } from "@/lib/project-preview-url";
 
 const getPublicArtifact = createServerFn({ method: "GET" })
   .validator((input: unknown) => z.object({ id: z.uuid() }).parse(input))
@@ -62,9 +63,6 @@ export const Route = createFileRoute("/a/$artifactId/embed")({
 
 function EmbedPage() {
   const artifact = Route.useLoaderData();
-  const [previewPath, setPreviewPath] = useState<string | null>(null);
-  const [frameKey, setFrameKey] = useState(0);
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const bridgeTokenRef = useRef(
     typeof crypto !== "undefined" && crypto.randomUUID
       ? crypto.randomUUID()
@@ -78,8 +76,6 @@ function EmbedPage() {
       : [{ path: "index.html", language: artifact.kind, content: artifact.content }];
   }, [artifact]);
 
-  const filePaths = useMemo(() => files.map((f) => f.path), [files]);
-
   const entryPath =
     (artifact?.entry_path && files.some((f) => f.path === artifact.entry_path)
       ? artifact.entry_path
@@ -88,57 +84,42 @@ function EmbedPage() {
     files[0]?.path ??
     null;
 
-  const resolvedPreviewPath =
-    (previewPath && files.some((f) => f.path === previewPath) ? previewPath : null) ?? entryPath;
-
   const entry = useMemo(() => {
-    if (!resolvedPreviewPath) return null;
-    return files.find((f) => f.path === resolvedPreviewPath) ?? null;
-  }, [files, resolvedPreviewPath]);
+    if (!entryPath) return null;
+    return files.find((f) => f.path === entryPath) ?? null;
+  }, [files, entryPath]);
 
   const isHtml = Boolean(
     artifact && entry && (artifact.kind === "html" || /\.html?$/i.test(entry.path)),
   );
 
+  const urlMode = needsUrlPreview(files);
+  const previewSrc = useMemo(() => {
+    if (!artifact || !entryPath || !urlMode || !isHtml) return null;
+    return buildProjectPreviewUrl({
+      artifactId: artifact.id,
+      entryPath,
+      bridgeToken: bridgeTokenRef.current,
+    });
+  }, [artifact, entryPath, urlMode, isHtml]);
+
   const srcDoc = useMemo(() => {
-    if (!isHtml || !entry) return null;
+    if (!isHtml || !entry || urlMode) return null;
     return injectScriptIntoHtmlHead(entry.content, buildPreviewBridgeScript(bridgeTokenRef.current));
-  }, [entry, isHtml, frameKey]);
+  }, [entry, isHtml, urlMode]);
 
   useEffect(() => {
     if (!artifact) throw notFound();
   }, [artifact]);
-
-  useEffect(() => {
-    const onMsg = (e: MessageEvent) => {
-      if (iframeRef.current && e.source !== iframeRef.current.contentWindow) return;
-      const d = e.data;
-      if (!d || typeof d !== "object") return;
-      if (d.__builder_navigate !== bridgeTokenRef.current || typeof d.href !== "string") return;
-      const current = resolvedPreviewPath ?? entryPath ?? "index.html";
-      const target = resolvePreviewNavTarget(d.href, { filePaths, currentPath: current });
-      if (target.kind !== "internal") return;
-      setPreviewPath(target.path);
-      bridgeTokenRef.current =
-        typeof crypto !== "undefined" && crypto.randomUUID
-          ? crypto.randomUUID()
-          : `tok-${Date.now()}`;
-      setFrameKey((k) => k + 1);
-    };
-    window.addEventListener("message", onMsg);
-    return () => window.removeEventListener("message", onMsg);
-  }, [entryPath, filePaths, resolvedPreviewPath]);
 
   if (!artifact || !entry) return null;
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       <div className="flex-1">
-        {isHtml && srcDoc ? (
+        {isHtml && (previewSrc || srcDoc) ? (
           <iframe
-            key={frameKey}
-            ref={iframeRef}
-            srcDoc={srcDoc}
+            {...(previewSrc ? { src: previewSrc } : { srcDoc: srcDoc! })}
             sandbox="allow-scripts allow-forms"
             className="block h-[calc(100vh-2.5rem)] w-full border-0 bg-white"
             title={artifact.title}

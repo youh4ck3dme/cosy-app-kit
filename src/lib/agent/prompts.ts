@@ -104,6 +104,8 @@ Use edit_file (and read_artifact first). Update README only to match real behavi
 export type ClientPreviewContext = {
   previewMode?: string;
   hostWidth?: number;
+  /** Currently focused canvas artifact (UUID) — prefer for QA / edit tools. */
+  activeArtifactId?: string;
 };
 
 /** Safe system appendix from client viewport (no PII). */
@@ -117,10 +119,18 @@ export function formatClientContext(ctx?: ClientPreviewContext | null): string {
     typeof ctx.previewMode === "string" && ctx.previewMode.trim()
       ? ctx.previewMode.trim().slice(0, 32)
       : null;
-  if (w == null && !mode) return "";
+  const active =
+    typeof ctx.activeArtifactId === "string" &&
+    /^[0-9a-f-]{36}$/i.test(ctx.activeArtifactId.trim())
+      ? ctx.activeArtifactId.trim()
+      : null;
+  if (w == null && !mode && !active) return "";
   const widthBit = w != null ? `~${w}px host width` : "unknown host width";
   const modeBit = mode ? `preview mode: ${mode}` : "preview mode: unknown";
-  return `\n\n## Client viewport\nUser is viewing the Builder canvas at ${widthBit} (${modeBit}). Optimize first-paint HTML for phones (~360–430px) unless they explicitly asked for desktop-only.`;
+  const artifactBit = active
+    ? `\nActive canvas artifactId: ${active}. For QA/edits prefer list_project_files / read_project_file / validate_* on this id — do not invent file contents. If a validate tool is unavailable, reply UNVERIFIED: <reason> (never assume PASS).`
+    : `\nNo active artifact id from client. Discover via read_artifact / list_project_files before claiming file contents. If tools are unavailable, reply UNVERIFIED: <reason>.`;
+  return `\n\n## Client viewport\nUser is viewing the Builder canvas at ${widthBit} (${modeBit}). Optimize first-paint HTML for phones (~360–430px) unless they explicitly asked for desktop-only.${artifactBit}`;
 }
 
 export function composeSystem(
