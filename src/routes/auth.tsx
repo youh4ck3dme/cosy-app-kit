@@ -15,6 +15,7 @@ import {
 } from "@/integrations/lovable";
 import { toast } from "sonner";
 import { Loader2, Zap } from "lucide-react";
+import { buildEmailRedirectTo } from "@/lib/auth-redirect";
 
 /**
  * Shared shell for:
@@ -187,8 +188,7 @@ function AuthPage() {
       if (mode === "signup") {
         // Must land on /auth so hash tokens (email confirm) are applied via setSession.
         // Never send confirm links to bare /chat or a wrong Site URL fallback.
-        const nextPath = next || "/chat";
-        const emailRedirectTo = `${window.location.origin}/auth?next=${encodeURIComponent(nextPath)}`;
+        const emailRedirectTo = buildEmailRedirectTo(window.location.origin, next || "/chat");
         const { error } = await supabase.auth.signUp({
           email,
           password,

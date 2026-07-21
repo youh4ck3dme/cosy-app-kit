@@ -15,6 +15,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { registerServiceWorker } from "../lib/register-sw";
 import { THEME_BOOTSTRAP_SCRIPT, useTheme } from "../lib/theme";
 import { supabase } from "@/integrations/supabase/client";
+import { authHashRecoveryLocation } from "@/lib/auth-redirect";
 
 function NotFoundComponent() {
   return (
@@ -148,12 +149,13 @@ function RootComponent() {
     // If that is not /auth (e.g. / or wrong port still has tokens), hop to /auth
     // preserving the hash so setSession can run.
     try {
-      const hash = window.location.hash.replace(/^#/, "");
-      if (hash && hash.includes("access_token=") && !window.location.pathname.startsWith("/auth")) {
-        const path = `${window.location.pathname}${window.location.search}`;
-        const next = path && path !== "/" ? path : "/chat";
-        const dest = `/auth?next=${encodeURIComponent(next.startsWith("/") ? next : "/chat")}`;
-        window.location.replace(`${dest}#${hash}`);
+      const dest = authHashRecoveryLocation({
+        pathname: window.location.pathname,
+        search: window.location.search,
+        hash: window.location.hash,
+      });
+      if (dest) {
+        window.location.replace(dest);
         return;
       }
     } catch {
