@@ -177,13 +177,14 @@ function ChatPage() {
               clientContext: {
                 hostWidth,
                 previewMode,
+                activeArtifactId: activeArtifactId ?? undefined,
               },
             },
             headers,
           };
         },
       }),
-    [threadId],
+    [threadId, activeArtifactId],
   );
 
   const {

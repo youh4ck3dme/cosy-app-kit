@@ -156,6 +156,7 @@ export const Route = createFileRoute("/api/chat")({
             threadId: thread.id,
             supabase,
             flags: toolFlags,
+            activeArtifactId: body.clientContext?.activeArtifactId,
           });
 
           const persistAssistant = async (

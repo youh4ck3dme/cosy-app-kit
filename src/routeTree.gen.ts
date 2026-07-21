@@ -21,10 +21,13 @@ import { Route as AArtifactIdRouteImport } from './routes/a.$artifactId'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat.index'
+import { Route as PreviewArtifactIdSplatRouteImport } from './routes/preview.$artifactId.$'
 import { Route as AArtifactIdEmbedRouteImport } from './routes/a.$artifactId.embed'
 import { Route as AuthenticatedChatThreadIdRouteImport } from './routes/_authenticated/chat.$threadId'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
+import { Route as PreviewArtifactIdChar126TokenSplatRouteImport } from './routes/preview.$artifactId.~.$token.$'
+import { Route as ApiProjectsArtifactIdFilesSplatRouteImport } from './routes/api/projects.$artifactId.files.$'
 
 const TemplatesRoute = TemplatesRouteImport.update({
   id: '/templates',
@@ -87,6 +90,11 @@ const AuthenticatedChatIndexRoute = AuthenticatedChatIndexRouteImport.update({
   path: '/chat/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const PreviewArtifactIdSplatRoute = PreviewArtifactIdSplatRouteImport.update({
+  id: '/preview/$artifactId/$',
+  path: '/preview/$artifactId/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AArtifactIdEmbedRoute = AArtifactIdEmbedRouteImport.update({
   id: '/embed',
   path: '/embed',
@@ -109,6 +117,18 @@ const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   path: '/.lovable/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PreviewArtifactIdChar126TokenSplatRoute =
+  PreviewArtifactIdChar126TokenSplatRouteImport.update({
+    id: '/preview/$artifactId/~/$token/$',
+    path: '/preview/$artifactId/~/$token/$',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiProjectsArtifactIdFilesSplatRoute =
+  ApiProjectsArtifactIdFilesSplatRouteImport.update({
+    id: '/api/projects/$artifactId/files/$',
+    path: '/api/projects/$artifactId/files/$',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -125,7 +145,10 @@ export interface FileRoutesByFullPath {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/a/$artifactId/embed': typeof AArtifactIdEmbedRoute
+  '/preview/$artifactId/$': typeof PreviewArtifactIdSplatRoute
   '/chat/': typeof AuthenticatedChatIndexRoute
+  '/api/projects/$artifactId/files/$': typeof ApiProjectsArtifactIdFilesSplatRoute
+  '/preview/$artifactId/~/$token/$': typeof PreviewArtifactIdChar126TokenSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -142,7 +165,10 @@ export interface FileRoutesByTo {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/a/$artifactId/embed': typeof AArtifactIdEmbedRoute
+  '/preview/$artifactId/$': typeof PreviewArtifactIdSplatRoute
   '/chat': typeof AuthenticatedChatIndexRoute
+  '/api/projects/$artifactId/files/$': typeof ApiProjectsArtifactIdFilesSplatRoute
+  '/preview/$artifactId/~/$token/$': typeof PreviewArtifactIdChar126TokenSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -161,7 +187,10 @@ export interface FileRoutesById {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/a/$artifactId/embed': typeof AArtifactIdEmbedRoute
+  '/preview/$artifactId/$': typeof PreviewArtifactIdSplatRoute
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
+  '/api/projects/$artifactId/files/$': typeof ApiProjectsArtifactIdFilesSplatRoute
+  '/preview/$artifactId/~/$token/$': typeof PreviewArtifactIdChar126TokenSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -180,7 +209,10 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/chat/$threadId'
     | '/a/$artifactId/embed'
+    | '/preview/$artifactId/$'
     | '/chat/'
+    | '/api/projects/$artifactId/files/$'
+    | '/preview/$artifactId/~/$token/$'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -197,7 +229,10 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/chat/$threadId'
     | '/a/$artifactId/embed'
+    | '/preview/$artifactId/$'
     | '/chat'
+    | '/api/projects/$artifactId/files/$'
+    | '/preview/$artifactId/~/$token/$'
   id:
     | '__root__'
     | '/'
@@ -215,7 +250,10 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/chat/$threadId'
     | '/a/$artifactId/embed'
+    | '/preview/$artifactId/$'
     | '/_authenticated/chat/'
+    | '/api/projects/$artifactId/files/$'
+    | '/preview/$artifactId/~/$token/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -231,6 +269,9 @@ export interface RootRouteChildren {
   ApiChatRoute: typeof ApiChatRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  PreviewArtifactIdSplatRoute: typeof PreviewArtifactIdSplatRoute
+  ApiProjectsArtifactIdFilesSplatRoute: typeof ApiProjectsArtifactIdFilesSplatRoute
+  PreviewArtifactIdChar126TokenSplatRoute: typeof PreviewArtifactIdChar126TokenSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -319,6 +360,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChatIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/preview/$artifactId/$': {
+      id: '/preview/$artifactId/$'
+      path: '/preview/$artifactId/$'
+      fullPath: '/preview/$artifactId/$'
+      preLoaderRoute: typeof PreviewArtifactIdSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/a/$artifactId/embed': {
       id: '/a/$artifactId/embed'
       path: '/embed'
@@ -345,6 +393,20 @@ declare module '@tanstack/react-router' {
       path: '/.lovable/oauth/consent'
       fullPath: '/.lovable/oauth/consent'
       preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/preview/$artifactId/~/$token/$': {
+      id: '/preview/$artifactId/~/$token/$'
+      path: '/preview/$artifactId/~/$token/$'
+      fullPath: '/preview/$artifactId/~/$token/$'
+      preLoaderRoute: typeof PreviewArtifactIdChar126TokenSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/projects/$artifactId/files/$': {
+      id: '/api/projects/$artifactId/files/$'
+      path: '/api/projects/$artifactId/files/$'
+      fullPath: '/api/projects/$artifactId/files/$'
+      preLoaderRoute: typeof ApiProjectsArtifactIdFilesSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -401,6 +463,10 @@ const rootRouteChildren: RootRouteChildren = {
   ApiChatRoute: ApiChatRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  PreviewArtifactIdSplatRoute: PreviewArtifactIdSplatRoute,
+  ApiProjectsArtifactIdFilesSplatRoute: ApiProjectsArtifactIdFilesSplatRoute,
+  PreviewArtifactIdChar126TokenSplatRoute:
+    PreviewArtifactIdChar126TokenSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

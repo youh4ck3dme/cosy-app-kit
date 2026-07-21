@@ -88,6 +88,25 @@ describe("exportArtifactDownload", () => {
     expect(result.mode).toBe("zip");
     expect(result.fileCount).toBe(2);
     expect(result.report.fileCount).toBe(2);
+    expect(result.draft).toBe(false);
+  });
+
+  it("labels draft ZIP when validation fails", async () => {
+    const result = await exportArtifactDownload(
+      baseArtifact({
+        title: "Broken App",
+        files: [
+          {
+            path: "index.html",
+            language: "html",
+            content: '<html><script src="app.js"></script><a href="missing.html">x</a></html>',
+          },
+          { path: "app.js", language: "js", content: "function ( { bad" },
+        ],
+      }),
+    );
+    expect(result.draft).toBe(true);
+    expect(lastAnchor?.download).toBe("broken-app-DRAFT-validation-failed.zip");
   });
 
   it("prefers filesOverride over artifact.files", async () => {

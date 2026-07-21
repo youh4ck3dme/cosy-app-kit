@@ -1,12 +1,26 @@
 /**
- * Sandboxed srcDoc preview bridge: storage polyfill, console/network relay,
- * and relative HTML nav interception (postMessage → parent swaps srcDoc).
+ * Sandboxed preview bridge: storage polyfill, console/network relay,
+ * and optional relative HTML nav interception (srcDoc mode only).
  */
 
-export function buildPreviewBridgeScript(token: string): string {
+export type PreviewBridgeOptions = {
+  /** When true, fetch to external networks are blocked. */
+  networkDisabled?: boolean;
+  /**
+   * When true (default), intercept relative *.html clicks and postMessage parent.
+   * Set false for URL-based `/preview/:id/...` where the browser navigates natively.
+   */
+  interceptHtmlNav?: boolean;
+};
+
+export function buildPreviewBridgeScript(
+  token: string,
+  opts: PreviewBridgeOptions = {},
+): string {
   const t = JSON.stringify(token);
+  const netOff = opts.networkDisabled === true ? "true" : "false";
+  const interceptNav = opts.interceptHtmlNav !== false ? "true" : "false";
   return `<script>(function(){
-  /* In-memory Storage for sandboxed srcdoc (no allow-same-origin). Must run first. */
   function makeMemoryStorage() {
     var map = Object.create(null);
     var keys = [];
@@ -40,6 +54,8 @@ export function buildPreviewBridgeScript(token: string): string {
   }
 
   var TOKEN = ${t};
+  var NET_OFF = ${netOff};
+  var INTERCEPT_NAV = ${interceptNav};
   var sendConsole = function(level, args) {
     try { parent.postMessage({ __builder_console: TOKEN, level: level, args: args.map(function(a) {
       try { return typeof a === 'string' ? a : JSON.stringify(a); } catch(e) { return String(a); }
@@ -50,7 +66,7 @@ export function buildPreviewBridgeScript(token: string): string {
     console[l] = function(){ sendConsole(l, [].slice.call(arguments)); orig.apply(console, arguments); };
   });
   window.addEventListener('error', function(e) {
-    sendConsole('error', [e.message + ' @ ' + (e.filename||'') + ':' + e.lineno]);
+    sendConsole('error', [e.message + ' @ ' + (e.filename||'') + ':' + (e.lineno||'')]);
   });
   window.addEventListener('unhandledrejection', function(e) {
     sendConsole('error', ['Unhandled: ' + (e.reason && e.reason.message || e.reason)]);
@@ -65,6 +81,10 @@ export function buildPreviewBridgeScript(token: string): string {
     var started = performance.now();
     var id = Math.random().toString(36).slice(2);
     try { parent.postMessage({ __builder_network: TOKEN, phase: 'start', id: id, method: method, url: url }, '*'); } catch(e) {}
+    if (NET_OFF) {
+      try { parent.postMessage({ __builder_network: TOKEN, phase: 'end', id: id, method: method, url: url, status: 0, ms: Math.round(performance.now() - started) }, '*'); } catch(e) {}
+      return Promise.reject(new TypeError('Network disabled in preview'));
+    }
     return origFetch.apply(window, args).then(function(res) {
       try { parent.postMessage({ __builder_network: TOKEN, phase: 'end', id: id, method: method, url: url, status: res.status, ms: Math.round(performance.now() - started) }, '*'); } catch(e) {}
       return res;
@@ -74,26 +94,26 @@ export function buildPreviewBridgeScript(token: string): string {
     });
   };
 
-  /* Multi-file preview: intercept relative *.html navigations so parent can swap srcDoc. */
-  document.addEventListener('click', function(e) {
-    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    var el = e.target;
-    while (el && el.nodeType === 1 && el.tagName !== 'A') el = el.parentElement;
-    if (!el || el.tagName !== 'A') return;
-    var raw = el.getAttribute('href');
-    if (raw == null) return;
-    raw = String(raw).trim();
-    if (!raw) return;
-    var target = (el.getAttribute('target') || '').toLowerCase();
-    if (target && target !== '_self') return;
-    /* Same-page hash — let the browser scroll. */
-    if (raw.charAt(0) === '#') return;
-    var lower = raw.toLowerCase();
-    if (lower.indexOf('mailto:') === 0 || lower.indexOf('tel:') === 0 || lower.indexOf('sms:') === 0) return;
-    if (lower.indexOf('javascript:') === 0) return;
-    if (/^https?:\\/\\//i.test(raw) || raw.indexOf('//') === 0) return;
-    e.preventDefault();
-    try { parent.postMessage({ __builder_navigate: TOKEN, href: raw }, '*'); } catch (err) {}
-  }, true);
+  if (INTERCEPT_NAV) {
+    document.addEventListener('click', function(e) {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      var el = e.target;
+      while (el && el.nodeType === 1 && el.tagName !== 'A') el = el.parentElement;
+      if (!el || el.tagName !== 'A') return;
+      var raw = el.getAttribute('href');
+      if (raw == null) return;
+      raw = String(raw).trim();
+      if (!raw) return;
+      var target = (el.getAttribute('target') || '').toLowerCase();
+      if (target && target !== '_self') return;
+      if (raw.charAt(0) === '#') return;
+      var lower = raw.toLowerCase();
+      if (lower.indexOf('mailto:') === 0 || lower.indexOf('tel:') === 0 || lower.indexOf('sms:') === 0) return;
+      if (lower.indexOf('javascript:') === 0) return;
+      if (/^https?:\\/\\//i.test(raw) || raw.indexOf('//') === 0) return;
+      e.preventDefault();
+      try { parent.postMessage({ __builder_navigate: TOKEN, href: raw }, '*'); } catch (err) {}
+    }, true);
+  }
 })();</script>`;
 }

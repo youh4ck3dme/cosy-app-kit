@@ -4,6 +4,7 @@ import {
   isMultiPageProject,
   type ProjectRuntimeReport,
 } from "@/lib/agent/project-runtime-gate";
+import { validateProject } from "@/lib/agent/project-validate";
 
 function fileList(a: Artifact): ArtifactFile[] {
   if (a.files && a.files.length > 0) return a.files;
@@ -14,7 +15,6 @@ function fileList(a: Artifact): ArtifactFile[] {
 /** Stable path order for deterministic ZIP contents. */
 export function sortArtifactFiles(files: ArtifactFile[]): ArtifactFile[] {
   return [...files].sort((a, b) => {
-    // entry-ish first, then alpha
     const rank = (p: string) => {
       if (/^index\.html?$/i.test(p)) return 0;
       if (/\.html?$/i.test(p)) return 1;
@@ -48,18 +48,24 @@ export type ExportArtifactResult = {
   fileCount: number;
   downloadName: string;
   report: ProjectRuntimeReport;
+  validationStatus: "pass" | "fail" | "unverified";
+  draft: boolean;
 };
 
 /**
  * Download single file or ZIP — shared by Canvas toolbar and Cmd+K palette.
- * Multi-file packages always ZIP with sorted paths (FleetOps-class export).
- * Returns quality report so UI can toast warnings without blocking download.
+ * Failed validation still downloads but is labeled as a draft export.
  */
 export async function exportArtifactDownload(
   artifact: Artifact,
   filesOverride?: ArtifactFile[],
 ): Promise<ExportArtifactResult> {
   const { files, report } = analyzeArtifactForExport(artifact, filesOverride);
+  const validation = validateProject(
+    files.map((f) => ({ path: f.path, content: f.content })),
+    { entryPath: artifact.entry_path },
+  );
+  const draft = validation.status !== "pass" || !report.ok;
 
   if (files.length === 1 && !isMultiPageProject(files)) {
     const f = files[0]!;
@@ -74,20 +80,22 @@ export async function exportArtifactDownload(
       fileCount: 1,
       downloadName: a.download,
       report,
+      validationStatus: validation.status,
+      draft,
     };
   }
 
   const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
   for (const f of files) {
-    // Always write at the path the HTML expects (no nested surprise folders)
     zip.file(f.path.replace(/^\//, ""), f.content);
   }
   const blob = await zip.generateAsync({ type: "blob" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${projectExportSlug(artifact.title)}.zip`;
+  const base = projectExportSlug(artifact.title);
+  a.download = draft ? `${base}-DRAFT-validation-failed.zip` : `${base}.zip`;
   a.click();
   URL.revokeObjectURL(url);
   return {
@@ -95,5 +103,7 @@ export async function exportArtifactDownload(
     fileCount: files.length,
     downloadName: a.download,
     report,
+    validationStatus: validation.status,
+    draft,
   };
 }

@@ -47,6 +47,10 @@ import {
   isMultiPageProject,
   type ProjectRuntimeReport,
 } from "@/lib/agent/project-runtime-gate";
+import { validateProject } from "@/lib/agent/project-validate";
+import { needsUrlPreview } from "@/lib/project-fs";
+import { buildProjectPreviewUrl } from "@/lib/project-preview-url";
+import { mintPreviewToken } from "@/lib/preview-token.functions";
 import { buildPreviewBridgeScript } from "@/lib/preview-bridge";
 import { resolvePreviewNavTarget } from "@/lib/preview-nav";
 import { injectScriptIntoHtmlHead } from "@/lib/preview-storage-polyfill";
@@ -200,6 +204,8 @@ export function Canvas({
   );
   const share = useServerFn(setArtifactPublic);
   const saveFiles = useServerFn(updateArtifactFiles);
+  const mintToken = useServerFn(mintPreviewToken);
+  const [previewToken, setPreviewToken] = useState<string | null>(null);
   const [deviceHydrated, setDeviceHydrated] = useState(false);
   const responsiveToastFor = useRef<string | null>(null);
   const projectToastFor = useRef<string | null>(null);
@@ -209,6 +215,7 @@ export function Canvas({
     entryPath: null as string | null,
     resolvedPreviewPath: null as string | null,
     filePaths: [] as string[],
+    useUrlPreview: false,
   });
 
   useEffect(() => {
@@ -281,7 +288,8 @@ export function Canvas({
     null;
   const resolvedPreviewPath =
     (previewPath && files.some((f) => f.path === previewPath) ? previewPath : null) ?? entryPath;
-  navCtxRef.current = { entryPath, resolvedPreviewPath, filePaths };
+  const useUrlPreview = Boolean(artifact && needsUrlPreview(files));
+  navCtxRef.current = { entryPath, resolvedPreviewPath, filePaths, useUrlPreview };
   const currentFile =
     files.find((f) => f.path === activeFile) ??
     files.find((f) => f.path === resolvedPreviewPath) ??
@@ -321,14 +329,49 @@ export function Canvas({
 
   const srcDoc = useMemo(() => {
     if (!artifact || !resolvedPreviewPath) return null;
+    if (useUrlPreview) return null;
     const entry = files.find((f) => f.path === resolvedPreviewPath);
     if (!entry) return null;
     if (artifact.kind === "html" || isHtmlPath(entry.path)) {
       return injectBridge(entry.content, bridgeTokenRef.current);
     }
     return null;
-    // iframe remount uses React key={key}; content deps only (not key)
-  }, [artifact, files, resolvedPreviewPath]);
+  }, [artifact, files, resolvedPreviewPath, useUrlPreview]);
+
+  useEffect(() => {
+    if (!artifact?.id || !useUrlPreview) {
+      setPreviewToken(null);
+      return;
+    }
+    if (artifact.is_public) {
+      setPreviewToken(null);
+      return;
+    }
+    let cancelled = false;
+    mintToken({ data: { artifactId: artifact.id } })
+      .then((r) => {
+        if (!cancelled) setPreviewToken(r.token);
+      })
+      .catch(() => {
+        if (!cancelled) setPreviewToken(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [artifact?.id, artifact?.is_public, useUrlPreview, filePathsKey, mintToken]);
+
+  const previewSrc = useMemo(() => {
+    if (!artifact || !resolvedPreviewPath || !useUrlPreview) return null;
+    if (!artifact.is_public && !previewToken) return null;
+    return buildProjectPreviewUrl({
+      artifactId: artifact.id,
+      entryPath: resolvedPreviewPath,
+      token: artifact.is_public ? null : previewToken,
+      bridgeToken: bridgeTokenRef.current,
+    });
+  }, [artifact, resolvedPreviewPath, useUrlPreview, previewToken, key]);
+
+  const hasLivePreview = Boolean(srcDoc || previewSrc);
 
   const entryHtml = useMemo(() => {
     if (!artifact || !resolvedPreviewPath) return null;
@@ -475,7 +518,14 @@ export function Canvas({
       const d = e.data;
       if (!d || typeof d !== "object") return;
       const token = bridgeTokenRef.current;
+      const allowed =
+        d.__builder_navigate === token ||
+        d.__builder_console === token ||
+        d.__builder_network === token;
+      if (!allowed) return;
+      // URL-mode multi-file: ignore navigate (browser handles relative HTML).
       if (d.__builder_navigate === token && typeof d.href === "string") {
+        if (navCtxRef.current.useUrlPreview) return;
         const { entryPath: ep, resolvedPreviewPath: rp, filePaths: fps } = navCtxRef.current;
         const current = rp ?? ep ?? "index.html";
         const target = resolvePreviewNavTarget(d.href, {
@@ -546,14 +596,14 @@ export function Canvas({
         return;
       }
       if (typing) return;
-      if ((e.key === "f" || e.key === "F") && srcDoc && view === "preview") {
+      if ((e.key === "f" || e.key === "F") && hasLivePreview && view === "preview") {
         e.preventDefault();
         setFullscreen((v) => !v);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [fullscreen, srcDoc, view]);
+  }, [fullscreen, hasLivePreview, view]);
 
   const handleShare = async () => {
     if (!artifact) return;
@@ -603,13 +653,18 @@ export function Canvas({
     if (!artifact) return;
     try {
       const result = await exportArtifactDownload(artifact, files);
+      const validation = validateProject(
+        files.map((f) => ({ path: f.path, content: f.content })),
+        { entryPath: artifact.entry_path },
+      );
       if (result.mode === "zip") {
-        if (!result.report.ok) {
-          toast.message(`Exported ${result.fileCount} files · project score ${result.report.score}`, {
+        if (validation.status !== "pass" || !result.report.ok) {
+          toast.message("Draft export — validation failed", {
             description:
+              validation.checks.find((c) => c.status === "fail")?.evidence ??
               result.report.hints[0] ??
-              "ZIP downloaded — fix hardFails (project polish) before calling it acceptance-ready.",
-            duration: 6000,
+              `Project score ${result.report.score}/100 — not production-ready.`,
+            duration: 7000,
           });
         } else {
           toast.success(`ZIP ready · ${result.fileCount} files · score ${result.report.score}`);
@@ -674,7 +729,7 @@ export function Canvas({
               })}
             </div>
 
-            {view === "preview" && srcDoc && (
+            {view === "preview" && hasLivePreview && (
               <>
                 <div className="hidden h-4 w-px bg-border-subtle sm:block" />
                 {/* M1: fluid + real device sim (scale) — visible on phone too */}
@@ -754,7 +809,7 @@ export function Canvas({
           </div>
 
           <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
-            {view === "preview" && srcDoc && (
+            {view === "preview" && hasLivePreview && (
               <div className="hidden items-center rounded-lg border border-border-subtle bg-surface-1/70 p-0.5 text-xs font-mono text-muted-foreground md:flex">
                 <button
                   onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(2)))}
@@ -775,7 +830,7 @@ export function Canvas({
                 </button>
               </div>
             )}
-            {artifact && srcDoc && (
+            {artifact && hasLivePreview && (
               <>
                 <button
                   onClick={() => {
@@ -863,13 +918,17 @@ export function Canvas({
                 </button>
               </>
             )}
-            {artifact?.kind === "html" && srcDoc && (
+            {artifact?.kind === "html" && hasLivePreview && (
               <button
                 onClick={() => {
+                  if (previewSrc) {
+                    window.open(previewSrc, "_blank");
+                    return;
+                  }
                   const w = window.open("", "_blank");
                   if (w) {
                     w.document.open();
-                    w.document.write(srcDoc);
+                    w.document.write(srcDoc ?? "");
                     w.document.close();
                   }
                 }}
@@ -1046,7 +1105,7 @@ export function Canvas({
         >
           {!artifact && <EmptyCanvas />}
 
-          {artifact && view === "preview" && srcDoc && (
+          {artifact && view === "preview" && hasLivePreview && (
             <div
               className="flex-none animate-in-scale"
               style={{
@@ -1155,7 +1214,11 @@ export function Canvas({
                 <iframe
                   key={key}
                   ref={iframeRef}
-                  srcDoc={srcDoc}
+                  {...(previewSrc
+                    ? { src: previewSrc }
+                    : srcDoc
+                      ? { srcDoc }
+                      : {})}
                   sandbox="allow-scripts allow-forms"
                   className="block w-full border-0 bg-white"
                   style={{ height: frame.iframeHeight, width: frame.mediaWidth }}
@@ -1165,7 +1228,7 @@ export function Canvas({
             </div>
           )}
 
-          {artifact && view === "preview" && !srcDoc && artifact.kind === "markdown" && (
+          {artifact && view === "preview" && !hasLivePreview && artifact.kind === "markdown" && (
             <article
               className="prose prose-invert prose-sm w-full max-w-3xl rounded-2xl border border-border-subtle bg-panel px-4 py-5 shadow-elevated animate-in-scale sm:px-8 sm:py-6"
               style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}
@@ -1217,7 +1280,15 @@ export function Canvas({
             <div className="mx-auto flex max-w-3xl flex-col gap-3">
               <div className="flex gap-3">
                 <div className="hidden h-16 w-24 shrink-0 overflow-hidden rounded-lg border border-border-subtle bg-surface-2 sm:block">
-                  {srcDoc ? (
+                  {previewSrc ? (
+                    <iframe
+                      src={previewSrc}
+                      sandbox="allow-scripts allow-forms"
+                      className="pointer-events-none h-[200%] w-[200%] origin-top-left scale-50 border-0 bg-white"
+                      title="Share preview"
+                      tabIndex={-1}
+                    />
+                  ) : srcDoc ? (
                     <iframe
                       srcDoc={srcDoc}
                       // Same as main preview — empty sandbox logs "allow-scripts is not set"
