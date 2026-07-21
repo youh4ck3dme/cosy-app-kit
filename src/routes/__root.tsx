@@ -13,6 +13,8 @@ import { Toaster } from "sonner";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { registerServiceWorker } from "../lib/register-sw";
+import { bindInstallPromptCapture, warmPwaAssets } from "../lib/pwa-booster";
+import { getAppPreferences, syncSpeedModeDom } from "../lib/app-preferences";
 import { THEME_BOOTSTRAP_SCRIPT, useTheme } from "../lib/theme";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -77,6 +79,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "Builder" },
       { title: "Builder — AI-first app studio" },
       {
         name: "description",
@@ -141,6 +147,10 @@ function RootComponent() {
   // PWA: prod-only service worker (ported from Claude PR #3 — never caches /api or Supabase)
   useEffect(() => {
     registerServiceWorker();
+    const unbind = bindInstallPromptCapture();
+    syncSpeedModeDom(getAppPreferences().speedMode);
+    if (getAppPreferences().pwaBooster) void warmPwaAssets();
+    return unbind;
   }, []);
 
   useEffect(() => {

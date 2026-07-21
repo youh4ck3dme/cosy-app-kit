@@ -435,7 +435,7 @@ function ChatPage() {
   }
 
   return (
-    <div className="fixed inset-0 z-0 flex h-dvh max-h-dvh max-w-[100vw] flex-col overflow-hidden overscroll-none bg-background text-foreground">
+    <div className="app-shell-fixed z-0 flex flex-col bg-background text-foreground">
       <a
         href="#chat-main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground"
@@ -583,8 +583,8 @@ function ChatPage() {
       <AppDialog
         open={showSettings}
         onClose={() => setShowSettings(false)}
-        title="Agent settings"
-        description="Configure model, temperature, system prompt, and tools."
+        title="Settings"
+        description="Speed, PWA, model, tools, and project memory."
       >
         <AgentSettingsPanel threadId={threadId} />
       </AppDialog>

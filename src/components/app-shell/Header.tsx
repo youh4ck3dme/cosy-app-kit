@@ -177,8 +177,8 @@ export function Header({
 
       {/* Mobile full-screen menu */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] md:hidden animate-in-fade">
-          <div className="flex h-14 flex-none items-center justify-between border-b border-border-subtle px-4">
+        <div className="app-shell-fixed z-50 flex flex-col bg-background md:hidden">
+          <div className="flex h-14 flex-none items-center justify-between border-b border-border-subtle px-4 pt-[env(safe-area-inset-top)]">
             <button
               onClick={() => setMobileOpen(false)}
               className="rounded-md p-2 text-muted-foreground hover:bg-surface-2 hover:text-foreground"
@@ -251,7 +251,7 @@ export function Header({
             </div>
             <ThreadList activeThreadId={activeThreadId} onNavigate={() => setMobileOpen(false)} />
           </div>
-          <div className="flex-none space-y-2 border-t border-border-subtle p-3">
+          <div className="native-sheet flex-none space-y-2 border-t border-border-subtle p-3">
             <ThemeToggle className="flex min-h-11 w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm text-muted-foreground hover:bg-surface-2 hover:text-foreground" />
             <button
               onClick={() => {

@@ -3,6 +3,7 @@
   "short_name": "Builder",
   "description": "Chat with your agent, watch it ship live artifacts to a real preview canvas.",
   "start_url": "/chat",
+  "id": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
