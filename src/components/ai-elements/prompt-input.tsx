@@ -232,51 +232,46 @@ export const PromptInputProvider = ({
   // oxlint-disable-next-line eslint(no-empty-function)
   const openRef = useRef<() => void>(() => {});
 
+  // Keep a ref to attachments for cleanup + side effects outside state updaters
+  // (updaters must stay pure — Strict Mode double-invokes them).
+  const attachmentsRef = useRef(attachmentFiles);
+
+  useEffect(() => {
+    attachmentsRef.current = attachmentFiles;
+  }, [attachmentFiles]);
+
   const add = useCallback((files: File[] | FileList) => {
     const incoming = [...files];
     if (incoming.length === 0) {
       return;
     }
 
-    setAttachmentFiles((prev) => [
-      ...prev,
-      ...incoming.map((file) => ({
-        filename: file.name,
-        id: nanoid(),
-        mediaType: file.type,
-        type: "file" as const,
-        url: URL.createObjectURL(file),
-      })),
-    ]);
+    const next = incoming.map((file) => ({
+      filename: file.name,
+      id: nanoid(),
+      mediaType: file.type,
+      type: "file" as const,
+      url: URL.createObjectURL(file),
+    }));
+    setAttachmentFiles((prev) => [...prev, ...next]);
   }, []);
 
   const remove = useCallback((id: string) => {
-    setAttachmentFiles((prev) => {
-      const found = prev.find((f) => f.id === id);
-      if (found?.url) {
-        URL.revokeObjectURL(found.url);
-      }
-      return prev.filter((f) => f.id !== id);
-    });
+    const found = attachmentsRef.current.find((f) => f.id === id);
+    if (found?.url) {
+      URL.revokeObjectURL(found.url);
+    }
+    setAttachmentFiles((prev) => prev.filter((f) => f.id !== id));
   }, []);
 
   const clear = useCallback(() => {
-    setAttachmentFiles((prev) => {
-      for (const f of prev) {
-        if (f.url) {
-          URL.revokeObjectURL(f.url);
-        }
+    for (const f of attachmentsRef.current) {
+      if (f.url) {
+        URL.revokeObjectURL(f.url);
       }
-      return [];
-    });
+    }
+    setAttachmentFiles([]);
   }, []);
-
-  // Keep a ref to attachments for cleanup on unmount (avoids stale closure)
-  const attachmentsRef = useRef(attachmentFiles);
-
-  useEffect(() => {
-    attachmentsRef.current = attachmentFiles;
-  }, [attachmentFiles]);
 
   // Cleanup blob URLs on unmount to prevent memory leaks
   useEffect(
@@ -556,43 +551,40 @@ export const PromptInput = ({
         return;
       }
 
-      setItems((prev) => {
-        const capacity =
-          typeof maxFiles === "number" ? Math.max(0, maxFiles - prev.length) : undefined;
-        const capped = typeof capacity === "number" ? sized.slice(0, capacity) : sized;
-        if (typeof capacity === "number" && sized.length > capacity) {
-          onError?.({
-            code: "max_files",
-            message: "Too many files. Some were not added.",
-          });
-        }
-        const next: (FileUIPart & { id: string })[] = [];
-        for (const file of capped) {
-          next.push({
-            filename: file.name,
-            id: nanoid(),
-            mediaType: file.type,
-            type: "file",
-            url: URL.createObjectURL(file),
-          });
-        }
-        return [...prev, ...next];
-      });
+      // Side effects (onError, nanoid, object URLs) stay outside the state
+      // updater so it remains pure under Strict Mode double-invocation.
+      const capacity =
+        typeof maxFiles === "number"
+          ? Math.max(0, maxFiles - filesRef.current.length)
+          : undefined;
+      const capped = typeof capacity === "number" ? sized.slice(0, capacity) : sized;
+      if (typeof capacity === "number" && sized.length > capacity) {
+        onError?.({
+          code: "max_files",
+          message: "Too many files. Some were not added.",
+        });
+      }
+      const next: (FileUIPart & { id: string })[] = capped.map((file) => ({
+        filename: file.name,
+        id: nanoid(),
+        mediaType: file.type,
+        type: "file",
+        url: URL.createObjectURL(file),
+      }));
+      if (next.length > 0) {
+        setItems((prev) => [...prev, ...next]);
+      }
     },
     [matchesAccept, maxFiles, maxFileSize, onError],
   );
 
-  const removeLocal = useCallback(
-    (id: string) =>
-      setItems((prev) => {
-        const found = prev.find((file) => file.id === id);
-        if (found?.url) {
-          URL.revokeObjectURL(found.url);
-        }
-        return prev.filter((file) => file.id !== id);
-      }),
-    [],
-  );
+  const removeLocal = useCallback((id: string) => {
+    const found = filesRef.current.find((file) => file.id === id);
+    if (found?.url) {
+      URL.revokeObjectURL(found.url);
+    }
+    setItems((prev) => prev.filter((file) => file.id !== id));
+  }, []);
 
   // Wrapper that validates files before calling provider's add
   const addWithProviderValidation = useCallback(
@@ -634,20 +626,18 @@ export const PromptInput = ({
     [matchesAccept, maxFileSize, maxFiles, onError, files.length, controller],
   );
 
-  const clearAttachments = useCallback(
-    () =>
-      usingProvider
-        ? controller?.attachments.clear()
-        : setItems((prev) => {
-            for (const file of prev) {
-              if (file.url) {
-                URL.revokeObjectURL(file.url);
-              }
-            }
-            return [];
-          }),
-    [usingProvider, controller],
-  );
+  const clearAttachments = useCallback(() => {
+    if (usingProvider) {
+      controller?.attachments.clear();
+      return;
+    }
+    for (const file of filesRef.current) {
+      if (file.url) {
+        URL.revokeObjectURL(file.url);
+      }
+    }
+    setItems([]);
+  }, [usingProvider, controller]);
 
   const clearReferencedSources = useCallback(() => setReferencedSources([]), []);
 
@@ -776,7 +766,9 @@ export const PromptInput = ({
     () => ({
       add: (incoming: SourceDocumentUIPart[] | SourceDocumentUIPart) => {
         const array = Array.isArray(incoming) ? incoming : [incoming];
-        setReferencedSources((prev) => [...prev, ...array.map((s) => ({ ...s, id: nanoid() }))]);
+        // Generate ids outside the updater to keep it pure.
+        const newSources = array.map((s) => ({ ...s, id: nanoid() }));
+        setReferencedSources((prev) => [...prev, ...newSources]);
       },
       clear: clearReferencedSources,
       remove: (id: string) => {
