@@ -2,7 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { BUILD_CODE_MODEL, DEFAULT_MODEL, SUGGESTION_MODEL } from "@/lib/models";
 import { PROMPT_REV } from "@/lib/agent/prompts";
 import {
+  PUBLIC_SUPABASE_PROJECT_ID,
+  PUBLIC_SUPABASE_PROJECT_NAME,
   PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  PUBLIC_SUPABASE_REGION,
   PUBLIC_SUPABASE_URL,
 } from "@/integrations/supabase/public-config";
 
@@ -65,6 +68,13 @@ export const Route = createFileRoute("/api/ai-status")({
           },
           mistralKeyPresent: key.length > 0,
           searchKeyPresent: searchKey.length > 0,
+          supabase: {
+            name: process.env.SUPABASE_PROJECT_NAME || PUBLIC_SUPABASE_PROJECT_NAME,
+            projectId: process.env.SUPABASE_PROJECT_ID || PUBLIC_SUPABASE_PROJECT_ID,
+            region: process.env.SUPABASE_REGION || PUBLIC_SUPABASE_REGION,
+            url: supabaseUrl,
+            reachable: dbOk,
+          },
           supabaseReachable: dbOk,
           lovableGatewayDisabled: true,
           hint: key.length

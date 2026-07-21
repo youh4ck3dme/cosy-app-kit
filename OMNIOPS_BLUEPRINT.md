@@ -30,9 +30,10 @@ Ship a **stable** Builder product:
 | Chat API | Stream + persist messages/artifacts | `src/routes/api/chat.ts` |
 | AI | **Mistral API only** | `src/lib/ai-gateway.server.ts`, `src/lib/models.ts` |
 | Auth | Supabase + Lovable OAuth broker | `src/integrations/supabase`, `src/integrations/lovable` |
-| DB | threads, messages, artifacts, agent_settings | Supabase project `magqgwqyijuuaoovyjps` |
+| DB | threads, messages, artifacts, agent_settings | Supabase **cosy-app-kit** · `magqgwqyijuuaoovyjps` · **eu-west-1** |
 | MCP | list/get/create threads & artifacts | `src/routes/mcp.ts`, `src/lib/mcp` |
 | Hosting | Lovable Cloud → Cloudflare Worker | https://cosy-app-kit.lovable.app |
+| Vercel | optional deploys | team `h4ck3d` · project `cosy-app-kit` |
 | GitHub | `youh4ck3dme/cosy-app-kit` | `main` locked, work on `developeredit` |
 
 ---
@@ -96,17 +97,27 @@ bun dev    # http://localhost:8080
 
 ### Lovable Cloud (production / preview)
 
-**Secrets (Cloud UI)** — set explicitly:
+**Supabase project (canonical):**
 
-- `SUPABASE_URL`  
-- `SUPABASE_PUBLISHABLE_KEY`  
-- `VITE_SUPABASE_URL`  
+| | |
+|--|--|
+| Name | `cosy-app-kit` |
+| Project ref / ID | `magqgwqyijuuaoovyjps` |
+| Region | `eu-west-1` (West EU / Ireland) |
+| URL | `https://magqgwqyijuuaoovyjps.supabase.co` |
+
+**Secrets (Cloud UI / Vercel h4ck3d)** — set explicitly:
+
+- `SUPABASE_URL=https://magqgwqyijuuaoovyjps.supabase.co`  
+- `SUPABASE_PUBLISHABLE_KEY` (publishable / anon)  
+- `SUPABASE_PROJECT_ID=magqgwqyijuuaoovyjps`  
+- `VITE_SUPABASE_URL` (same URL)  
 - `VITE_SUPABASE_PUBLISHABLE_KEY`  
-- `VITE_SUPABASE_PROJECT_ID`  
+- `VITE_SUPABASE_PROJECT_ID=magqgwqyijuuaoovyjps`  
 - `MISTRAL_API_KEY`  
 
 **Code safety net:**  
-`src/integrations/supabase/public-config.ts` holds **public anon** URL/key fallbacks so the client still boots if Cloud forgets to inject env.  
+`src/integrations/supabase/public-config.ts` holds **public** URL/project id/publishable key fallbacks so the client still boots if Cloud forgets to inject env.  
 This is **not** service_role. RLS remains the real security boundary.
 
 ### GitHub Actions

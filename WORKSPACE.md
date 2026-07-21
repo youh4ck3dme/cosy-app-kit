@@ -4,9 +4,10 @@
 |---|---|
 | Path | `/Users/erikbabcan/lovable-builder-cosyapp` |
 | Remote | `https://github.com/youh4ck3dme/cosy-app-kit.git` |
-| Branch | `main` |
+| Branch | `developeredit` (default work) · `main` locked |
 | Publish | https://cosy-app-kit.lovable.app |
-| Supabase | `magqgwqyijuuaoovyjps` (auth/DB only) |
+| Supabase | **cosy-app-kit** · ref `magqgwqyijuuaoovyjps` · **eu-west-1** (Ireland) |
+| Vercel | team **h4ck3d** · project `cosy-app-kit` |
 | **AI** | **Mistral API only** (`MISTRAL_API_KEY` → `api.mistral.ai`) |
 
 ## AI policy
@@ -34,8 +35,8 @@ bun dev       # http://localhost:8080
 
 | Var | Required | Notes |
 |-----|----------|--------|
-| `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY` | yes | server |
-| `VITE_SUPABASE_*` | yes | client |
+| `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_PROJECT_ID` | yes | server · project `magqgwqyijuuaoovyjps` |
+| `VITE_SUPABASE_*` | yes | client · same project / region `eu-west-1` |
 | `MISTRAL_API_KEY` | **yes for chat** | [console.mistral.ai](https://console.mistral.ai/api-keys) |
 | `LOVABLE_API_KEY` | **no** | do not use |
 
