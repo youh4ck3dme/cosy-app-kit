@@ -6,7 +6,7 @@
 | Remote | `https://github.com/youh4ck3dme/cosy-app-kit.git` |
 | Branch | `main` |
 | Publish | https://cosy-app-kit.lovable.app |
-| Supabase | `hyffmlempcfmgtnqllrz` (auth/DB only) |
+| Supabase | `magqgwqyijuuaoovyjps` (auth/DB only) |
 | **AI** | **Mistral API only** (`MISTRAL_API_KEY` → `api.mistral.ai`) |
 
 ## AI policy

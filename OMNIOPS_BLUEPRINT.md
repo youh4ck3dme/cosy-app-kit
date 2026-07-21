@@ -30,7 +30,7 @@ Ship a **stable** Builder product:
 | Chat API | Stream + persist messages/artifacts | `src/routes/api/chat.ts` |
 | AI | **Mistral API only** | `src/lib/ai-gateway.server.ts`, `src/lib/models.ts` |
 | Auth | Supabase + Lovable OAuth broker | `src/integrations/supabase`, `src/integrations/lovable` |
-| DB | threads, messages, artifacts, agent_settings | Supabase project `hyffmlempcfmgtnqllrz` |
+| DB | threads, messages, artifacts, agent_settings | Supabase project `magqgwqyijuuaoovyjps` |
 | MCP | list/get/create threads & artifacts | `src/routes/mcp.ts`, `src/lib/mcp` |
 | Hosting | Lovable Cloud → Cloudflare Worker | https://cosy-app-kit.lovable.app |
 | GitHub | `youh4ck3dme/cosy-app-kit` | `main` locked, work on `developeredit` |

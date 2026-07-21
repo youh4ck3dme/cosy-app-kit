@@ -9,11 +9,9 @@
  *   VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY
  *   SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY
  */
-export const PUBLIC_SUPABASE_URL = "https://hyffmlempcfmgtnqllrz.supabase.co";
-export const PUBLIC_SUPABASE_PROJECT_ID = "hyffmlempcfmgtnqllrz";
+export const PUBLIC_SUPABASE_URL = "https://magqgwqyijuuaoovyjps.supabase.co";
+export const PUBLIC_SUPABASE_PROJECT_ID = "magqgwqyijuuaoovyjps";
 
-/** Anon / publishable key (role: anon) — safe for client, never service_role */
+/** Publishable key (sb_publishable_*) — safe for client, never service_role / sb_secret_ */
 export const PUBLIC_SUPABASE_PUBLISHABLE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
-  "eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5ZmZtbGVtcGNmbWd0bnFsbHJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzMTQzNDMsImV4cCI6MjA5OTg5MDM0M30." +
-  "gm7FnP3C3ndkllmehShdAHbjtBNGcOx3qEGRwQHYcno";
+  "sb_publishable_v96SvdA0CjiqV0y7bGrMhw_ufkBaBBP";
