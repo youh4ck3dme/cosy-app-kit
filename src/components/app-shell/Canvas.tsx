@@ -42,6 +42,11 @@ import {
   type PreviewMode,
 } from "@/lib/preview-frame";
 import { analyzeResponsiveHtml, type ResponsiveReport } from "@/lib/agent/responsive-gate";
+import {
+  analyzeProjectRuntime,
+  isMultiPageProject,
+  type ProjectRuntimeReport,
+} from "@/lib/agent/project-runtime-gate";
 import { buildPreviewBridgeScript } from "@/lib/preview-bridge";
 import { resolvePreviewNavTarget } from "@/lib/preview-nav";
 import { injectScriptIntoHtmlHead } from "@/lib/preview-storage-polyfill";
@@ -144,6 +149,7 @@ export function Canvas({
   threadId,
   editSnippets = [],
   onPolishMobile,
+  onPolishProject,
   onFixFromConsole,
 }: {
   artifact?: Artifact;
@@ -152,6 +158,8 @@ export function Canvas({
   editSnippets?: EditFileSnippet[];
   /** One-tap “Make mobile-first” → parent sends polish prompt (MR-40 M3). */
   onPolishMobile?: () => void;
+  /** One-tap multi-file project runtime fix (FleetOps-class ZIP readiness). */
+  onPolishProject?: () => void;
   /**
    * Magic wand: parent fills composer (or auto-sends) with a fix prompt built from
    * live preview console errors. Prefer fill-composer so user can edit before send.
@@ -194,6 +202,7 @@ export function Canvas({
   const saveFiles = useServerFn(updateArtifactFiles);
   const [deviceHydrated, setDeviceHydrated] = useState(false);
   const responsiveToastFor = useRef<string | null>(null);
+  const projectToastFor = useRef<string | null>(null);
   /** Skip artifact-reset setState storm on initial mount / Strict Mode remount. */
   const prevArtifactIdRef = useRef<string | null | undefined>(undefined);
   const navCtxRef = useRef({
@@ -334,6 +343,12 @@ export function Canvas({
     return analyzeResponsiveHtml(entryHtml);
   }, [entryHtml]);
 
+  const projectReport: ProjectRuntimeReport | null = useMemo(() => {
+    if (!artifact || files.length < 2) return null;
+    if (!isMultiPageProject(files)) return null;
+    return analyzeProjectRuntime(files.map((f) => ({ path: f.path, content: f.content })));
+  }, [artifact, files]);
+
   useEffect(() => {
     if (!artifact?.id || !responsiveReport || responsiveReport.ok) return;
     if (responsiveToastFor.current === artifact.id) return;
@@ -343,6 +358,19 @@ export function Canvas({
       duration: 4500,
     });
   }, [artifact?.id, responsiveReport]);
+
+  useEffect(() => {
+    if (!artifact?.id || !projectReport || projectReport.ok) return;
+    if (projectToastFor.current === artifact.id) return;
+    projectToastFor.current = artifact.id;
+    toast.message(`Project ZIP score ${projectReport.score}/100`, {
+      description:
+        projectReport.hints[0] ??
+        projectReport.hardFails[0] ??
+        "Multi-file package may fail acceptance / offline export.",
+      duration: 5500,
+    });
+  }, [artifact?.id, projectReport]);
 
   const refresh = () => {
     setLogs([]);
@@ -574,7 +602,19 @@ export function Canvas({
   const handleExport = async () => {
     if (!artifact) return;
     try {
-      await exportArtifactDownload(artifact, files);
+      const result = await exportArtifactDownload(artifact, files);
+      if (result.mode === "zip") {
+        if (!result.report.ok) {
+          toast.message(`Exported ${result.fileCount} files · project score ${result.report.score}`, {
+            description:
+              result.report.hints[0] ??
+              "ZIP downloaded — fix hardFails (project polish) before calling it acceptance-ready.",
+            duration: 6000,
+          });
+        } else {
+          toast.success(`ZIP ready · ${result.fileCount} files · score ${result.report.score}`);
+        }
+      }
     } catch {
       toast.error("Export failed");
     }
@@ -1052,6 +1092,24 @@ export function Canvas({
                         m{responsiveReport.score}
                       </span>
                     )}
+                    {projectReport && (
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[9px] font-semibold tabular-nums",
+                          projectReport.ok
+                            ? "bg-emerald-500/15 text-emerald-400"
+                            : "bg-amber-500/15 text-amber-300",
+                        )}
+                        title={
+                          projectReport.hints[0] ??
+                          (projectReport.ok
+                            ? "Project ZIP runtime OK"
+                            : projectReport.hardFails.join(", ") || "Project runtime warnings")
+                        }
+                      >
+                        p{projectReport.score}
+                      </span>
+                    )}
                     {onPolishMobile && entryHtml && (
                       <button
                         type="button"
@@ -1065,6 +1123,16 @@ export function Canvas({
                         title="Ask Builder to rewrite layout mobile-first"
                       >
                         Mobile-first
+                      </button>
+                    )}
+                    {onPolishProject && projectReport && !projectReport.ok && (
+                      <button
+                        type="button"
+                        onClick={onPolishProject}
+                        className="shrink-0 rounded-md bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-semibold text-amber-200 transition-colors hover:bg-amber-500/30"
+                        title="Ask Builder to fix multi-file project runtime for ZIP export"
+                      >
+                        Fix project
                       </button>
                     )}
                   </div>

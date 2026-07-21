@@ -10,6 +10,7 @@ import {
   MAX_FILE_BYTES,
   sanitizeRelativePath,
 } from "@/lib/agent/patch";
+import { analyzeProjectRuntime } from "@/lib/agent/project-runtime-gate";
 import { fetchUrlText, webSearch } from "@/lib/agent/web";
 import { snapshotArtifactVersion } from "@/lib/agent/versions";
 
@@ -264,7 +265,7 @@ export function buildTools({ mode, threadId, supabase, flags }: BuildToolsArgs):
 
   const create_artifact = tool({
     description:
-      "Create a multi-file (or single-file) artifact on the live canvas for this thread. Prefer one cohesive artifact per turn.",
+      "Create a multi-file (or single-file) artifact on the live canvas for this thread. For multi-page apps (dashboard + list pages + shared app.js/styles.css), pass ALL files in one call so ZIP export is complete. Prefer one cohesive artifact per turn. Tool returns quality score for project-runtime gates — fix hardFails with edit_file before finishing.",
     inputSchema: z.object({
       title: z.string().min(1).max(120),
       kind: z.enum(["html", "markdown", "code"]).default("html"),
@@ -299,6 +300,7 @@ export function buildTools({ mode, threadId, supabase, flags }: BuildToolsArgs):
         files.find((x) => /\.html?$/i.test(x.path))?.path ??
         files[0].path;
       const main = files.find((x) => x.path === resolvedEntry) ?? files[0];
+      const quality = analyzeProjectRuntime(files);
       const { data, error } = await supabase
         .from("artifacts")
         .insert({
@@ -330,6 +332,15 @@ export function buildTools({ mode, threadId, supabase, flags }: BuildToolsArgs):
         title: data.title,
         kind: data.kind,
         filesCount: files.length,
+        entry_path: resolvedEntry,
+        quality: {
+          score: quality.score,
+          ok: quality.ok,
+          hardFails: quality.hardFails,
+          softFails: quality.softFails,
+          hints: quality.hints.slice(0, 6),
+          externalUrlCount: quality.externalUrlCount,
+        },
       };
     },
   });
@@ -409,6 +420,7 @@ export function buildTools({ mode, threadId, supabase, flags }: BuildToolsArgs):
       const updated = files.map((x, i) => (i === idx ? { ...x, content: next } : x));
       const entry = art.entry_path || updated[0].path;
       const main = updated.find((x) => x.path === entry) ?? updated[0];
+      const quality = analyzeProjectRuntime(updated);
       const { error: upErr } = await supabase
         .from("artifacts")
         .update({
@@ -438,6 +450,13 @@ export function buildTools({ mode, threadId, supabase, flags }: BuildToolsArgs):
         replacements,
         beforeSnippet,
         afterSnippet,
+        quality: {
+          score: quality.score,
+          ok: quality.ok,
+          hardFails: quality.hardFails,
+          softFails: quality.softFails,
+          hints: quality.hints.slice(0, 6),
+        },
       };
     },
   });

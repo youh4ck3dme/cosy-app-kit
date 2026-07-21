@@ -72,7 +72,7 @@ describe("exportArtifactDownload", () => {
   });
 
   it("zips multi-file artifacts with a slug title", async () => {
-    await exportArtifactDownload(
+    const result = await exportArtifactDownload(
       baseArtifact({
         title: "Field Ops SK!",
         files: [
@@ -82,9 +82,12 @@ describe("exportArtifactDownload", () => {
       }),
     );
 
-    expect(lastAnchor?.download).toBe("field-ops-sk-.zip");
+    expect(lastAnchor?.download).toBe("field-ops-sk.zip");
     expect(lastAnchor?.click).toHaveBeenCalledOnce();
     expect(createObjectURL).toHaveBeenCalledOnce();
+    expect(result.mode).toBe("zip");
+    expect(result.fileCount).toBe(2);
+    expect(result.report.fileCount).toBe(2);
   });
 
   it("prefers filesOverride over artifact.files", async () => {

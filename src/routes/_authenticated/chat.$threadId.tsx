@@ -36,7 +36,7 @@ import { truncateThreadMessagesClient } from "@/lib/truncate-messages";
 import { extractEditFileSnippets } from "@/lib/edit-snippets";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { MOBILE_FIRST_POLISH_PROMPT } from "@/lib/agent/prompts";
+import { MOBILE_FIRST_POLISH_PROMPT, PROJECT_RUNTIME_POLISH_PROMPT } from "@/lib/agent/prompts";
 import { isPreviewMode, type PreviewMode } from "@/lib/preview-frame";
 
 export const Route = createFileRoute("/_authenticated/chat/$threadId")({
@@ -563,6 +563,12 @@ function ChatPage() {
                 void sendMessage({ text: MOBILE_FIRST_POLISH_PROMPT });
                 setView("preview");
               }}
+              onPolishProject={() => {
+                // One-tap multi-file project runtime fix (ZIP acceptance)
+                setMode("Build");
+                void sendMessage({ text: PROJECT_RUNTIME_POLISH_PROMPT });
+                setView("preview");
+              }}
               onFixFromConsole={(prompt) => {
                 setMode("Build");
                 setView("chat");
@@ -593,7 +599,13 @@ function ChatPage() {
         onPickStarter={(prompt) => sendText(prompt)}
         onShowShortcuts={() => setShortcutsOpen(true)}
         activeArtifact={activeArtifact}
-        onExportArtifact={activeArtifact ? () => exportArtifactDownload(activeArtifact) : undefined}
+        onExportArtifact={
+          activeArtifact
+            ? async () => {
+                await exportArtifactDownload(activeArtifact);
+              }
+            : undefined
+        }
       />
       <ShortcutsHelp open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <Tour enabled={!isLoading} />

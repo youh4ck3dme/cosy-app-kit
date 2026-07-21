@@ -3,6 +3,7 @@ import {
   composeSystem,
   formatClientContext,
   MOBILE_FIRST_POLISH_PROMPT,
+  PROJECT_RUNTIME_POLISH_PROMPT,
   PROMPT_REV,
 } from "./prompts";
 
@@ -33,6 +34,15 @@ describe("composeSystem M3", () => {
     const sys = composeSystem("build", "Base", "");
     expect(sys).toContain(PROMPT_REV);
     expect(sys).toMatch(/Pre-finish mobile checklist/i);
+  });
+
+  it("build includes project mode ZIP checklist", () => {
+    const sys = composeSystem("build", "Base", "");
+    expect(sys).toMatch(/Project mode/i);
+    expect(sys).toMatch(/structuredClone/i);
+    expect(sys).toMatch(/Pre-finish project ZIP checklist/i);
+    expect(PROJECT_RUNTIME_POLISH_PROMPT).toMatch(/edit_file/i);
+    expect(PROJECT_RUNTIME_POLISH_PROMPT).toMatch(/localStorage/i);
   });
 
   it("plan does not include build checklist header", () => {
