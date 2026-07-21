@@ -1,5 +1,16 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Settings, Menu, X, ChevronDown, LogOut, Rocket, Sun, Moon, Monitor, LayoutDashboard } from "lucide-react";
+import {
+  Settings,
+  Menu,
+  X,
+  ChevronDown,
+  LogOut,
+  Rocket,
+  Sun,
+  Moon,
+  Monitor,
+  LayoutDashboard,
+} from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { authSearch } from "@/integrations/lovable";
@@ -41,6 +52,9 @@ export function Header({
   view,
   onViewChange,
   surface = "chat",
+  onPublish,
+  publishDisabled,
+  publishBusy,
 }: {
   activeThreadId?: string;
   activeModel?: string;
@@ -50,12 +64,27 @@ export function Header({
   onViewChange?: (v: "chat" | "preview") => void;
   /** chat = Builder workspace; dashboard = /dashboard shell */
   surface?: "chat" | "dashboard";
+  /** Publish active artifact HTML to a public production URL */
+  onPublish?: () => void | Promise<void>;
+  publishDisabled?: boolean;
+  publishBusy?: boolean;
 }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const onDashboard = surface === "dashboard" || pathname.startsWith("/dashboard");
   const [modelOpen, setModelOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+
+  const runPublish = async () => {
+    if (!onPublish || publishDisabled || publishing || publishBusy) return;
+    setPublishing(true);
+    try {
+      await onPublish();
+    } finally {
+      setPublishing(false);
+    }
+  };
   const resolvedModel = resolveKnownModelId(activeModel);
   const activeLabel =
     AVAILABLE_MODELS.find((m) => m.id === resolvedModel)?.label ?? "Mistral Large";
@@ -198,12 +227,18 @@ export function Header({
             {!onDashboard && (
               <button
                 type="button"
-                onClick={() => toast.info("Publish is a preview-only affordance in this build.")}
-                aria-label="Publish"
-                className="hidden items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary-foreground shadow-[0_0_24px_-6px_color-mix(in_oklab,white_60%,transparent)] transition-all hover:scale-[1.03] hover:shadow-[0_0_32px_-4px_color-mix(in_oklab,white_70%,transparent)] md:inline-flex"
+                onClick={() => void runPublish()}
+                disabled={!onPublish || publishDisabled || publishing || publishBusy}
+                aria-label="Publish artifact HTML to public URL"
+                title={
+                  !onPublish || publishDisabled
+                    ? "Generate an artifact first, then Publish"
+                    : "Make artifact public and copy production URL"
+                }
+                className="hidden items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary-foreground shadow-[0_0_24px_-6px_color-mix(in_oklab,white_60%,transparent)] transition-all hover:scale-[1.03] hover:shadow-[0_0_32px_-4px_color-mix(in_oklab,white_70%,transparent)] disabled:pointer-events-none disabled:opacity-40 md:inline-flex"
               >
                 <Rocket className="h-3 w-3" />
-                Publish
+                {publishing || publishBusy ? "Publishing…" : "Publish"}
               </button>
             )}
             <button
@@ -241,7 +276,9 @@ export function Header({
                   onClick={() => setMobileOpen(false)}
                   className={cn(
                     "min-h-11 flex-1 rounded-md px-3 py-2 text-center text-xs font-mono uppercase tracking-wider",
-                    !onDashboard ? "bg-surface-3 text-foreground shadow-sm" : "text-muted-foreground",
+                    !onDashboard
+                      ? "bg-surface-3 text-foreground shadow-sm"
+                      : "text-muted-foreground",
                   )}
                 >
                   Chat
@@ -251,7 +288,9 @@ export function Header({
                   onClick={() => setMobileOpen(false)}
                   className={cn(
                     "min-h-11 flex-1 rounded-md px-3 py-2 text-center text-xs font-mono uppercase tracking-wider",
-                    onDashboard ? "bg-surface-3 text-foreground shadow-sm" : "text-muted-foreground",
+                    onDashboard
+                      ? "bg-surface-3 text-foreground shadow-sm"
+                      : "text-muted-foreground",
                   )}
                 >
                   Dashboard
@@ -318,6 +357,20 @@ export function Header({
             )}
           </div>
           <div className="flex-none space-y-2 border-t border-border-subtle p-3">
+            {!onDashboard && onPublish && (
+              <button
+                type="button"
+                disabled={publishDisabled || publishing || publishBusy}
+                onClick={() => {
+                  setMobileOpen(false);
+                  void runPublish();
+                }}
+                className="flex min-h-11 w-full items-center gap-3 rounded-lg bg-primary px-3 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-40"
+              >
+                <Rocket className="h-4 w-4" />
+                {publishing || publishBusy ? "Publishing…" : "Publish to production URL"}
+              </button>
+            )}
             <ThemeToggle className="flex min-h-11 w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm text-muted-foreground hover:bg-surface-2 hover:text-foreground" />
             <button
               onClick={() => {

@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { cn } from "@/lib/utils";
 import { setArtifactPublic, updateArtifactFiles } from "@/lib/threads.functions";
+import { publicArtifactUrl, publicEmbedUrl } from "@/lib/public-artifact-url";
 import { exportArtifactDownload } from "@/lib/export-artifact";
 import { MonacoEditor } from "@/components/canvas/MonacoEditor";
 import { MonacoDiff } from "@/components/canvas/MonacoDiff";
@@ -613,9 +614,9 @@ export function Canvas({
       await share({ data: { artifactId: artifact.id, isPublic: next } });
       if (next) {
         setShowShare(true);
-        const url = `${window.location.origin}/a/${artifact.id}`;
+        const url = publicArtifactUrl(artifact.id);
         await navigator.clipboard.writeText(url).catch(() => {});
-        toast.success("Public link copied", { description: url });
+        toast.success("Published — public link copied", { description: url });
       } else {
         setShowShare(false);
         toast.success("Share link disabled");
@@ -914,7 +915,9 @@ export function Canvas({
                   ) : (
                     <Share2 className="h-3.5 w-3.5" />
                   )}
-                  <span className="hidden md:inline">{artifact.is_public ? "Shared" : "Share"}</span>
+                  <span className="hidden md:inline">
+                    {artifact.is_public ? "Shared" : "Share"}
+                  </span>
                 </button>
               </>
             )}
@@ -1214,11 +1217,7 @@ export function Canvas({
                 <iframe
                   key={key}
                   ref={iframeRef}
-                  {...(previewSrc
-                    ? { src: previewSrc }
-                    : srcDoc
-                      ? { srcDoc }
-                      : {})}
+                  {...(previewSrc ? { src: previewSrc } : srcDoc ? { srcDoc } : {})}
                   sandbox="allow-scripts allow-forms"
                   className="block w-full border-0 bg-white"
                   style={{ height: frame.iframeHeight, width: frame.mediaWidth }}
@@ -1308,9 +1307,7 @@ export function Canvas({
                   <div className="text-xs font-semibold">Share</div>
                   <div className="truncate text-sm">{artifact.title}</div>
                   <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground">
-                    {typeof window !== "undefined"
-                      ? `${window.location.origin}/a/${artifact.id}`
-                      : `/a/${artifact.id}`}
+                    {publicArtifactUrl(artifact.id)}
                   </div>
                 </div>
               </div>
@@ -1319,7 +1316,7 @@ export function Canvas({
                   type="button"
                   className="min-h-11 rounded-md border border-border px-3 text-xs"
                   onClick={async () => {
-                    const url = `${window.location.origin}/a/${artifact.id}`;
+                    const url = publicArtifactUrl(artifact.id);
                     await navigator.clipboard.writeText(url);
                     toast.success("Link copied");
                   }}
@@ -1330,7 +1327,7 @@ export function Canvas({
                   type="button"
                   className="min-h-11 rounded-md border border-border px-3 text-xs"
                   onClick={async () => {
-                    const embed = `<iframe src="${window.location.origin}/a/${artifact.id}/embed" style="width:100%;height:640px;border:0;border-radius:12px" title="${artifact.title}"></iframe>`;
+                    const embed = `<iframe src="${publicEmbedUrl(artifact.id)}" style="width:100%;height:640px;border:0;border-radius:12px" title="${artifact.title}"></iframe>`;
                     await navigator.clipboard.writeText(embed);
                     toast.success("Embed code copied");
                   }}
