@@ -62,6 +62,7 @@ test.describe("Authenticated workspace", () => {
     let flipped = false;
     for (let i = 0; i < 3 && !flipped; i++) {
       await toggle.click();
+      await page.waitForTimeout(250);
       flipped = (await isDark()) !== before;
     }
     expect(flipped).toBe(true);

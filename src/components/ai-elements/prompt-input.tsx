@@ -253,6 +253,7 @@ export const PromptInputProvider = ({
       type: "file" as const,
       url: URL.createObjectURL(file),
     }));
+    attachmentsRef.current = [...attachmentsRef.current, ...next];
     setAttachmentFiles((prev) => [...prev, ...next]);
   }, []);
 
@@ -261,6 +262,7 @@ export const PromptInputProvider = ({
     if (found?.url) {
       URL.revokeObjectURL(found.url);
     }
+    attachmentsRef.current = attachmentsRef.current.filter((f) => f.id !== id);
     setAttachmentFiles((prev) => prev.filter((f) => f.id !== id));
   }, []);
 
@@ -270,6 +272,7 @@ export const PromptInputProvider = ({
         URL.revokeObjectURL(f.url);
       }
     }
+    attachmentsRef.current = [];
     setAttachmentFiles([]);
   }, []);
 
@@ -498,9 +501,11 @@ export const PromptInput = ({
 
   // Keep a ref to files for cleanup on unmount (avoids stale closure)
   const filesRef = useRef(files);
+  const pendingAddsRef = useRef(0);
 
   useEffect(() => {
     filesRef.current = files;
+    pendingAddsRef.current = 0;
   }, [files]);
 
   const openFileDialogLocal = useCallback(() => {
@@ -572,6 +577,7 @@ export const PromptInput = ({
         url: URL.createObjectURL(file),
       }));
       if (next.length > 0) {
+        filesRef.current = [...filesRef.current, ...next];
         setItems((prev) => [...prev, ...next]);
       }
     },
@@ -583,6 +589,7 @@ export const PromptInput = ({
     if (found?.url) {
       URL.revokeObjectURL(found.url);
     }
+    filesRef.current = filesRef.current.filter((file) => file.id !== id);
     setItems((prev) => prev.filter((file) => file.id !== id));
   }, []);
 
@@ -608,7 +615,7 @@ export const PromptInput = ({
         return;
       }
 
-      const currentCount = files.length;
+      const currentCount = files.length + pendingAddsRef.current;
       const capacity =
         typeof maxFiles === "number" ? Math.max(0, maxFiles - currentCount) : undefined;
       const capped = typeof capacity === "number" ? sized.slice(0, capacity) : sized;
@@ -620,6 +627,7 @@ export const PromptInput = ({
       }
 
       if (capped.length > 0) {
+        pendingAddsRef.current += capped.length;
         controller?.attachments.add(capped);
       }
     },
@@ -636,6 +644,7 @@ export const PromptInput = ({
         URL.revokeObjectURL(file.url);
       }
     }
+    filesRef.current = [];
     setItems([]);
   }, [usingProvider, controller]);
 
