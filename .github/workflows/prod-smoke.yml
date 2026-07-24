@@ -1,0 +1,35 @@
+# Prod smoke — live URL gate
+# Runs after merge to main; fails clearly if Lovable Publish was skipped.
+name: Prod smoke
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: prod-smoke-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prod-smoke:
+    name: Live URL checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Prod smoke
+        run: bun run prod-smoke
+        env:
+          SMOKE_BASE_URL: https://cosy-app-kit.lovable.app

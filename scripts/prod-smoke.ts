@@ -1,0 +1,112 @@
+/**
+ * Production smoke — no browser required.
+ *
+ *   bun run prod-smoke
+ *   SMOKE_BASE_URL=https://cosy-app-kit.lovable.app bun run prod-smoke
+ *
+ * Fails with a clear message when main is merged but Lovable has not Published yet.
+ */
+import { BUILD_MARKER, PROD_ORIGIN, SHELL_REV } from "../src/lib/deploy-rev";
+
+const BASE = (process.env.SMOKE_BASE_URL ?? PROD_ORIGIN).replace(/\/$/, "");
+
+let failures = 0;
+
+const check = (ok: boolean, label: string) => {
+  console.log(`${ok ? "✅" : "❌"} ${label}`);
+  if (!ok) failures++;
+};
+
+async function get(path: string): Promise<Response> {
+  const url = `${BASE}${path}`;
+  try {
+    return await fetch(url, { redirect: "follow" });
+  } catch (e) {
+    throw new Error(`${path} → ${e instanceof Error ? e.message : e}`);
+  }
+}
+
+async function main() {
+  console.log(`Prod smoke → ${BASE}\n`);
+  console.log(`Expected: buildMarker=${BUILD_MARKER}, shellRev=${SHELL_REV}\n`);
+
+  // Static PWA assets
+  for (const p of [
+    "/manifest.webmanifest",
+    "/sw.js",
+    "/offline.html",
+    "/icons/icon-192.png",
+  ]) {
+    try {
+      const r = await get(p);
+      check(r.status === 200, `GET ${p} → ${r.status}`);
+    } catch (e) {
+      check(false, `GET ${p} → ${e instanceof Error ? e.message : e}`);
+    }
+  }
+
+  // Manifest contract
+  try {
+    const r = await get("/manifest.webmanifest");
+    const manifest = (await r.json()) as { id?: string; display?: string };
+    check(manifest.id === "/", `manifest.id === "/" (got ${JSON.stringify(manifest.id)})`);
+    check(manifest.display === "standalone", `manifest.display === "standalone"`);
+  } catch (e) {
+    check(false, `manifest parse → ${e instanceof Error ? e.message : e}`);
+  }
+
+  // Deploy fingerprint via API
+  try {
+    const r = await get("/api/ai-status");
+    check(r.status === 200, `GET /api/ai-status → ${r.status}`);
+    const status = (await r.json()) as {
+      ok?: boolean;
+      buildMarker?: string;
+      shellRev?: string;
+      mistralKeyPresent?: boolean;
+    };
+    check(status.ok === true, "ai-status.ok === true");
+    check(
+      status.buildMarker === BUILD_MARKER,
+      `ai-status.buildMarker === ${BUILD_MARKER} (got ${status.buildMarker ?? "missing"})`,
+    );
+    check(
+      status.shellRev === SHELL_REV,
+      `ai-status.shellRev === ${SHELL_REV} (got ${status.shellRev ?? "missing"})`,
+    );
+    if (status.shellRev !== SHELL_REV) {
+      console.log(
+        "\n⚠️  Merge is in main but production may not be Published yet.",
+        "Lovable editor → Publish / Update, then re-run: bun run prod-smoke\n",
+      );
+    }
+    check(status.mistralKeyPresent === true, "ai-status.mistralKeyPresent === true");
+  } catch (e) {
+    check(false, `/api/ai-status → ${e instanceof Error ? e.message : e}`);
+  }
+
+  // Shell HTML markers (SSR head)
+  try {
+    const r = await get("/chat");
+    check(r.status === 200, `GET /chat → ${r.status}`);
+    const html = await r.text();
+    check(
+      html.includes("apple-mobile-web-app-capable"),
+      "/chat HTML contains apple-mobile-web-app-capable",
+    );
+    check(
+      html.includes("viewport-fit=cover"),
+      "/chat HTML contains viewport-fit=cover",
+    );
+  } catch (e) {
+    check(false, `/chat HTML → ${e instanceof Error ? e.message : e}`);
+  }
+
+  if (failures > 0) {
+    console.error(`\n${failures} prod smoke check(s) failed`);
+    process.exit(1);
+  }
+  console.log("\nProd smoke finished OK");
+}
+
+void main();

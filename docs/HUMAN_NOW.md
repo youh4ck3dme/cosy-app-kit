@@ -59,6 +59,29 @@ bun run smoke        # PWA asset checks (+ browser ak máš playwright)
 
 ---
 
+## Kedy: **po merge do `main` + Lovable Publish**
+
+### 4. Production deploy
+
+Návod: [`docs/deploy.md`](./deploy.md)
+
+1. Lovable editor → **Publish / Update** (po GitHub sync).  
+2. Spusti:
+
+```bash
+bun run prod-smoke
+```
+
+3. Over `shellRev` + `buildMarker`:
+
+```bash
+curl -s https://cosy-app-kit.lovable.app/api/ai-status | jq '{ok, buildMarker, shellRev, gitSha}'
+```
+
+**Kedy:** po každom merge do `main`, pred demom na live URL, po PWA/shell zmenách.
+
+---
+
 ## Čo NErobíš
 
 | | |
