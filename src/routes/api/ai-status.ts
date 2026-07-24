@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { BUILD_CODE_MODEL, DEFAULT_MODEL, SUGGESTION_MODEL } from "@/lib/models";
 import { PROMPT_REV } from "@/lib/agent/prompts";
+import { BUILD_MARKER, SHELL_REV, resolveGitSha } from "@/lib/deploy-rev";
 import {
   PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   PUBLIC_SUPABASE_URL,
@@ -34,7 +35,9 @@ export const Route = createFileRoute("/api/ai-status")({
         const body = {
           ok: true,
           provider: "mistral",
-          buildMarker: "mistral-agent-g2-1",
+          buildMarker: BUILD_MARKER,
+          shellRev: SHELL_REV,
+          gitSha: resolveGitSha(),
           promptRev: PROMPT_REV,
           defaultModel: DEFAULT_MODEL,
           buildCodeModel: BUILD_CODE_MODEL,
@@ -74,7 +77,8 @@ export const Route = createFileRoute("/api/ai-status")({
         return Response.json(body, {
           headers: {
             "cache-control": "no-store",
-            "x-builder-ai": "mistral-agent-g2-1",
+            "x-builder-ai": BUILD_MARKER,
+            "x-builder-shell": SHELL_REV,
           },
         });
       },

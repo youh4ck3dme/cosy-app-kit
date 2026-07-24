@@ -76,6 +76,21 @@
 - [ ] Low score → toast once; **Mobile-first** chip sends polish turn (Build mode)
 - [ ] New gen dashboard: no horizontal scroll; sidebar/hamburger closed by default @390
 
+## 8. Prod after Publish
+
+**URL:** https://cosy-app-kit.lovable.app · Detail: [`docs/deploy.md`](./deploy.md)
+
+- [ ] `bun run prod-smoke` → all green
+- [ ] `curl -s …/api/ai-status` → `ok: true`, `mistralKeyPresent: true`, `shellRev` matches `src/lib/deploy-rev.ts`
+- [ ] `GET /manifest.webmanifest` → `"id": "/"`
+- [ ] `/chat` HTML contains `apple-mobile-web-app-capable`
+- [ ] iPhone: Settings → **Native shell lock** + **PWA booster** visible
+
+```bash
+bun run prod-smoke
+curl -s https://cosy-app-kit.lovable.app/api/ai-status | jq '{ok, buildMarker, shellRev, mistralKeyPresent}'
+```
+
 ## Record (paste into progress.md)
 
 ```
