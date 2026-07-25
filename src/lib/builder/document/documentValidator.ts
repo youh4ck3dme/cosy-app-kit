@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import type { BuilderDocument, BuilderNode } from "./document.types";
 import { DOCUMENT_SCHEMA_VERSION } from "./document.types";
+import { assertValidDocument, validateDocument } from "./documentInvariants";
 
 const SpacingBoxSchema = z.object({
   top: z.string(),
@@ -133,6 +134,7 @@ export function parseBuilderDocument(input: unknown): BuilderDocument {
   if (!doc.tree.nodes[doc.tree.rootId]) {
     throw new Error(`Document rootId ${doc.tree.rootId} is missing from node graph`);
   }
+  assertValidDocument(doc);
   return doc;
 }
 
@@ -153,5 +155,20 @@ export function safeParseBuilderDocument(input: unknown) {
       },
     };
   }
+
+  const integrity = validateDocument(parsed.data);
+  if (!integrity.ok) {
+    return {
+      success: false as const,
+      error: {
+        issues: integrity.issues.map((issue) => ({
+          code: "custom" as const,
+          path: issue.nodeId ? ["tree", "nodes", issue.nodeId] : ["tree"],
+          message: `${issue.code}: ${issue.message}`,
+        })),
+      },
+    };
+  }
+
   return parsed;
 }

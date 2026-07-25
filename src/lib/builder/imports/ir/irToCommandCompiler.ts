@@ -56,10 +56,10 @@ function buildProps(irNode: UniversalIRNode): Record<string, unknown> {
 }
 
 export class IRToCommandCompiler {
-  compile(ir: UniversalDesignIR, targetParentId: string): ICommand[] {
+  compile(ir: UniversalDesignIR, targetParentId: string, compileTime = 0): ICommand[] {
     assertSupportedIrVersion(ir.version);
     const commands: ICommand[] = [];
-    this.traverseNode(ir, ir.root, targetParentId, commands);
+    this.traverseNode(ir, ir.root, targetParentId, commands, compileTime);
     return commands;
   }
 
@@ -68,9 +68,9 @@ export class IRToCommandCompiler {
     irNode: UniversalIRNode,
     parentId: string,
     commands: ICommand[],
+    compileTime: number,
   ): void {
-    const timestamp = Date.now();
-    const nodeId = irNode.id || crypto.randomUUID();
+    const nodeId = irNode.id || `ir_${irNode.type}_${commands.length}`;
 
     const padding = irNode.styles.padding;
     const node: BuilderNode = {
@@ -101,17 +101,19 @@ export class IRToCommandCompiler {
       locked: false,
       hidden: false,
       metadata: {
-        createdAt: timestamp,
-        updatedAt: timestamp,
+        createdAt: compileTime,
+        updatedAt: compileTime,
         version: 1,
         sourceImport: mapSourceImport(ir.sourceType),
       },
     };
 
-    commands.push(new AddNodeCommand({ parentId, node }));
+    // Deterministic command id: stable across recompiles of the same IR + parent.
+    const commandId = `ir_cmd_${commands.length}_${nodeId}`;
+    commands.push(new AddNodeCommand({ parentId, node }, commandId, compileTime));
 
     for (const child of irNode.children) {
-      this.traverseNode(ir, child, nodeId, commands);
+      this.traverseNode(ir, child, nodeId, commands, compileTime);
     }
   }
 

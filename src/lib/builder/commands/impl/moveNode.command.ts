@@ -21,12 +21,18 @@ export class MoveNodeCommand implements ICommand<MoveNodePayload> {
   readonly type = "MOVE_NODE";
   readonly timestamp: number;
   readonly payload: MoveNodePayload;
-  private snapshot: MoveSnapshot | null = null;
+  private inverse: MoveSnapshot | null = null;
 
-  constructor(payload: MoveNodePayload, id?: string, timestamp?: number) {
+  constructor(
+    payload: MoveNodePayload,
+    id?: string,
+    timestamp?: number,
+    inverse?: MoveSnapshot | null,
+  ) {
     this.payload = payload;
     this.id = id ?? crypto.randomUUID();
     this.timestamp = timestamp ?? Date.now();
+    this.inverse = inverse ?? null;
   }
 
   execute(document: BuilderDocument): CommandResult {
@@ -54,7 +60,6 @@ export class MoveNodeCommand implements ICommand<MoveNodePayload> {
       return { success: false, mutatedNodeIds: [], error: "Cannot move a node into itself." };
     }
 
-    // Prevent cycles: newParent must not be a descendant of node.
     let cursor: NodeId | null = this.payload.newParentId;
     while (cursor) {
       if (cursor === node.id) {
@@ -77,7 +82,7 @@ export class MoveNodeCommand implements ICommand<MoveNodePayload> {
     }
 
     const previousIndex = oldParent.children.indexOf(node.id);
-    this.snapshot = {
+    this.inverse = {
       previousParentId: oldParent.id,
       previousIndex,
     };
@@ -106,14 +111,14 @@ export class MoveNodeCommand implements ICommand<MoveNodePayload> {
   }
 
   undo(document: BuilderDocument): CommandResult {
-    if (!this.snapshot) {
+    if (!this.inverse) {
       return { success: false, mutatedNodeIds: [], error: "No move snapshot available." };
     }
 
     const { tree } = document;
     const node = tree.nodes[this.payload.nodeId];
     const currentParent = tree.nodes[this.payload.newParentId];
-    const previousParent = tree.nodes[this.snapshot.previousParentId];
+    const previousParent = tree.nodes[this.inverse.previousParentId];
 
     if (!node || !currentParent || !previousParent) {
       return {
@@ -125,10 +130,10 @@ export class MoveNodeCommand implements ICommand<MoveNodePayload> {
 
     currentParent.children = currentParent.children.filter((id) => id !== node.id);
     if (
-      this.snapshot.previousIndex >= 0 &&
-      this.snapshot.previousIndex <= previousParent.children.length
+      this.inverse.previousIndex >= 0 &&
+      this.inverse.previousIndex <= previousParent.children.length
     ) {
-      previousParent.children.splice(this.snapshot.previousIndex, 0, node.id);
+      previousParent.children.splice(this.inverse.previousIndex, 0, node.id);
     } else {
       previousParent.children.push(node.id);
     }
@@ -153,10 +158,16 @@ export class MoveNodeCommand implements ICommand<MoveNodePayload> {
       type: this.type,
       timestamp: this.timestamp,
       payload: this.payload,
+      inverse: this.inverse ? structuredClone(this.inverse) : undefined,
     };
   }
 
   static fromSerialized(serialized: SerializedCommand<MoveNodePayload>): MoveNodeCommand {
-    return new MoveNodeCommand(serialized.payload, serialized.id, serialized.timestamp);
+    return new MoveNodeCommand(
+      serialized.payload,
+      serialized.id,
+      serialized.timestamp,
+      (serialized.inverse as MoveSnapshot | undefined) ?? null,
+    );
   }
 }

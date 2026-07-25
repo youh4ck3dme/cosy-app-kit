@@ -4,12 +4,18 @@ import type {
   SerializedCommand,
 } from "../command.interface";
 import type { BuilderDocument, NodeId } from "../../document/document.types";
+import { isCloneable } from "../../document/cloneDocument";
 
 export interface UpdatePropertyPayload {
   nodeId: NodeId;
   /** Dot-notation path relative to the node, e.g. `props.text` or `style.color`. */
   path: string;
   value: unknown;
+}
+
+interface UpdatePropertyInverse {
+  previousValue: unknown;
+  hadPrevious: boolean;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -50,18 +56,35 @@ function setAtPath(
 
 const FORBIDDEN_ROOT_PATHS = new Set(["id", "parentId", "children", "type"]);
 
+/** Segments that enable prototype pollution or structural graph bypass. */
+const FORBIDDEN_PATH_SEGMENTS = new Set(["__proto__", "prototype", "constructor"]);
+
+function assertSafePath(pathParts: string[]): string | null {
+  for (const part of pathParts) {
+    if (FORBIDDEN_PATH_SEGMENTS.has(part)) {
+      return `Path segment "${part}" is forbidden (prototype pollution guard).`;
+    }
+  }
+  return null;
+}
+
 export class UpdatePropertyCommand implements ICommand<UpdatePropertyPayload> {
   readonly id: string;
   readonly type = "UPDATE_PROPERTY";
   readonly timestamp: number;
   readonly payload: UpdatePropertyPayload;
-  private previousValue: unknown = undefined;
-  private hadPrevious = false;
+  private inverse: UpdatePropertyInverse = { previousValue: undefined, hadPrevious: false };
 
-  constructor(payload: UpdatePropertyPayload, id?: string, timestamp?: number) {
+  constructor(
+    payload: UpdatePropertyPayload,
+    id?: string,
+    timestamp?: number,
+    inverse?: UpdatePropertyInverse,
+  ) {
     this.payload = payload;
     this.id = id ?? crypto.randomUUID();
     this.timestamp = timestamp ?? Date.now();
+    if (inverse) this.inverse = inverse;
   }
 
   execute(document: BuilderDocument): CommandResult {
@@ -91,9 +114,30 @@ export class UpdatePropertyCommand implements ICommand<UpdatePropertyPayload> {
       };
     }
 
+    const unsafe = assertSafePath(pathParts);
+    if (unsafe) {
+      return {
+        success: false,
+        mutatedNodeIds: [],
+        error: unsafe,
+      };
+    }
+
+    if (!isCloneable(this.payload.value)) {
+      return {
+        success: false,
+        mutatedNodeIds: [],
+        error: `Property value at "${this.payload.path}" is not serializable (functions, symbols, and other non-cloneable values are rejected).`,
+      };
+    }
+
     const nodeRecord = node as unknown as Record<string, unknown>;
-    this.previousValue = getAtPath(nodeRecord, pathParts);
-    this.hadPrevious = true;
+    const previousValue = getAtPath(nodeRecord, pathParts);
+    this.inverse = {
+      previousValue:
+        previousValue === undefined ? undefined : structuredClone(previousValue),
+      hadPrevious: true,
+    };
 
     const ok = setAtPath(nodeRecord, pathParts, this.payload.value);
     if (!ok) {
@@ -115,7 +159,7 @@ export class UpdatePropertyCommand implements ICommand<UpdatePropertyPayload> {
   }
 
   undo(document: BuilderDocument): CommandResult {
-    if (!this.hadPrevious) {
+    if (!this.inverse.hadPrevious) {
       return {
         success: false,
         mutatedNodeIds: [],
@@ -133,8 +177,17 @@ export class UpdatePropertyCommand implements ICommand<UpdatePropertyPayload> {
     }
 
     const pathParts = this.payload.path.split(".").filter(Boolean);
+    const unsafe = assertSafePath(pathParts);
+    if (unsafe) {
+      return {
+        success: false,
+        mutatedNodeIds: [],
+        error: unsafe,
+      };
+    }
+
     const nodeRecord = node as unknown as Record<string, unknown>;
-    const ok = setAtPath(nodeRecord, pathParts, this.previousValue);
+    const ok = setAtPath(nodeRecord, pathParts, this.inverse.previousValue);
     if (!ok) {
       return {
         success: false,
@@ -158,10 +211,16 @@ export class UpdatePropertyCommand implements ICommand<UpdatePropertyPayload> {
       type: this.type,
       timestamp: this.timestamp,
       payload: this.payload,
+      inverse: structuredClone(this.inverse),
     };
   }
 
   static fromSerialized(serialized: SerializedCommand<UpdatePropertyPayload>): UpdatePropertyCommand {
-    return new UpdatePropertyCommand(serialized.payload, serialized.id, serialized.timestamp);
+    return new UpdatePropertyCommand(
+      serialized.payload,
+      serialized.id,
+      serialized.timestamp,
+      (serialized.inverse as UpdatePropertyInverse | undefined) ?? undefined,
+    );
   }
 }

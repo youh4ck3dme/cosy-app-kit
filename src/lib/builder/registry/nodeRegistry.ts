@@ -1,11 +1,19 @@
 import type { NodeDefinition } from "./registry.types";
 
+const NATIVE_TYPES = new Set(["Container", "Section", "Text", "Button", "Image"]);
+
 export class NodeRegistry {
   private definitions = new Map<string, NodeDefinition>();
 
-  register(definition: NodeDefinition): void {
-    if (this.definitions.has(definition.type)) {
-      console.warn(`Overwriting node definition for type: ${definition.type}`);
+  register(definition: NodeDefinition, options?: { overwrite?: boolean }): void {
+    const exists = this.definitions.has(definition.type);
+    if (exists) {
+      const isNative = NATIVE_TYPES.has(definition.type);
+      if (!options?.overwrite) {
+        throw new Error(
+          `Node type already registered: ${definition.type}${isNative ? " (native)" : ""}`,
+        );
+      }
     }
     this.definitions.set(definition.type, definition);
   }
@@ -20,6 +28,10 @@ export class NodeRegistry {
 
   has(type: string): boolean {
     return this.definitions.has(type);
+  }
+
+  isNativeType(type: string): boolean {
+    return NATIVE_TYPES.has(type);
   }
 
   clear(): void {

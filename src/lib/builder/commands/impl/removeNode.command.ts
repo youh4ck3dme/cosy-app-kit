@@ -3,17 +3,18 @@ import type {
   ICommand,
   SerializedCommand,
 } from "../command.interface";
-import type { BuilderDocument, NodeId } from "../../document/document.types";
+import type { BuilderDocument, BuilderNode, NodeId } from "../../document/document.types";
+import { cloneNode } from "../../document/cloneDocument";
 import { collectDescendantIds } from "../../nodes/nodeGraph";
 
 export interface RemoveNodePayload {
   nodeId: NodeId;
 }
 
-interface RemoveNodeSnapshot {
+interface RemoveNodeInverse {
   parentId: NodeId | null;
   index: number;
-  nodes: Record<string, BuilderDocument["tree"]["nodes"][string]>;
+  nodes: Record<string, BuilderNode>;
 }
 
 export class RemoveNodeCommand implements ICommand<RemoveNodePayload> {
@@ -21,12 +22,18 @@ export class RemoveNodeCommand implements ICommand<RemoveNodePayload> {
   readonly type = "REMOVE_NODE";
   readonly timestamp: number;
   readonly payload: RemoveNodePayload;
-  private snapshot: RemoveNodeSnapshot | null = null;
+  private inverse: RemoveNodeInverse | null = null;
 
-  constructor(payload: RemoveNodePayload, id?: string, timestamp?: number) {
+  constructor(
+    payload: RemoveNodePayload,
+    id?: string,
+    timestamp?: number,
+    inverse?: RemoveNodeInverse | null,
+  ) {
     this.payload = payload;
     this.id = id ?? crypto.randomUUID();
     this.timestamp = timestamp ?? Date.now();
+    this.inverse = inverse ?? null;
   }
 
   execute(document: BuilderDocument): CommandResult {
@@ -51,11 +58,11 @@ export class RemoveNodeCommand implements ICommand<RemoveNodePayload> {
 
     const descendantIds = collectDescendantIds(document, node.id);
     const allIds = [node.id, ...descendantIds];
-    const nodesSnapshot: RemoveNodeSnapshot["nodes"] = {};
+    const nodesSnapshot: RemoveNodeInverse["nodes"] = {};
     for (const id of allIds) {
       const current = tree.nodes[id];
       if (current) {
-        nodesSnapshot[id] = structuredClone(current);
+        nodesSnapshot[id] = cloneNode(current);
       }
     }
 
@@ -76,7 +83,7 @@ export class RemoveNodeCommand implements ICommand<RemoveNodePayload> {
       parent.metadata.version += 1;
     }
 
-    this.snapshot = { parentId, index, nodes: nodesSnapshot };
+    this.inverse = { parentId, index, nodes: nodesSnapshot };
 
     for (const id of allIds) {
       delete tree.nodes[id];
@@ -90,7 +97,7 @@ export class RemoveNodeCommand implements ICommand<RemoveNodePayload> {
   }
 
   undo(document: BuilderDocument): CommandResult {
-    if (!this.snapshot) {
+    if (!this.inverse) {
       return {
         success: false,
         mutatedNodeIds: [],
@@ -99,13 +106,13 @@ export class RemoveNodeCommand implements ICommand<RemoveNodePayload> {
     }
 
     const { tree } = document;
-    const restoredIds = Object.keys(this.snapshot.nodes);
+    const restoredIds = Object.keys(this.inverse.nodes);
 
-    for (const [id, node] of Object.entries(this.snapshot.nodes)) {
-      tree.nodes[id] = structuredClone(node);
+    for (const [id, node] of Object.entries(this.inverse.nodes)) {
+      tree.nodes[id] = cloneNode(node);
     }
 
-    const { parentId, index } = this.snapshot;
+    const { parentId, index } = this.inverse;
     if (parentId) {
       const parent = tree.nodes[parentId];
       if (!parent) {
@@ -140,10 +147,16 @@ export class RemoveNodeCommand implements ICommand<RemoveNodePayload> {
       type: this.type,
       timestamp: this.timestamp,
       payload: this.payload,
+      inverse: this.inverse ? structuredClone(this.inverse) : undefined,
     };
   }
 
   static fromSerialized(serialized: SerializedCommand<RemoveNodePayload>): RemoveNodeCommand {
-    return new RemoveNodeCommand(serialized.payload, serialized.id, serialized.timestamp);
+    return new RemoveNodeCommand(
+      serialized.payload,
+      serialized.id,
+      serialized.timestamp,
+      (serialized.inverse as RemoveNodeInverse | undefined) ?? null,
+    );
   }
 }

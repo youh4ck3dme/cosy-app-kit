@@ -4,6 +4,7 @@ import type {
   SerializedCommand,
 } from "../command.interface";
 import type { BuilderDocument, BuilderNode, NodeId } from "../../document/document.types";
+import { cloneNode } from "../../document/cloneDocument";
 
 export interface AddNodePayload {
   parentId: NodeId;
@@ -51,11 +52,11 @@ export class AddNodeCommand implements ICommand<AddNodePayload> {
       };
     }
 
-    const newNode: BuilderNode = {
+    const newNode = cloneNode({
       ...this.payload.node,
       parentId: this.payload.parentId,
       children: [...this.payload.node.children],
-    };
+    });
     tree.nodes[newNode.id] = newNode;
 
     const index = this.payload.index;
@@ -76,9 +77,18 @@ export class AddNodeCommand implements ICommand<AddNodePayload> {
 
   undo(document: BuilderDocument): CommandResult {
     const { tree } = document;
-    const parent = tree.nodes[this.payload.parentId];
     const nodeId = this.payload.node.id;
+    const node = tree.nodes[nodeId];
 
+    if (node && node.children.length > 0) {
+      return {
+        success: false,
+        mutatedNodeIds: [],
+        error: `Cannot undo ADD_NODE for ${nodeId}: node still has children. Remove children first or use REMOVE_NODE.`,
+      };
+    }
+
+    const parent = tree.nodes[this.payload.parentId];
     if (parent) {
       parent.children = parent.children.filter((id) => id !== nodeId);
       parent.metadata.updatedAt = Date.now();
@@ -98,7 +108,11 @@ export class AddNodeCommand implements ICommand<AddNodePayload> {
       id: this.id,
       type: this.type,
       timestamp: this.timestamp,
-      payload: this.payload,
+      payload: {
+        parentId: this.payload.parentId,
+        index: this.payload.index,
+        node: cloneNode(this.payload.node),
+      },
     };
   }
 

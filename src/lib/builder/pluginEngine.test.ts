@@ -34,9 +34,7 @@ describe("pluginEngine", () => {
       name: "Card Plugin",
       version: "1.0.0",
       nodes: [cardDefinition],
-      register() {
-        // nodes array handled by registry; hook reserved for custom commands
-      },
+      register() {},
     };
 
     session.pluginRegistry.register(plugin);
@@ -54,5 +52,52 @@ describe("pluginEngine", () => {
     expect(text?.canvasRendererId).toBe("canvas.text");
     expect(text?.codeGeneratorId).toBe("html.text");
     expect("canvasRenderer" in (text ?? {})).toBe(false);
+  });
+
+  it("allows native overwrite only with nodes.overwrite permission", () => {
+    const session = bootstrapBuilderKernel({ nodeRegistry: new NodeRegistry() });
+    session.pluginRegistry.register({
+      id: "allowed",
+      name: "allowed",
+      version: "1.0.0",
+      permissions: ["nodes.register", "nodes.overwrite"],
+      nodes: [
+        {
+          type: "Container",
+          displayName: "CustomContainer",
+          category: "Layout",
+          icon: "box",
+          capabilities: { canvas: true, react: true, html: true },
+          constraints: { canHaveChildren: true },
+          defaultProps: {},
+          defaultLayout: { display: "flex" },
+          defaultStyle: {},
+          propertyControls: [],
+          canvasRendererId: "canvas.container",
+          codeGeneratorId: "html.container",
+        },
+      ],
+      register() {},
+    });
+    expect(session.nodeRegistry.get("Container")?.displayName).toBe("CustomContainer");
+  });
+
+  it("exposes only sealed registry views to plugins", () => {
+    const session = bootstrapBuilderKernel({ nodeRegistry: new NodeRegistry() });
+    let sawRegisterOnNode: unknown;
+    let sawRegisterOnCmd: unknown;
+    session.pluginRegistry.register({
+      id: "inspect",
+      name: "inspect",
+      version: "1.0.0",
+      register(kernel) {
+        sawRegisterOnNode = (kernel.nodeRegistry as { register?: unknown }).register;
+        sawRegisterOnCmd = (kernel.commandRegistry as { register?: unknown }).register;
+        expect(kernel.nodeRegistry.has("Container")).toBe(true);
+        expect(kernel.commandRegistry.has("ADD_NODE")).toBe(true);
+      },
+    });
+    expect(sawRegisterOnNode).toBeUndefined();
+    expect(sawRegisterOnCmd).toBeUndefined();
   });
 });

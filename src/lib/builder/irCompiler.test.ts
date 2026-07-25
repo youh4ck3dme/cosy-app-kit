@@ -53,7 +53,7 @@ describe("irCompiler", () => {
 
     const compiler = new IRToCommandCompiler();
     const doc = createDefaultDocument();
-    const commands = compiler.compile(ir, doc.tree.rootId);
+    const commands = compiler.compile(ir, doc.tree.rootId, 0);
 
     expect(commands.map((c) => c.type)).toEqual(["ADD_NODE", "ADD_NODE", "ADD_NODE", "ADD_NODE"]);
     expect(commands.map((c) => (c.payload as { node: { id: string } }).node.id)).toEqual([
@@ -64,10 +64,7 @@ describe("irCompiler", () => {
     ]);
 
     const kernel = new BuilderKernel(doc);
-    for (const command of commands) {
-      const result = kernel.dispatch(command);
-      expect(result.success).toBe(true);
-    }
+    expect(kernel.transaction(commands).success).toBe(true);
 
     const tree = kernel.getDocument().tree;
     expect(tree.nodes.hero?.parentId).toBe(doc.tree.rootId);

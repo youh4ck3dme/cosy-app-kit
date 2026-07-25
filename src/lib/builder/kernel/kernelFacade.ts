@@ -1,7 +1,7 @@
 import { globalCommandRegistry, type CommandRegistry } from "../commands/commandManager";
 import { createDefaultDocument } from "../document/documentFactory";
 import type { BuilderDocument } from "../document/document.types";
-import type { HistoryManager } from "../history/historyManager";
+import type { HistoryView } from "../history/historyManager";
 import { PluginRegistry } from "../plugins/pluginRegistry";
 import { nativeNodeDefinitions } from "../registry/definitions/native";
 import { NodeRegistry } from "../registry/nodeRegistry";
@@ -23,7 +23,7 @@ export interface BootstrappedKernel {
   nodeRegistry: NodeRegistry;
   commandRegistry: CommandRegistry;
   pluginRegistry: PluginRegistry;
-  history: HistoryManager;
+  history: HistoryView;
 }
 
 /** Wires registries, native node definitions, and a headless session. */

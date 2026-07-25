@@ -27,6 +27,16 @@ export {
 } from "./document/documentValidator";
 
 export {
+  assertValidDocument,
+  validateDocument,
+  type DocumentInvariantCode,
+  type DocumentInvariantIssue,
+  type DocumentValidationResult,
+} from "./document/documentInvariants";
+
+export { cloneDocument, cloneNode, deepFreeze } from "./document/cloneDocument";
+
+export {
   createContainerNode,
   createDefaultDocument,
   createEmptyLayout,
@@ -56,6 +66,8 @@ export {
   createHistoryEntry,
   HistoryManager,
   type HistoryEntry,
+  type HistoryEventLogEntry,
+  type HistoryView,
 } from "./history/historyManager";
 
 export {
@@ -70,6 +82,7 @@ export {
   BuilderUiState,
   createBuilderSession,
   type KernelDispatchResult,
+  type TransactionContext,
 } from "./kernel/builderKernel";
 
 export {
@@ -90,7 +103,16 @@ export type {
 export { NodeRegistry, globalNodeRegistry } from "./registry/nodeRegistry";
 export { nativeNodeDefinitions } from "./registry/definitions/native";
 
-export type { BuilderKernelFacade, BuilderPlugin } from "./plugins/plugin.types";
+export type {
+  BuilderKernelFacade,
+  BuilderPlugin,
+  CoreCommandType,
+  PluginCommandRegistryView,
+  PluginEventBusView,
+  PluginNodeRegistryView,
+  PluginPermission,
+} from "./plugins/plugin.types";
+export { CORE_COMMAND_TYPES } from "./plugins/plugin.types";
 export { PluginRegistry } from "./plugins/pluginRegistry";
 
 export {

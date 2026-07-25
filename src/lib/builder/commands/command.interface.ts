@@ -12,6 +12,9 @@ export interface SerializedCommand<TPayload = unknown> {
   type: string;
   timestamp: number;
   payload: TPayload;
+  /** Durable undo material — must be JSON-serializable (no live instance fields). */
+  inverse?: unknown;
+  baseDocumentVersion?: number;
 }
 
 export interface ICommand<TPayload = unknown> {

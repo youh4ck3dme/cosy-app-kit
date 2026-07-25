@@ -1,5 +1,7 @@
 import type { CommandFactory, ICommand, SerializedCommand } from "./command.interface";
+import { parseCommandPayload } from "./commandSchemas";
 import { AddNodeCommand, type AddNodePayload } from "./impl/addNode.command";
+import { BatchCommand, type BatchPayload } from "./impl/batch.command";
 import { MoveNodeCommand, type MoveNodePayload } from "./impl/moveNode.command";
 import { RemoveNodeCommand, type RemoveNodePayload } from "./impl/removeNode.command";
 import {
@@ -10,7 +12,10 @@ import {
 export class CommandRegistry {
   private factories = new Map<string, CommandFactory>();
 
-  register(type: string, factory: CommandFactory): void {
+  register(type: string, factory: CommandFactory, options?: { overwrite?: boolean }): void {
+    if (this.factories.has(type) && !options?.overwrite) {
+      throw new Error(`Command type already registered: ${type}`);
+    }
     this.factories.set(type, factory);
   }
 
@@ -19,11 +24,16 @@ export class CommandRegistry {
     if (!factory) {
       throw new Error(`No command factory registered for type: ${serialized.type}`);
     }
+    parseCommandPayload(serialized);
     return factory(serialized);
   }
 
   has(type: string): boolean {
     return this.factories.has(type);
+  }
+
+  listTypes(): string[] {
+    return [...this.factories.keys()];
   }
 }
 
@@ -44,6 +54,13 @@ export function createDefaultCommandRegistry(): CommandRegistry {
   registry.register("MOVE_NODE", (serialized) =>
     MoveNodeCommand.fromSerialized(serialized as SerializedCommand<MoveNodePayload>),
   );
+  registry.register("BATCH", (serialized) => {
+    const payload = serialized.payload as BatchPayload;
+    const nested = (payload.commands ?? []).map((cmd) =>
+      registry.create(cmd as SerializedCommand),
+    );
+    return new BatchCommand(nested, serialized.id, serialized.timestamp);
+  });
 
   return registry;
 }

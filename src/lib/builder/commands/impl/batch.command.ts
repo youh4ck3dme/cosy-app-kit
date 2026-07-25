@@ -29,6 +29,10 @@ export class BatchCommand implements ICommand<BatchPayload> {
     this.timestamp = timestamp ?? Date.now();
   }
 
+  getCommands(): readonly ICommand[] {
+    return this.commands;
+  }
+
   execute(document: BuilderDocument): CommandResult {
     this.executed = [];
     const mutated = new Set<string>();
@@ -36,14 +40,24 @@ export class BatchCommand implements ICommand<BatchPayload> {
     for (const command of this.commands) {
       const result = command.execute(document);
       if (!result.success) {
+        // Best-effort nested undo; kernel always snapshot-restores on failure.
+        const undoErrors: string[] = [];
         for (let i = this.executed.length - 1; i >= 0; i -= 1) {
-          this.executed[i]!.undo(document);
+          const undoResult = this.executed[i]!.undo(document);
+          if (!undoResult.success) {
+            undoErrors.push(
+              undoResult.error ?? `Batch nested undo failed for ${this.executed[i]!.type}`,
+            );
+          }
         }
         this.executed = [];
         return {
           success: false,
           mutatedNodeIds: [],
-          error: result.error ?? `Batch failed at ${command.type}`,
+          error:
+            undoErrors.length > 0
+              ? `${result.error ?? `Batch failed at ${command.type}`}; nested undo incomplete: ${undoErrors.join("; ")}`
+              : (result.error ?? `Batch failed at ${command.type}`),
         };
       }
       this.executed.push(command);
@@ -59,8 +73,9 @@ export class BatchCommand implements ICommand<BatchPayload> {
 
   undo(document: BuilderDocument): CommandResult {
     const mutated = new Set<string>();
-    for (let i = this.executed.length - 1; i >= 0; i -= 1) {
-      const result = this.executed[i]!.undo(document);
+    const list = this.executed.length > 0 ? this.executed : this.commands;
+    for (let i = list.length - 1; i >= 0; i -= 1) {
+      const result = list[i]!.undo(document);
       if (!result.success) {
         return {
           success: false,
