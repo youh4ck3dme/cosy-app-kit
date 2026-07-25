@@ -189,7 +189,18 @@ export class BuilderKernel {
         error: error instanceof Error ? error.message : "Snapshot clone failed",
       };
     }
-    const result = entry.command.undo(this.document);
+    let result: CommandResult;
+    try {
+      result = entry.command.undo(this.document);
+    } catch (error) {
+      this.document = snapshot;
+      this.history.pushUndo(entry);
+      return {
+        success: false,
+        mutatedNodeIds: [],
+        error: error instanceof Error ? error.message : "Command undo threw",
+      };
+    }
     if (!result.success) {
       this.document = snapshot;
       this.history.pushUndo(entry);
@@ -240,7 +251,18 @@ export class BuilderKernel {
         error: error instanceof Error ? error.message : "Snapshot clone failed",
       };
     }
-    const result = entry.command.execute(this.document);
+    let result: CommandResult;
+    try {
+      result = entry.command.execute(this.document);
+    } catch (error) {
+      this.document = snapshot;
+      this.history.pushRedo(entry);
+      return {
+        success: false,
+        mutatedNodeIds: [],
+        error: error instanceof Error ? error.message : "Command execute threw",
+      };
+    }
     if (!result.success) {
       this.document = snapshot;
       this.history.pushRedo(entry);

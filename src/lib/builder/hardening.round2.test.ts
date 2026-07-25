@@ -211,4 +211,100 @@ describe("hardening round 2 — pre-Canvas patches", () => {
     );
     expect(after.success).toBe(true);
   });
+
+  it("B6 (final-review blocker): undo() catches an exception thrown by command.undo() and returns a failure result", () => {
+    const throwsOnUndo: ICommand = {
+      id: "throws-on-undo",
+      type: "THROWS_ON_UNDO",
+      timestamp: 0,
+      payload: {},
+      execute(document: BuilderDocument): CommandResult {
+        document.metadata.title = "mutated";
+        return { success: true, mutatedNodeIds: [] };
+      },
+      undo(): CommandResult {
+        throw new Error("undo exploded");
+      },
+      serialize() {
+        return { id: this.id, type: this.type, timestamp: 0, payload: {} };
+      },
+    };
+
+    const k = new BuilderKernel(createDefaultDocument({ title: "clean" }));
+    expect(k.dispatch(throwsOnUndo).success).toBe(true);
+
+    let result: ReturnType<BuilderKernel["undo"]> | undefined;
+    expect(() => {
+      result = k.undo();
+    }).not.toThrow();
+
+    expect(result?.success).toBe(false);
+    expect(result?.error).toMatch(/undo exploded/);
+    // Document restored to its pre-undo-attempt snapshot (post-dispatch state, unmutated by the failed undo).
+    expect(k.getDocument().metadata.title).toBe("mutated");
+    // History consistency: the entry is pushed back onto the undo stack, not lost.
+    expect(k.getHistory().canUndo()).toBe(true);
+
+    // Kernel remains usable afterward.
+    const rootId = k.getDocument().tree.rootId;
+    const followUp = k.dispatch(
+      new AddNodeCommand({
+        parentId: rootId,
+        node: createNodeFromDefaults("Text", "ok", rootId, { id: "ok1" }),
+      }),
+    );
+    expect(followUp.success).toBe(true);
+  });
+
+  it("B7 (final-review blocker): redo() catches an exception thrown by command.execute() and returns a failure result", () => {
+    let executeCalls = 0;
+    const throwsOnSecondExecute: ICommand = {
+      id: "throws-on-redo",
+      type: "THROWS_ON_REDO",
+      timestamp: 0,
+      payload: {},
+      execute(document: BuilderDocument): CommandResult {
+        executeCalls += 1;
+        if (executeCalls > 1) {
+          throw new Error("redo exploded");
+        }
+        document.metadata.title = "mutated";
+        return { success: true, mutatedNodeIds: [] };
+      },
+      undo(document: BuilderDocument): CommandResult {
+        document.metadata.title = "clean";
+        return { success: true, mutatedNodeIds: [] };
+      },
+      serialize() {
+        return { id: this.id, type: this.type, timestamp: 0, payload: {} };
+      },
+    };
+
+    const k = new BuilderKernel(createDefaultDocument({ title: "clean" }));
+    expect(k.dispatch(throwsOnSecondExecute).success).toBe(true);
+    expect(k.undo().success).toBe(true);
+    expect(k.getDocument().metadata.title).toBe("clean");
+
+    let result: ReturnType<BuilderKernel["redo"]> | undefined;
+    expect(() => {
+      result = k.redo();
+    }).not.toThrow();
+
+    expect(result?.success).toBe(false);
+    expect(result?.error).toMatch(/redo exploded/);
+    // Document restored to its pre-redo-attempt snapshot (post-undo state, unmutated by the failed redo).
+    expect(k.getDocument().metadata.title).toBe("clean");
+    // History consistency: the entry is pushed back onto the redo stack, not lost.
+    expect(k.getHistory().canRedo()).toBe(true);
+
+    // Kernel remains usable afterward.
+    const rootId = k.getDocument().tree.rootId;
+    const followUp = k.dispatch(
+      new AddNodeCommand({
+        parentId: rootId,
+        node: createNodeFromDefaults("Text", "ok", rootId, { id: "ok1" }),
+      }),
+    );
+    expect(followUp.success).toBe(true);
+  });
 });
