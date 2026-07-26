@@ -5,6 +5,8 @@ import { useMemo, useRef, useState } from "react";
 import { Monitor, Smartphone, Tablet, ExternalLink } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
+import { useReducedMotionSafe } from "@/lib/motion";
+import { Skeleton } from "@/components/ui/skeleton";
 import { buildPreviewBridgeScript } from "@/lib/preview-bridge";
 import { injectScriptIntoHtmlHead } from "@/lib/preview-storage-polyfill";
 import { needsUrlPreview } from "@/lib/project-fs";
@@ -92,6 +94,8 @@ function PublicArtifactPage() {
     if (window.innerWidth < 1024) return "tablet";
     return "desktop";
   });
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const reducedMotion = useReducedMotionSafe();
   const bridgeTokenRef = useRef(
     typeof crypto !== "undefined" && crypto.randomUUID
       ? crypto.randomUUID()
@@ -194,13 +198,22 @@ function PublicArtifactPage() {
             className="overflow-hidden rounded-2xl border border-border-subtle bg-panel shadow-elevated"
             style={{ width: WIDTHS[device], maxWidth: "100%" }}
           >
-            <iframe
-              {...(previewSrc ? { src: previewSrc } : { srcDoc: srcDoc! })}
-              sandbox="allow-scripts allow-forms"
-              className="block w-full border-0 bg-white"
-              style={{ height: "80vh" }}
-              title={artifact.title}
-            />
+            <div className="relative" style={{ height: "80vh" }}>
+              {!iframeLoaded && <Skeleton aria-hidden className="absolute inset-0 rounded-none" />}
+              <iframe
+                {...(previewSrc ? { src: previewSrc } : { srcDoc: srcDoc! })}
+                sandbox="allow-scripts allow-forms"
+                onLoad={() => setIframeLoaded(true)}
+                onError={() => setIframeLoaded(true)}
+                className={cn(
+                  "relative block w-full border-0 bg-panel",
+                  !reducedMotion && "transition-opacity duration-300",
+                  iframeLoaded ? "opacity-100" : "opacity-0",
+                )}
+                style={{ height: "80vh" }}
+                title={artifact.title}
+              />
+            </div>
           </div>
         ) : (
           <article className="prose prose-invert prose-sm max-w-3xl rounded-2xl border border-border-subtle bg-panel px-8 py-6 shadow-elevated">

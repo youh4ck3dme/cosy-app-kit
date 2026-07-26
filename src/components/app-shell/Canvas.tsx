@@ -26,6 +26,8 @@ import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { cn } from "@/lib/utils";
+import { useReducedMotionSafe } from "@/lib/motion";
+import { Skeleton } from "@/components/ui/skeleton";
 import { setArtifactPublic, updateArtifactFiles } from "@/lib/threads.functions";
 import { exportArtifactDownload } from "@/lib/export-artifact";
 import { MonacoEditor } from "@/components/canvas/MonacoEditor";
@@ -182,6 +184,9 @@ export function Canvas({
   /** Which HTML file the preview iframe is showing (multi-file nav). */
   const [previewPath, setPreviewPath] = useState<string | null>(null);
   const [key, setKey] = useState(0);
+  /** Fade the preview iframe in on load instead of a hard pop / white flash. */
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const reducedMotion = useReducedMotionSafe();
   /** Bottom dock: Console | Network (mutually exclusive tabs, not both closed forever). */
   const [bottomTab, setBottomTab] = useState<"console" | "network" | null>(null);
   const showConsole = bottomTab === "console";
@@ -202,6 +207,12 @@ export function Canvas({
   );
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const paneRef = useRef<HTMLDivElement | null>(null);
+  // `key` remounts the iframe on every refresh/edit — reset the fade-in state
+  // in lockstep so the skeleton reappears for the new load instead of staying
+  // hidden behind a stale "already loaded" flag from the previous mount.
+  useEffect(() => {
+    setIframeLoaded(false);
+  }, [key]);
   /** Per-mount token so we ignore console/network spam from other frames. */
   const bridgeTokenRef = useRef(
     typeof crypto !== "undefined" && crypto.randomUUID
@@ -1256,19 +1267,36 @@ export function Canvas({
                   Sandbox: scripts+forms only — no same-origin, no top-nav, no downloads.
                   Preview is untrusted user/agent HTML; keep capabilities minimal.
                 */}
-                <iframe
-                  key={key}
-                  ref={iframeRef}
-                  {...(previewSrc
-                    ? { src: previewSrc }
-                    : srcDoc
-                      ? { srcDoc }
-                      : {})}
-                  sandbox="allow-scripts allow-forms"
-                  className="block w-full border-0 bg-panel"
+                <div
+                  className="relative"
                   style={{ height: frame.iframeHeight, width: frame.mediaWidth }}
-                  title={artifact.title}
-                />
+                >
+                  {!iframeLoaded && (
+                    <Skeleton
+                      aria-hidden
+                      className="absolute inset-0 rounded-none"
+                    />
+                  )}
+                  <iframe
+                    key={key}
+                    ref={iframeRef}
+                    {...(previewSrc
+                      ? { src: previewSrc }
+                      : srcDoc
+                        ? { srcDoc }
+                        : {})}
+                    sandbox="allow-scripts allow-forms"
+                    onLoad={() => setIframeLoaded(true)}
+                    onError={() => setIframeLoaded(true)}
+                    className={cn(
+                      "relative block w-full border-0 bg-panel",
+                      !reducedMotion && "transition-opacity duration-300",
+                      iframeLoaded ? "opacity-100" : "opacity-0",
+                    )}
+                    style={{ height: frame.iframeHeight, width: frame.mediaWidth }}
+                    title={artifact.title}
+                  />
+                </div>
               </div>
             </div>
           )}
