@@ -16,6 +16,8 @@ import {
   Check,
   X,
   Undo2,
+  Plus,
+
   Columns2,
   Save,
   Maximize2,
