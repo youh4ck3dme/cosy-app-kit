@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
   Monitor,
   Tablet,
@@ -22,7 +22,6 @@ import {
   Network,
   Scaling,
 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { cn } from "@/lib/utils";
@@ -30,10 +29,7 @@ import { useReducedMotionSafe } from "@/lib/motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { setArtifactPublic, updateArtifactFiles } from "@/lib/threads.functions";
 import { exportArtifactDownload } from "@/lib/export-artifact";
-import { MonacoEditor } from "@/components/canvas/MonacoEditor";
-import { MonacoDiff } from "@/components/canvas/MonacoDiff";
-import { NetworkPanel, type NetworkEntry } from "@/components/canvas/NetworkPanel";
-import { VersionTimeline } from "@/components/canvas/VersionTimeline";
+import type { NetworkEntry } from "@/components/canvas/NetworkPanel";
 import { latestSnippetForFile, type EditFileSnippet } from "@/lib/edit-snippets";
 import {
   computeFrame,
@@ -57,6 +53,29 @@ import { mintPreviewToken } from "@/lib/preview-token.functions";
 import { buildPreviewBridgeScript } from "@/lib/preview-bridge";
 import { resolvePreviewNavTarget } from "@/lib/preview-nav";
 import { injectScriptIntoHtmlHead } from "@/lib/preview-storage-polyfill";
+
+/** Heavy editors / docks — keep off the preview-first path (Performance Contract v0.1). */
+const MonacoEditor = lazy(() =>
+  import("@/components/canvas/MonacoEditor").then((m) => ({ default: m.MonacoEditor })),
+);
+const MonacoDiff = lazy(() =>
+  import("@/components/canvas/MonacoDiff").then((m) => ({ default: m.MonacoDiff })),
+);
+const NetworkPanel = lazy(() =>
+  import("@/components/canvas/NetworkPanel").then((m) => ({ default: m.NetworkPanel })),
+);
+const VersionTimeline = lazy(() =>
+  import("@/components/canvas/VersionTimeline").then((m) => ({ default: m.VersionTimeline })),
+);
+const ReactMarkdown = lazy(() => import("react-markdown"));
+
+function HeavyFallback({ label }: { label: string }) {
+  return (
+    <div className="flex min-h-[12rem] items-center justify-center text-xs text-muted-foreground">
+      {label}
+    </div>
+  );
+}
 
 export type ArtifactFile = { path: string; language: string; content: string };
 export type Artifact = {
@@ -398,16 +417,20 @@ export function Canvas({
     return null;
   }, [artifact, files, resolvedPreviewPath]);
 
+  // Defer scorecard analysis so iframe srcDoc paint wins the main thread.
+  const deferredEntryHtml = useDeferredValue(entryHtml);
+  const deferredFiles = useDeferredValue(files);
+
   const responsiveReport: ResponsiveReport | null = useMemo(() => {
-    if (!entryHtml) return null;
-    return analyzeResponsiveHtml(entryHtml);
-  }, [entryHtml]);
+    if (!deferredEntryHtml) return null;
+    return analyzeResponsiveHtml(deferredEntryHtml);
+  }, [deferredEntryHtml]);
 
   const projectReport: ProjectRuntimeReport | null = useMemo(() => {
-    if (!artifact || files.length < 2) return null;
-    if (!isMultiPageProject(files)) return null;
-    return analyzeProjectRuntime(files.map((f) => ({ path: f.path, content: f.content })));
-  }, [artifact, files]);
+    if (!artifact || deferredFiles.length < 2) return null;
+    if (!isMultiPageProject(deferredFiles)) return null;
+    return analyzeProjectRuntime(deferredFiles.map((f) => ({ path: f.path, content: f.content })));
+  }, [artifact, deferredFiles]);
 
   useEffect(() => {
     if (!artifact?.id || !responsiveReport || responsiveReport.ok) return;
@@ -926,7 +949,9 @@ export function Canvas({
             )}
             {artifact && (
               <>
-                <VersionTimeline artifactId={artifact.id} threadId={threadId} />
+                <Suspense fallback={null}>
+                  <VersionTimeline artifactId={artifact.id} threadId={threadId} />
+                </Suspense>
                 <button
                   onClick={handleExport}
                   className="min-h-9 min-w-9 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
@@ -1307,20 +1332,24 @@ export function Canvas({
               style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}
             >
               <h2 className="mt-0!">{artifact.title}</h2>
-              <ReactMarkdown>{currentFile?.content ?? artifact.content}</ReactMarkdown>
+              <Suspense fallback={<HeavyFallback label="Loading markdown…" />}>
+                <ReactMarkdown>{currentFile?.content ?? artifact.content}</ReactMarkdown>
+              </Suspense>
             </article>
           )}
 
           {artifact && view === "code" && currentFile && (
-            <MonacoEditor
-              path={currentFile.path}
-              value={currentFile.content}
-              language={currentFile.language}
-              onChange={(val) => {
-                const path = currentFile.path;
-                setEdits((prev) => ({ ...prev, [path]: val }));
-              }}
-            />
+            <Suspense fallback={<HeavyFallback label="Loading editor…" />}>
+              <MonacoEditor
+                path={currentFile.path}
+                value={currentFile.content}
+                language={currentFile.language}
+                onChange={(val) => {
+                  const path = currentFile.path;
+                  setEdits((prev) => ({ ...prev, [path]: val }));
+                }}
+              />
+            </Suspense>
           )}
 
           {artifact && view === "diff" && currentFile && (
@@ -1330,20 +1359,22 @@ export function Canvas({
                   ? "Model change — edit_file beforeSnippet → afterSnippet"
                   : "Local edits — saved file vs current buffer (undo stack if you Reset)"}
               </p>
-              <MonacoDiff
-                path={currentFile.path}
-                language={currentFile.language}
-                original={
-                  diffMode === "model" && modelSnippet
-                    ? modelSnippet.beforeSnippet
-                    : (originalCurrent?.content ?? "")
-                }
-                modified={
-                  diffMode === "model" && modelSnippet
-                    ? modelSnippet.afterSnippet
-                    : currentFile.content
-                }
-              />
+              <Suspense fallback={<HeavyFallback label="Loading diff…" />}>
+                <MonacoDiff
+                  path={currentFile.path}
+                  language={currentFile.language}
+                  original={
+                    diffMode === "model" && modelSnippet
+                      ? modelSnippet.beforeSnippet
+                      : (originalCurrent?.content ?? "")
+                  }
+                  modified={
+                    diffMode === "model" && modelSnippet
+                      ? modelSnippet.afterSnippet
+                      : currentFile.content
+                  }
+                />
+              </Suspense>
             </div>
           )}
         </div>
@@ -1522,11 +1553,13 @@ export function Canvas({
         )}
 
         {showNetwork && (
-          <NetworkPanel
-            entries={network}
-            onClear={() => setNetwork([])}
-            onClose={() => setBottomTab(null)}
-          />
+          <Suspense fallback={<HeavyFallback label="Loading network…" />}>
+            <NetworkPanel
+              entries={network}
+              onClear={() => setNetwork([])}
+              onClose={() => setBottomTab(null)}
+            />
+          </Suspense>
         )}
       </div>
     </div>

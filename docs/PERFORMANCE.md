@@ -51,8 +51,13 @@ Do not treat those timings as contractual performance guarantees.
 | Single dispatch on small docs | Interactive (< 16ms ideal) — **not yet benchmarked in CI** |
 | Large document validation | Linear; avoid accidental O(n²) parent walks — cycle walk is O(n) |
 
+## Product Builder — Performance Contract v0.1
+
+Product chat + canvas budgets, dual-brain boundaries, stream trim, and CSP guardrails live in **[PERFORMANCE_CONTRACT.md](./PERFORMANCE_CONTRACT.md)** (`src/lib/performance-contract.ts`). Marketplace / CRDT remain out of scope.
+
 ## Related
 
+- [PERFORMANCE_CONTRACT.md](./PERFORMANCE_CONTRACT.md)
 - [OBSERVABILITY.md](./OBSERVABILITY.md)
 - [UNDO_REDO.md](./UNDO_REDO.md)
 - [TESTING.md](./TESTING.md)

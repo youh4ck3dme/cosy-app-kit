@@ -32,6 +32,7 @@ import {
 } from "@/lib/agent/finish";
 import { toolResultsToDataParts } from "@/lib/agent/stream-parts";
 import { snapshotArtifactVersion } from "@/lib/agent/versions";
+import { trimMessagesForModel } from "@/lib/performance-contract";
 
 type Mode = "build" | "plan";
 type ChatBody = {
@@ -42,16 +43,8 @@ type ChatBody = {
   clientContext?: ClientPreviewContext;
 };
 
-/** Keep last N UI messages to reduce latency/cost (M4 context trim). */
-const MAX_CONTEXT_MESSAGES = 24;
-
 function messageText(m: UIMessage): string {
   return (m.parts ?? []).map((p) => (p.type === "text" ? p.text : "")).join("");
-}
-
-function trimMessages(messages: UIMessage[]): UIMessage[] {
-  if (messages.length <= MAX_CONTEXT_MESSAGES) return messages;
-  return messages.slice(-MAX_CONTEXT_MESSAGES);
 }
 
 export const Route = createFileRoute("/api/chat")({
@@ -140,7 +133,8 @@ export const Route = createFileRoute("/api/chat")({
           );
           const temperature = Number(thread.temperature ?? 0.7);
 
-          const trimmed = trimMessages(body.messages as UIMessage[]);
+          // Performance Contract v0.1 — count + char trim before model convert (TTFB).
+          const trimmed = trimMessagesForModel(body.messages as UIMessage[]);
           let modelMessages;
           try {
             modelMessages = await convertToModelMessages(trimmed);

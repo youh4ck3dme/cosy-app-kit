@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useParams, useRouter } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -17,7 +17,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/app-shell/Header";
 import { ThreadList } from "@/components/app-shell/ThreadList";
-import { Canvas, type Artifact } from "@/components/app-shell/Canvas";
+import type { Artifact } from "@/components/app-shell/Canvas";
 import {
   Composer,
   type BuilderMode,
@@ -38,6 +38,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { PROJECT_RUNTIME_POLISH_PROMPT } from "@/lib/agent/prompts";
 import { isPreviewMode, type PreviewMode } from "@/lib/preview-frame";
+
+/** Canvas is heavy (preview bridge + optional Monaco). Keep chat shell paint first. */
+const Canvas = lazy(() =>
+  import("@/components/app-shell/Canvas").then((m) => ({ default: m.Canvas })),
+);
 
 export const Route = createFileRoute("/_authenticated/chat/$threadId")({
   component: ChatPage,
@@ -573,27 +578,35 @@ function ChatPage() {
               <Skeleton className="h-[60%] w-[80%] rounded-2xl" />
             </div>
           ) : (
-            <Canvas
-              artifact={activeArtifact}
-              threadId={threadId}
-              editSnippets={editSnippets}
-              onPolishPrompt={(prompt) => {
-                setMode("Build");
-                void sendMessage({ text: prompt });
-                setView("preview");
-              }}
-              onPolishProject={() => {
-                // One-tap multi-file project runtime fix (ZIP acceptance)
-                setMode("Build");
-                void sendMessage({ text: PROJECT_RUNTIME_POLISH_PROMPT });
-                setView("preview");
-              }}
-              onFixFromConsole={(prompt) => {
-                setMode("Build");
-                setView("chat");
-                fillComposer(prompt, "replace");
-              }}
-            />
+            <Suspense
+              fallback={
+                <div className="flex flex-1 items-center justify-center">
+                  <Skeleton className="h-[60%] w-[80%] rounded-2xl" />
+                </div>
+              }
+            >
+              <Canvas
+                artifact={activeArtifact}
+                threadId={threadId}
+                editSnippets={editSnippets}
+                onPolishPrompt={(prompt) => {
+                  setMode("Build");
+                  void sendMessage({ text: prompt });
+                  setView("preview");
+                }}
+                onPolishProject={() => {
+                  // One-tap multi-file project runtime fix (ZIP acceptance)
+                  setMode("Build");
+                  void sendMessage({ text: PROJECT_RUNTIME_POLISH_PROMPT });
+                  setView("preview");
+                }}
+                onFixFromConsole={(prompt) => {
+                  setMode("Build");
+                  setView("chat");
+                  fillComposer(prompt, "replace");
+                }}
+              />
+            </Suspense>
           )}
         </section>
       </div>

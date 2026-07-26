@@ -1,6 +1,14 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { lazy, Suspense } from "react";
 
-import { BuilderKernelPlayground } from "@/components/builder-playground/BuilderKernelPlayground";
+import { Skeleton } from "@/components/ui/skeleton";
+
+/** Kernel playground stays off the product chat graph (dual-brain boundary). */
+const BuilderKernelPlayground = lazy(() =>
+  import("@/components/builder-playground/BuilderKernelPlayground").then((m) => ({
+    default: m.BuilderKernelPlayground,
+  })),
+);
 
 export const Route = createFileRoute("/dev/builder-playground")({
   beforeLoad: () => {
@@ -51,7 +59,11 @@ function BuilderPlaygroundPage() {
           Manual visual testing for the headless Builder Kernel. Uses public kernel
           APIs only — not an end-user product surface.
         </p>
-        <BuilderKernelPlayground />
+        <Suspense
+          fallback={<Skeleton className="h-[70vh] w-full rounded-2xl" aria-label="Loading playground" />}
+        >
+          <BuilderKernelPlayground />
+        </Suspense>
       </main>
     </div>
   );
