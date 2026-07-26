@@ -1,0 +1,10 @@
+# Default owner for this repository.
+# Update when maintainers are added.
+
+* @youh4ck3dme
+
+# Platform libraries — require review from owner on changes
+/src/lib/builder/ @youh4ck3dme
+/src/lib/plugin-sdk/ @youh4ck3dme
+/.github/ @youh4ck3dme
+/docs/ @youh4ck3dme

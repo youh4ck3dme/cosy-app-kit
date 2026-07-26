@@ -1,0 +1,15 @@
+# License
+
+Copyright (c) the copyright holders of this repository.
+
+All rights reserved.
+
+This software and associated documentation files are proprietary. The npm
+package is marked `"private": true`. No permission is granted to use, copy,
+modify, merge, publish, distribute, sublicense, and/or sell copies of the
+software except as expressly authorized in writing by the copyright holders.
+
+An OSI-approved open-source license has **not** been adopted. If that decision
+is made later, this file will be replaced accordingly.
+
+See [docs/LICENSE_GUIDE.md](./docs/LICENSE_GUIDE.md).

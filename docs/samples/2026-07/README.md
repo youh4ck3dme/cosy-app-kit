@@ -34,4 +34,4 @@ dash-ops.meta.md
 
 ## After suite
 
-Update [`docs/progress.md`](../progress.md) BPI table with **real** numbers (not estimates).
+Update [`docs/product/progress.md`](../../product/progress.md) BPI table with **real** numbers (not estimates).

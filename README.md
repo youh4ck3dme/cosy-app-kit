@@ -1,74 +1,143 @@
-# AI Builder
+# AI Builder / NEXIFY Forge platform libraries
 
-A dark, minimalist AI Builder workspace: threaded chat on the left, live artifact
-canvas on the right. Ask for a landing page, markdown, or UI mock — watch it
-render in a sandboxed preview.
+TanStack Start application (chat + artifact preview) with a headless **Builder Kernel** and isolated **Plugin SDK**. This README describes what is in the repository today. Planned work is labeled as such.
 
-Built on **TanStack Start** + **Supabase** (Lovable Cloud for auth/DB only) +
-**Mistral API** (direct) via the Vercel **AI SDK v6**.
+[![CI](https://github.com/youh4ck3dme/cosy-app-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/youh4ck3dme/cosy-app-kit/actions/workflows/ci.yml)
 
-> **AI policy:** Chat uses **only** `api.mistral.ai` with `MISTRAL_API_KEY`.  
-> No Lovable AI Gateway, no OpenAI, no ChatGPT, no Gemini.
+> Coverage badge: **not published** — `@vitest/coverage-v8` is installed but CI does not upload coverage.  
+> License: **proprietary / private** — see [LICENSE](./LICENSE) and [docs/LICENSE_GUIDE.md](./docs/LICENSE_GUIDE.md).
 
-## Features
+## Vision
 
-- **Threaded chat** with full server-side persistence (messages, artifacts, settings)
-- **Live artifact canvas** — HTML in a sandboxed iframe, markdown as prose
-- **Agent settings** — Mistral model chips, temperature, system prompt
-- **Per-thread model override** from the header
-- **Google + email/password auth** via Lovable auth broker (hosting only)
-- **Streaming** with AI SDK `useChat` + `DefaultChatTransport`
-- **Artifact auto-extraction** from fenced ```html / ```markdown blocks
-- **MCP tools** for threads/artifacts
+Evolve a working AI Builder product into a disciplined builder platform: sealed document engine, command history, invariants, and plugin foundations — before Canvas, marketplace, or AI mutation hosts.
 
-## Stack
+## What exists today
 
-| Layer         | Choice                                    |
-| ------------- | ----------------------------------------- |
-| Framework     | TanStack Start (React 19, Vite)           |
-| Styling       | Tailwind v4 + oklch tokens                |
-| UI            | shadcn/ui + app-shell                     |
-| **AI**        | **Mistral API** (`@ai-sdk/mistral`)       |
-| Backend       | Supabase (Auth, DB, RLS)                  |
-| Streaming     | `streamText` → `toUIMessageStreamResponse`|
+| Area | Status | Location |
+| --- | --- | --- |
+| Product chat (Mistral only) | Implemented | `src/routes`, AI SDK + `@ai-sdk/mistral` |
+| Artifact preview canvas | Implemented | `src/components/app-shell` (not kernel Canvas) |
+| Supabase auth / DB | Implemented | `src/integrations/supabase`, `supabase/` |
+| Builder Kernel | Implemented (library) | `src/lib/builder/` — tags `v0.4.5*` / `v0.4.5.1-hardening` |
+| Plugin SDK | Implemented (library) | `src/lib/plugin-sdk/` — tag `v0.4.7-plugin-sdk` |
+| Kernel ↔ product UI wiring | Not yet implemented | No route/component imports of `@/lib/builder` |
+| Design Canvas (kernel consumer) | Not yet implemented | RPC types only |
+| Kernel Observatory (v0.4.6) | Future milestone | Not a released public API |
+| Plugin marketplace | Not yet implemented | — |
 
-## Default model
+## Feature matrix
 
-`mistral-large-latest` — change per-thread in the header or in **Agent settings**.
+| Feature | Product app | Builder Kernel | Plugin SDK |
+| --- | --- | --- | --- |
+| Threaded chat + artifacts | Yes | — | — |
+| Document model + Zod | — | Yes | — |
+| Commands + undo/redo | — | Yes | — |
+| Structural invariants | — | Yes | — |
+| Kernel plugin registry | — | Yes | — |
+| Manifest + lifecycle FSM | — | — | Yes |
+| Sealed permission grants | — | Partial (facade) | Yes (frozen) |
+| Live Canvas editor for documents | Product artifact UI only | Not yet | Not yet |
 
-Other options: `mistral-small-latest`, `mistral-medium-latest`, `codestral-latest`,
-`open-mistral-nemo`, `pixtral-large-latest`.
+## Architecture preview
 
-## Routes
+```mermaid
+flowchart TB
+  subgraph product [Product application]
+    UI[TanStack Start UI]
+    Chat[Mistral chat]
+    Artifacts[Artifact preview]
+    DB[(Supabase)]
+  end
+  subgraph platform [Platform libraries]
+    Kernel[BuilderKernel]
+    PSDK[PluginSdkRegistry]
+  end
+  UI --> Chat --> DB
+  UI --> Artifacts --> DB
+  UI -.->|Not wired| Kernel
+  PSDK -.->|Not wired| Kernel
+```
 
-- `/` → redirects to `/chat`
-- `/auth` → sign in / sign up
-- `/chat` → latest or new thread
-- `/chat/:threadId` → builder workspace
-- `POST /api/chat` → Mistral streaming (auth-gated, RLS-scoped)
-- `/mcp` → remote MCP (OAuth)
+More: [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) · [docs/diagrams/](./docs/diagrams/)
 
-## Local development
+## Screenshots
+
+Product UI captures are **not** checked into this repository yet. Placeholders:
+
+- [docs/images/](./docs/images/)
+
+Do not treat placeholders as product screenshots.
+
+## Installation
 
 ```bash
 bun install
-cp .env.example .env
-# set SUPABASE_* + VITE_SUPABASE_* + MISTRAL_API_KEY
-bun dev                # http://localhost:8080
-bun run typecheck
+cp .env.example .env.local   # then fill secrets locally — never commit them
+bun run dev
 ```
 
-**Required for chat:** `MISTRAL_API_KEY` from [console.mistral.ai](https://console.mistral.ai/api-keys).  
-On Lovable Cloud deploy: add `MISTRAL_API_KEY` as a **secret** (do **not** enable Lovable AI connector for chat).
+Details: [docs/INSTALLATION.md](./docs/INSTALLATION.md) · [docs/GETTING_STARTED.md](./docs/GETTING_STARTED.md)
 
-## Standing product rules
+## Quick start — libraries
 
-- Mobile-first; right-side hamburger
-- Desktop modals blur background (except header)
-- Chip-style filters (click selected chip to clear)
-- Default model `mistral-large-latest` via **Mistral API only**
-- Agent settings: model + temperature + system prompt
+```bash
+bun run test:unit src/lib/builder
+bun run test:unit src/lib/plugin-sdk
+bun run test:unit examples
+```
+
+Examples: [examples/](./examples/)
+
+## Documentation
+
+| Doc | Link |
+| --- | --- |
+| Docs index | [docs/README.md](./docs/README.md) |
+| Architecture | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) |
+| Builder Kernel | [docs/BUILDER_KERNEL.md](./docs/BUILDER_KERNEL.md) |
+| Plugin SDK | [docs/PLUGIN_SDK.md](./docs/PLUGIN_SDK.md) |
+| Security | [docs/SECURITY.md](./docs/SECURITY.md) / [SECURITY.md](./SECURITY.md) |
+| Roadmap | [docs/ROADMAP.md](./docs/ROADMAP.md) / [ROADMAP.md](./ROADMAP.md) |
+| Changelog | [docs/CHANGELOG.md](./docs/CHANGELOG.md) / [CHANGELOG.md](./CHANGELOG.md) |
+| Contributing | [docs/CONTRIBUTING.md](./docs/CONTRIBUTING.md) / [CONTRIBUTING.md](./CONTRIBUTING.md) |
+| ADRs | [docs/adr/](./docs/adr/) |
+| RFCs (draft) | [docs/rfc/](./docs/rfc/) |
+| Runbooks | [docs/runbooks/](./docs/runbooks/) |
+| DevOps | [docs/DEVOPS.md](./docs/DEVOPS.md) |
+
+## Roadmap (summary)
+
+| Version | Status |
+| --- | --- |
+| v0.4.5 / v0.4.5.1 Kernel + hardening | Released (git tags) |
+| v0.4.6 Observatory | Future milestone |
+| v0.4.7 Plugin SDK | Released (git tag) |
+| v0.5.0 Builder Runtime | Planned |
+
+Full: [docs/ROADMAP.md](./docs/ROADMAP.md)
+
+## Technical highlights (verified)
+
+- Package manager: **Bun** (`bun.lock`); CI also sets Node 24
+- Framework: **TanStack Start**, React 19, Vite 8, Tailwind 4, Zod 4
+- Product AI policy: **Mistral only** (`MISTRAL_API_KEY`)
+- Hosting: Lovable Cloud → Cloudflare Worker ([docs/product/deploy.md](./docs/product/deploy.md))
+- CI gate: unit tests + typecheck + build (`.github/workflows/ci.yml`)
+- `main` is protected (PR only) — see `.github/BRANCH_PROTECTION.md`
+
+## Repository statistics (approximate, branch-dependent)
+
+| Signal | Value |
+| --- | --- |
+| npm name | `tanstack_start_ts` (`private: true`) |
+| npm version field | unset (releases via git tags) |
+| Unit test pattern | `src/**/*.test.ts` + `examples/**/*.test.ts` |
+| E2E | Playwright local; not in GitHub CI |
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md). Work on feature branches; do not push directly to `main`.
 
 ## License
 
-Private.
+Proprietary. All rights reserved unless a future OSI license is explicitly adopted. See [LICENSE](./LICENSE).
