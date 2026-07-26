@@ -6,6 +6,7 @@ import { Plus, MessageSquare, Trash2, Loader2, Search } from "lucide-react";
 import { listThreads } from "@/lib/threads.functions";
 import { groupThreads, type ThreadListItem as Thread } from "@/lib/group-threads";
 import { useCreateThread, useDeleteThread } from "@/hooks/use-thread-mutations";
+import { useGatedAutoAnimate } from "@/lib/auto-animate-gate";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,6 +18,110 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+
+function ThreadRow({
+  thread: t,
+  activeThreadId,
+  onNavigate,
+  onRequestDelete,
+}: {
+  thread: Thread;
+  activeThreadId?: string;
+  onNavigate?: () => void;
+  onRequestDelete: (t: Thread) => void;
+}) {
+  const active = t.id === activeThreadId;
+  const optimistic = t.id.startsWith("optimistic-");
+  const rowClass = cn(
+    "flex items-center gap-2 rounded-lg px-2 py-2 pr-8 text-sm transition-all",
+    active
+      ? "bg-surface-2 text-foreground"
+      : "text-muted-foreground hover:bg-surface-1 hover:text-foreground",
+    optimistic && "opacity-70 pointer-events-none cursor-wait",
+  );
+
+  return (
+    <div className="group relative">
+      {optimistic ? (
+        <div className={rowClass} aria-busy="true" aria-disabled="true">
+          {active && (
+            <span
+              aria-hidden
+              className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r bg-accent-primary"
+            />
+          )}
+          <MessageSquare
+            className={cn(
+              "h-3.5 w-3.5 shrink-0",
+              active ? "text-accent-primary" : "text-muted-foreground/70",
+            )}
+          />
+          <span className="min-w-0 flex-1 truncate">{t.title}</span>
+        </div>
+      ) : (
+        <Link
+          to="/chat/$threadId"
+          params={{ threadId: t.id }}
+          onClick={onNavigate}
+          className={rowClass}
+        >
+          {active && (
+            <span
+              aria-hidden
+              className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r bg-accent-primary"
+            />
+          )}
+          <MessageSquare
+            className={cn(
+              "h-3.5 w-3.5 shrink-0",
+              active ? "text-accent-primary" : "text-muted-foreground/70",
+            )}
+          />
+          <span className="min-w-0 flex-1 truncate">{t.title}</span>
+        </Link>
+      )}
+      {!optimistic && (
+        <button
+          type="button"
+          onClick={() => onRequestDelete(t)}
+          className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground opacity-0 transition-all hover:bg-surface-3 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
+          aria-label={`Delete chat ${t.title}`}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** One group's item list — one AutoAnimate ref per instance (Rules of Hooks: can't call inside groups.map()). */
+function ThreadGroupItems({
+  items,
+  activeThreadId,
+  onNavigate,
+  onRequestDelete,
+}: {
+  items: Thread[];
+  activeThreadId?: string;
+  onNavigate?: () => void;
+  onRequestDelete: (t: Thread) => void;
+}) {
+  const listRef = useGatedAutoAnimate<HTMLDivElement>();
+
+  return (
+    <div ref={listRef} className="space-y-0.5">
+      {items.map((t) => (
+        <ThreadRow
+          key={t.id}
+          thread={t}
+          activeThreadId={activeThreadId}
+          onNavigate={onNavigate}
+          onRequestDelete={onRequestDelete}
+        />
+      ))}
+    </div>
+  );
+}
 
 export function ThreadList({
   activeThreadId,
@@ -93,71 +198,12 @@ export function ThreadList({
             <div className="px-2 pb-1 pt-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60">
               {g.label}
             </div>
-            <div className="space-y-0.5">
-              {g.items.map((t) => {
-                const active = t.id === activeThreadId;
-                const optimistic = t.id.startsWith("optimistic-");
-                const rowClass = cn(
-                  "flex items-center gap-2 rounded-lg px-2 py-2 pr-8 text-sm transition-all",
-                  active
-                    ? "bg-surface-2 text-foreground"
-                    : "text-muted-foreground hover:bg-surface-1 hover:text-foreground",
-                  optimistic && "opacity-70 pointer-events-none cursor-wait",
-                );
-                return (
-                  <div key={t.id} className="group relative">
-                    {optimistic ? (
-                      <div className={rowClass} aria-busy="true" aria-disabled="true">
-                        {active && (
-                          <span
-                            aria-hidden
-                            className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r bg-accent-primary"
-                          />
-                        )}
-                        <MessageSquare
-                          className={cn(
-                            "h-3.5 w-3.5 shrink-0",
-                            active ? "text-accent-primary" : "text-muted-foreground/70",
-                          )}
-                        />
-                        <span className="min-w-0 flex-1 truncate">{t.title}</span>
-                      </div>
-                    ) : (
-                      <Link
-                        to="/chat/$threadId"
-                        params={{ threadId: t.id }}
-                        onClick={onNavigate}
-                        className={rowClass}
-                      >
-                        {active && (
-                          <span
-                            aria-hidden
-                            className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r bg-accent-primary"
-                          />
-                        )}
-                        <MessageSquare
-                          className={cn(
-                            "h-3.5 w-3.5 shrink-0",
-                            active ? "text-accent-primary" : "text-muted-foreground/70",
-                          )}
-                        />
-                        <span className="min-w-0 flex-1 truncate">{t.title}</span>
-                      </Link>
-                    )}
-                    {!optimistic && (
-                      <button
-                        type="button"
-                        onClick={() => setPendingDelete(t)}
-                        className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground opacity-0 transition-all hover:bg-surface-3 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
-                        aria-label={`Delete chat ${t.title}`}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            <ThreadGroupItems
+              items={g.items}
+              activeThreadId={activeThreadId}
+              onNavigate={onNavigate}
+              onRequestDelete={setPendingDelete}
+            />
           </div>
         ))}
       </nav>
