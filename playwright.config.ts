@@ -28,7 +28,7 @@ export default defineConfig({
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
-  // Default: chromium only (fast gate). PW_MOBILE=1 adds Pixel 7 project.
+  // Default: chromium only (fast gate). PW_MOBILE=1 adds phone projects incl. iPhone 17 Air.
   projects: [
     {
       name: "chromium",
@@ -36,6 +36,16 @@ export default defineConfig({
     },
     ...(process.env.PW_MOBILE === "1"
       ? [
+          {
+            name: "iphone-17-air",
+            use: {
+              ...devices["iPhone 14"],
+              viewport: { width: 420, height: 912 },
+              deviceScaleFactor: 3,
+              isMobile: true,
+              hasTouch: true,
+            },
+          },
           {
             name: "mobile-chrome",
             use: { ...devices["Pixel 7"] },

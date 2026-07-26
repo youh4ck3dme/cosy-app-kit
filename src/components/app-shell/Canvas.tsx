@@ -41,6 +41,12 @@ import {
   migrateLegacyDevice,
   type PreviewMode,
 } from "@/lib/preview-frame";
+import {
+  DEVICE_PRESETS,
+  getDevicePreset,
+  isDevicePresetId,
+  type DevicePresetId,
+} from "@/lib/device-presets";
 import { analyzeResponsiveHtml, type ResponsiveReport } from "@/lib/agent/responsive-gate";
 import {
   analyzeProjectRuntime,
@@ -172,6 +178,7 @@ export function Canvas({
 }) {
   const [previewMode, setPreviewMode] = useState<PreviewMode>(() => defaultPreviewModeForHost());
   const [customWidth, setCustomWidth] = useState<number | null>(null);
+  const [devicePresetId, setDevicePresetId] = useState<DevicePresetId | null>(null);
   const [zoom, setZoom] = useState(1);
   const [view, setView] = useState<View>("preview");
   const [activeFile, setActiveFile] = useState<string | null>(null);
@@ -229,6 +236,7 @@ export function Canvas({
           mode?: string;
           device?: string;
           customWidth?: number | null;
+          presetId?: string;
         };
         if (isPreviewMode(parsed.mode)) {
           setPreviewMode(parsed.mode);
@@ -236,7 +244,13 @@ export function Canvas({
           const legacy = migrateLegacyDevice(parsed.device);
           setPreviewMode(legacy ?? defaultPreviewModeForHost());
         }
-        if (typeof parsed.customWidth === "number") setCustomWidth(parsed.customWidth);
+        if (isDevicePresetId(parsed.presetId)) {
+          setDevicePresetId(parsed.presetId);
+          const preset = getDevicePreset(parsed.presetId);
+          if (preset) setCustomWidth(preset.width);
+        } else if (typeof parsed.customWidth === "number") {
+          setCustomWidth(parsed.customWidth);
+        }
       }
     } catch {
       setPreviewMode(defaultPreviewModeForHost());
@@ -249,12 +263,12 @@ export function Canvas({
     try {
       localStorage.setItem(
         deviceStorageKey(threadId),
-        JSON.stringify({ mode: previewMode, customWidth }),
+        JSON.stringify({ mode: previewMode, customWidth, presetId: devicePresetId }),
       );
     } catch {
       /* ignore */
     }
-  }, [previewMode, customWidth, threadId, deviceHydrated]);
+  }, [previewMode, customWidth, devicePresetId, threadId, deviceHydrated]);
 
   // Host width for fluid + scale-to-fit simulation
   useEffect(() => {
@@ -753,6 +767,7 @@ export function Canvas({
                         type="button"
                         onClick={() => {
                           setCustomWidth(null);
+                          setDevicePresetId(null);
                           setPreviewMode(mode);
                         }}
                         className={cn(
@@ -770,6 +785,36 @@ export function Canvas({
                     );
                   })}
                 </div>
+                <label className="hidden items-center gap-1 font-mono text-[10px] text-muted-foreground sm:flex">
+                  Device
+                  <select
+                    id="preview-device-preset"
+                    name="preview-device-preset"
+                    value={devicePresetId ?? ""}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      if (!id) {
+                        setDevicePresetId(null);
+                        return;
+                      }
+                      if (!isDevicePresetId(id)) return;
+                      const preset = getDevicePreset(id);
+                      if (!preset) return;
+                      setDevicePresetId(id);
+                      setCustomWidth(preset.width);
+                      if (previewMode === "fluid") setPreviewMode("mobile");
+                    }}
+                    className="h-8 max-w-[9rem] truncate rounded-md border border-border-subtle bg-surface-1 px-1.5 text-[11px] text-foreground"
+                    aria-label="Device preset width"
+                  >
+                    <option value="">Custom / mode</option>
+                    {DEVICE_PRESETS.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.label} ({p.width})
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <label className="hidden items-center gap-1 font-mono text-[10px] text-muted-foreground md:flex">
                   px
                   <input
@@ -783,6 +828,7 @@ export function Canvas({
                     onChange={(e) => {
                       const n = Number(e.target.value);
                       setCustomWidth(Number.isFinite(n) && n > 0 ? n : null);
+                      setDevicePresetId(null);
                     }}
                     className="h-8 w-16 rounded-md border border-border-subtle bg-surface-1 px-1.5 text-[11px] text-foreground"
                     aria-label="Custom preview width"

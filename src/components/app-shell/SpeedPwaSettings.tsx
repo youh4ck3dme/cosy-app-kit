@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Gauge, Smartphone, Zap, Download, Wifi, CheckCircle2 } from "lucide-react";
+import { Gauge, Smartphone, Zap, Download, Wifi, CheckCircle2, Monitor } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useAppPreferences } from "@/hooks/use-app-preferences";
 import {
@@ -10,12 +10,43 @@ import {
   warmPwaAssets,
   type PwaRuntimeStatus,
 } from "@/lib/pwa-booster";
+import { DEVICE_PRESETS, guessDevicePresetForHost, QA_VIEWPORTS } from "@/lib/device-presets";
+import { haptic } from "@/lib/haptics";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+function useViewportSize() {
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    const apply = () =>
+      setSize({
+        w: Math.round(window.visualViewport?.width ?? window.innerWidth),
+        h: Math.round(window.visualViewport?.height ?? window.innerHeight),
+      });
+    apply();
+    window.visualViewport?.addEventListener("resize", apply);
+    window.addEventListener("resize", apply);
+    window.addEventListener("orientationchange", apply);
+    return () => {
+      window.visualViewport?.removeEventListener("resize", apply);
+      window.removeEventListener("resize", apply);
+      window.removeEventListener("orientationchange", apply);
+    };
+  }, []);
+  return size;
+}
 
 export function SpeedPwaSettings() {
   const { prefs, update } = useAppPreferences();
   const [status, setStatus] = useState<PwaRuntimeStatus>(() => getPwaRuntimeStatus());
+  const viewport = useViewportSize();
+  const matchedPreset =
+    viewport.w > 0 ? guessDevicePresetForHost(viewport.w) : DEVICE_PRESETS[0]!;
+
+  const setPref = <K extends keyof typeof prefs>(key: K, value: (typeof prefs)[K]) => {
+    haptic(8);
+    update({ [key]: value });
+  };
 
   useEffect(() => {
     const unbind = bindInstallPromptCapture();
@@ -63,22 +94,57 @@ export function SpeedPwaSettings() {
             title="Native shell lock"
             description="Freeze the page — no rubber-band bounce when you drag the composer."
             checked={prefs.nativeShellLock}
-            onCheckedChange={(v) => update({ nativeShellLock: v })}
+            onCheckedChange={(v) => setPref("nativeShellLock", v)}
           />
           <ToggleRow
             id="pref-speed-mode"
             title="Speed mode"
             description="Skip decorative motion for instant panels and transitions."
             checked={prefs.speedMode}
-            onCheckedChange={(v) => update({ speedMode: v })}
+            onCheckedChange={(v) => setPref("speedMode", v)}
           />
           <ToggleRow
             id="pref-haptics"
             title="Haptic feedback"
             description="Light vibration on send, mode switch, and key taps (supported devices)."
             checked={prefs.hapticsEnabled}
-            onCheckedChange={(v) => update({ hapticsEnabled: v })}
+            onCheckedChange={(v) => setPref("hapticsEnabled", v)}
           />
+        </div>
+      </section>
+
+      <section>
+        <SectionHeader
+          icon={Monitor}
+          title="This screen"
+          description="Live viewport — compare with Canvas device presets when testing layouts."
+        />
+        <div className="settings-row flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1">
+            <div className="font-mono text-sm font-medium">
+              {viewport.w > 0 ? `${viewport.w} × ${viewport.h}` : "Measuring…"}
+            </div>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Closest preset: <strong className="text-foreground">{matchedPreset.label}</strong> (
+              {matchedPreset.width}px)
+            </p>
+          </div>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {QA_VIEWPORTS.map((v) => (
+            <span
+              key={v.presetId}
+              className={cn(
+                "rounded-full border px-2 py-0.5 font-mono text-[10px]",
+                viewport.w === v.width
+                  ? "border-accent-primary/40 bg-accent-primary/10 text-accent-primary"
+                  : "border-border-subtle text-muted-foreground",
+              )}
+              title={`${v.width}×${v.height}`}
+            >
+              {v.name}
+            </span>
+          ))}
         </div>
       </section>
 
@@ -99,7 +165,7 @@ export function SpeedPwaSettings() {
             title="PWA booster"
             description="Prefetch manifest, icons, and offline shell for faster cold starts."
             checked={prefs.pwaBooster}
-            onCheckedChange={(v) => update({ pwaBooster: v })}
+            onCheckedChange={(v) => setPref("pwaBooster", v)}
           />
           <div className="settings-row">
             <div className="min-w-0">
@@ -133,7 +199,8 @@ export function SpeedPwaSettings() {
             <div className="flex items-start gap-3 rounded-xl border border-dashed border-border-subtle bg-surface-1/60 px-4 py-3 text-xs text-muted-foreground">
               <Smartphone className="mt-0.5 h-4 w-4 shrink-0 text-accent-primary" aria-hidden />
               <p>
-                On iPhone: open this page in <strong className="text-foreground">Safari</strong>, tap{" "}
+                On iPhone 17 Air and other phones: open in{" "}
+                <strong className="text-foreground">Safari</strong>, tap{" "}
                 <strong className="text-foreground">Share</strong>, then{" "}
                 <strong className="text-foreground">Add to Home Screen</strong>. The shell lock above
                 keeps the UI from floating when the URL bar hides.
