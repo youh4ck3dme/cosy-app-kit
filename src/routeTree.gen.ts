@@ -9,34 +9,34 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TemplatesRouteImport } from './routes/templates'
-import { Route as McpRouteImport } from './routes/mcp'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as TemplatesSlugRouteImport } from './routes/templates.$slug'
-import { Route as ApiChatRouteImport } from './routes/api/chat'
-import { Route as ApiAiStatusRouteImport } from './routes/api/ai-status'
-import { Route as AArtifactIdRouteImport } from './routes/a.$artifactId'
-import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as McpRouteImport } from './routes/mcp'
+import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
-import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat.index'
-import { Route as PreviewArtifactIdSplatRouteImport } from './routes/preview.$artifactId.$'
-import { Route as AArtifactIdEmbedRouteImport } from './routes/a.$artifactId.embed'
-import { Route as AuthenticatedChatThreadIdRouteImport } from './routes/_authenticated/chat.$threadId'
-import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as AArtifactIdRouteImport } from './routes/a.$artifactId'
+import { Route as ApiAiStatusRouteImport } from './routes/api/ai-status'
+import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as DevBuilderPlaygroundRouteImport } from './routes/dev.builder-playground'
+import { Route as TemplatesSlugRouteImport } from './routes/templates.$slug'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
-import { Route as PreviewArtifactIdChar126TokenSplatRouteImport } from './routes/preview.$artifactId.~.$token.$'
+import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat.index'
+import { Route as AuthenticatedChatThreadIdRouteImport } from './routes/_authenticated/chat.$threadId'
+import { Route as AArtifactIdEmbedRouteImport } from './routes/a.$artifactId.embed'
+import { Route as PreviewArtifactIdSplatRouteImport } from './routes/preview.$artifactId.$'
 import { Route as ApiProjectsArtifactIdFilesSplatRouteImport } from './routes/api/projects.$artifactId.files.$'
+import { Route as PreviewArtifactIdChar126TokenSplatRouteImport } from './routes/preview.$artifactId.~.$token.$'
 
-const TemplatesRoute = TemplatesRouteImport.update({
-  id: '/templates',
-  path: '/templates',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const McpRoute = McpRouteImport.update({
-  id: '/mcp',
-  path: '/mcp',
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -44,23 +44,31 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
-  id: '/_authenticated',
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const TemplatesRoute = TemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TemplatesSlugRoute = TemplatesSlugRouteImport.update({
-  id: '/$slug',
-  path: '/$slug',
-  getParentRoute: () => TemplatesRoute,
-} as any)
-const ApiChatRoute = ApiChatRouteImport.update({
-  id: '/api/chat',
-  path: '/api/chat',
+const Char91DotmcpChar93ListToolsRoute =
+  Char91DotmcpChar93ListToolsRouteImport.update({
+    id: '/.mcp/list-tools',
+    path: '/.mcp/list-tools',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AArtifactIdRoute = AArtifactIdRouteImport.update({
+  id: '/a/$artifactId',
+  path: '/a/$artifactId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAiStatusRoute = ApiAiStatusRouteImport.update({
@@ -68,21 +76,30 @@ const ApiAiStatusRoute = ApiAiStatusRouteImport.update({
   path: '/api/ai-status',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AArtifactIdRoute = AArtifactIdRouteImport.update({
-  id: '/a/$artifactId',
-  path: '/a/$artifactId',
+const ApiChatRoute = ApiChatRouteImport.update({
+  id: '/api/chat',
+  path: '/api/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
-const Char91DotwellKnownChar93OauthProtectedResourceRoute =
-  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
-    id: '/.well-known/oauth-protected-resource',
-    path: '/.well-known/oauth-protected-resource',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const Char91DotmcpChar93ListToolsRoute =
-  Char91DotmcpChar93ListToolsRouteImport.update({
-    id: '/.mcp/list-tools',
-    path: '/.mcp/list-tools',
+const DevBuilderPlaygroundRoute = DevBuilderPlaygroundRouteImport.update({
+  id: '/dev/builder-playground',
+  path: '/dev/builder-playground',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TemplatesSlugRoute = TemplatesSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => TemplatesRoute,
+} as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Char91DotmcpChar93InvokeToolToolRoute =
+  Char91DotmcpChar93InvokeToolToolRouteImport.update({
+    id: '/.mcp/invoke-tool/$tool',
+    path: '/.mcp/invoke-tool/$tool',
     getParentRoute: () => rootRouteImport,
   } as any)
 const AuthenticatedChatIndexRoute = AuthenticatedChatIndexRouteImport.update({
@@ -90,43 +107,32 @@ const AuthenticatedChatIndexRoute = AuthenticatedChatIndexRouteImport.update({
   path: '/chat/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const PreviewArtifactIdSplatRoute = PreviewArtifactIdSplatRouteImport.update({
-  id: '/preview/$artifactId/$',
-  path: '/preview/$artifactId/$',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AArtifactIdEmbedRoute = AArtifactIdEmbedRouteImport.update({
-  id: '/embed',
-  path: '/embed',
-  getParentRoute: () => AArtifactIdRoute,
-} as any)
 const AuthenticatedChatThreadIdRoute =
   AuthenticatedChatThreadIdRouteImport.update({
     id: '/chat/$threadId',
     path: '/chat/$threadId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const Char91DotmcpChar93InvokeToolToolRoute =
-  Char91DotmcpChar93InvokeToolToolRouteImport.update({
-    id: '/.mcp/invoke-tool/$tool',
-    path: '/.mcp/invoke-tool/$tool',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
-  id: '/.lovable/oauth/consent',
-  path: '/.lovable/oauth/consent',
+const AArtifactIdEmbedRoute = AArtifactIdEmbedRouteImport.update({
+  id: '/embed',
+  path: '/embed',
+  getParentRoute: () => AArtifactIdRoute,
+} as any)
+const PreviewArtifactIdSplatRoute = PreviewArtifactIdSplatRouteImport.update({
+  id: '/preview/$artifactId/$',
+  path: '/preview/$artifactId/$',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PreviewArtifactIdChar126TokenSplatRoute =
-  PreviewArtifactIdChar126TokenSplatRouteImport.update({
-    id: '/preview/$artifactId/~/$token/$',
-    path: '/preview/$artifactId/~/$token/$',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiProjectsArtifactIdFilesSplatRoute =
   ApiProjectsArtifactIdFilesSplatRouteImport.update({
     id: '/api/projects/$artifactId/files/$',
     path: '/api/projects/$artifactId/files/$',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const PreviewArtifactIdChar126TokenSplatRoute =
+  PreviewArtifactIdChar126TokenSplatRouteImport.update({
+    id: '/preview/$artifactId/~/$token/$',
+    path: '/preview/$artifactId/~/$token/$',
     getParentRoute: () => rootRouteImport,
   } as any)
 
@@ -140,6 +146,7 @@ export interface FileRoutesByFullPath {
   '/a/$artifactId': typeof AArtifactIdRouteWithChildren
   '/api/ai-status': typeof ApiAiStatusRoute
   '/api/chat': typeof ApiChatRoute
+  '/dev/builder-playground': typeof DevBuilderPlaygroundRoute
   '/templates/$slug': typeof TemplatesSlugRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -160,6 +167,7 @@ export interface FileRoutesByTo {
   '/a/$artifactId': typeof AArtifactIdRouteWithChildren
   '/api/ai-status': typeof ApiAiStatusRoute
   '/api/chat': typeof ApiChatRoute
+  '/dev/builder-playground': typeof DevBuilderPlaygroundRoute
   '/templates/$slug': typeof TemplatesSlugRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -182,6 +190,7 @@ export interface FileRoutesById {
   '/a/$artifactId': typeof AArtifactIdRouteWithChildren
   '/api/ai-status': typeof ApiAiStatusRoute
   '/api/chat': typeof ApiChatRoute
+  '/dev/builder-playground': typeof DevBuilderPlaygroundRoute
   '/templates/$slug': typeof TemplatesSlugRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -204,6 +213,7 @@ export interface FileRouteTypes {
     | '/a/$artifactId'
     | '/api/ai-status'
     | '/api/chat'
+    | '/dev/builder-playground'
     | '/templates/$slug'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -224,6 +234,7 @@ export interface FileRouteTypes {
     | '/a/$artifactId'
     | '/api/ai-status'
     | '/api/chat'
+    | '/dev/builder-playground'
     | '/templates/$slug'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -245,6 +256,7 @@ export interface FileRouteTypes {
     | '/a/$artifactId'
     | '/api/ai-status'
     | '/api/chat'
+    | '/dev/builder-playground'
     | '/templates/$slug'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -267,6 +279,7 @@ export interface RootRouteChildren {
   AArtifactIdRoute: typeof AArtifactIdRouteWithChildren
   ApiAiStatusRoute: typeof ApiAiStatusRoute
   ApiChatRoute: typeof ApiChatRoute
+  DevBuilderPlaygroundRoute: typeof DevBuilderPlaygroundRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   PreviewArtifactIdSplatRoute: typeof PreviewArtifactIdSplatRoute
@@ -276,25 +289,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/templates': {
-      id: '/templates'
-      path: '/templates'
-      fullPath: '/templates'
-      preLoaderRoute: typeof TemplatesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mcp': {
-      id: '/mcp'
-      path: '/mcp'
-      fullPath: '/mcp'
-      preLoaderRoute: typeof McpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -304,46 +303,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/templates/$slug': {
-      id: '/templates/$slug'
-      path: '/$slug'
-      fullPath: '/templates/$slug'
-      preLoaderRoute: typeof TemplatesSlugRouteImport
-      parentRoute: typeof TemplatesRoute
-    }
-    '/api/chat': {
-      id: '/api/chat'
-      path: '/api/chat'
-      fullPath: '/api/chat'
-      preLoaderRoute: typeof ApiChatRouteImport
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/ai-status': {
-      id: '/api/ai-status'
-      path: '/api/ai-status'
-      fullPath: '/api/ai-status'
-      preLoaderRoute: typeof ApiAiStatusRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/a/$artifactId': {
-      id: '/a/$artifactId'
-      path: '/a/$artifactId'
-      fullPath: '/a/$artifactId'
-      preLoaderRoute: typeof AArtifactIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/.well-known/oauth-protected-resource': {
-      id: '/.well-known/oauth-protected-resource'
-      path: '/.well-known/oauth-protected-resource'
-      fullPath: '/.well-known/oauth-protected-resource'
-      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+    '/templates': {
+      id: '/templates'
+      path: '/templates'
+      fullPath: '/templates'
+      preLoaderRoute: typeof TemplatesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.mcp/list-tools': {
@@ -353,40 +331,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/chat/': {
-      id: '/_authenticated/chat/'
-      path: '/chat'
-      fullPath: '/chat/'
-      preLoaderRoute: typeof AuthenticatedChatIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/preview/$artifactId/$': {
-      id: '/preview/$artifactId/$'
-      path: '/preview/$artifactId/$'
-      fullPath: '/preview/$artifactId/$'
-      preLoaderRoute: typeof PreviewArtifactIdSplatRouteImport
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/a/$artifactId/embed': {
-      id: '/a/$artifactId/embed'
-      path: '/embed'
-      fullPath: '/a/$artifactId/embed'
-      preLoaderRoute: typeof AArtifactIdEmbedRouteImport
-      parentRoute: typeof AArtifactIdRoute
-    }
-    '/_authenticated/chat/$threadId': {
-      id: '/_authenticated/chat/$threadId'
-      path: '/chat/$threadId'
-      fullPath: '/chat/$threadId'
-      preLoaderRoute: typeof AuthenticatedChatThreadIdRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/.mcp/invoke-tool/$tool': {
-      id: '/.mcp/invoke-tool/$tool'
-      path: '/.mcp/invoke-tool/$tool'
-      fullPath: '/.mcp/invoke-tool/$tool'
-      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
+    '/a/$artifactId': {
+      id: '/a/$artifactId'
+      path: '/a/$artifactId'
+      fullPath: '/a/$artifactId'
+      preLoaderRoute: typeof AArtifactIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/ai-status': {
+      id: '/api/ai-status'
+      path: '/api/ai-status'
+      fullPath: '/api/ai-status'
+      preLoaderRoute: typeof ApiAiStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/chat': {
+      id: '/api/chat'
+      path: '/api/chat'
+      fullPath: '/api/chat'
+      preLoaderRoute: typeof ApiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev/builder-playground': {
+      id: '/dev/builder-playground'
+      path: '/dev/builder-playground'
+      fullPath: '/dev/builder-playground'
+      preLoaderRoute: typeof DevBuilderPlaygroundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/templates/$slug': {
+      id: '/templates/$slug'
+      path: '/$slug'
+      fullPath: '/templates/$slug'
+      preLoaderRoute: typeof TemplatesSlugRouteImport
+      parentRoute: typeof TemplatesRoute
     }
     '/.lovable/oauth/consent': {
       id: '/.lovable/oauth/consent'
@@ -395,11 +380,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DotlovableOauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/preview/$artifactId/~/$token/$': {
-      id: '/preview/$artifactId/~/$token/$'
-      path: '/preview/$artifactId/~/$token/$'
-      fullPath: '/preview/$artifactId/~/$token/$'
-      preLoaderRoute: typeof PreviewArtifactIdChar126TokenSplatRouteImport
+    '/.mcp/invoke-tool/$tool': {
+      id: '/.mcp/invoke-tool/$tool'
+      path: '/.mcp/invoke-tool/$tool'
+      fullPath: '/.mcp/invoke-tool/$tool'
+      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/chat/': {
+      id: '/_authenticated/chat/'
+      path: '/chat'
+      fullPath: '/chat/'
+      preLoaderRoute: typeof AuthenticatedChatIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/chat/$threadId': {
+      id: '/_authenticated/chat/$threadId'
+      path: '/chat/$threadId'
+      fullPath: '/chat/$threadId'
+      preLoaderRoute: typeof AuthenticatedChatThreadIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/a/$artifactId/embed': {
+      id: '/a/$artifactId/embed'
+      path: '/embed'
+      fullPath: '/a/$artifactId/embed'
+      preLoaderRoute: typeof AArtifactIdEmbedRouteImport
+      parentRoute: typeof AArtifactIdRoute
+    }
+    '/preview/$artifactId/$': {
+      id: '/preview/$artifactId/$'
+      path: '/preview/$artifactId/$'
+      fullPath: '/preview/$artifactId/$'
+      preLoaderRoute: typeof PreviewArtifactIdSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/projects/$artifactId/files/$': {
@@ -407,6 +420,13 @@ declare module '@tanstack/react-router' {
       path: '/api/projects/$artifactId/files/$'
       fullPath: '/api/projects/$artifactId/files/$'
       preLoaderRoute: typeof ApiProjectsArtifactIdFilesSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/preview/$artifactId/~/$token/$': {
+      id: '/preview/$artifactId/~/$token/$'
+      path: '/preview/$artifactId/~/$token/$'
+      fullPath: '/preview/$artifactId/~/$token/$'
+      preLoaderRoute: typeof PreviewArtifactIdChar126TokenSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -461,6 +481,7 @@ const rootRouteChildren: RootRouteChildren = {
   AArtifactIdRoute: AArtifactIdRouteWithChildren,
   ApiAiStatusRoute: ApiAiStatusRoute,
   ApiChatRoute: ApiChatRoute,
+  DevBuilderPlaygroundRoute: DevBuilderPlaygroundRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   PreviewArtifactIdSplatRoute: PreviewArtifactIdSplatRoute,
