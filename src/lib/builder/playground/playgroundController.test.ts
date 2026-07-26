@@ -82,4 +82,18 @@ describe("BuilderPlaygroundController", () => {
     expect(snap.validation.ok).toBe(true);
     playground.dispose();
   });
+
+  it("snapshot document is a frozen clone (no direct mutation path)", () => {
+    const playground = new BuilderPlaygroundController();
+    const snap = playground.getSnapshot();
+    const rootId = snap.document.tree.rootId;
+    const root = snap.document.tree.nodes[rootId];
+    expect(root).toBeDefined();
+    expect(Object.isFrozen(snap.document)).toBe(true);
+    expect(Object.isFrozen(root)).toBe(true);
+    expect(() => {
+      (root as { name: string }).name = "mutated-via-snapshot";
+    }).toThrow();
+    playground.dispose();
+  });
 });

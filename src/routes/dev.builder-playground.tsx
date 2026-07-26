@@ -1,8 +1,14 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 
 import { BuilderKernelPlayground } from "@/components/builder-playground/BuilderKernelPlayground";
 
 export const Route = createFileRoute("/dev/builder-playground")({
+  beforeLoad: () => {
+    // Developer tooling only — unavailable in production builds.
+    if (!import.meta.env.DEV) {
+      throw redirect({ to: "/" });
+    }
+  },
   head: () => ({
     meta: [
       { title: "Builder Kernel Playground · Dev" },
@@ -11,7 +17,7 @@ export const Route = createFileRoute("/dev/builder-playground")({
         content:
           "Developer tooling for manual visual testing of the headless Builder Kernel.",
       },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: BuilderPlaygroundPage,

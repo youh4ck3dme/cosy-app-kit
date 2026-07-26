@@ -95,7 +95,8 @@ export class BuilderPlaygroundController {
   }
 
   getSnapshot(): PlaygroundSnapshot {
-    const document = this.session.kernel.getDocument();
+    // Readonly clone — UI inspects only; mutations go through dispatch/undo/redo.
+    const document = this.session.kernel.getReadonlyDocument();
     const history = this.session.kernel.getHistory();
     return {
       document,
@@ -107,15 +108,6 @@ export class BuilderPlaygroundController {
       lastResult: this.lastResult,
       version: document.metadata.version,
     };
-  }
-
-  /** Convenience: get kernel for advanced callers (still public API). */
-  getKernel() {
-    return this.session.kernel;
-  }
-
-  getEventBus() {
-    return this.session.eventBus;
   }
 
   private apply(result: KernelDispatchResult): KernelDispatchResult {
