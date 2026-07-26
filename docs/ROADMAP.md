@@ -6,9 +6,10 @@ Status is derived from git tags, phase prompts under `.nexify-forge/prompts/`, h
 
 | Version | Status | Evidence |
 | --- | --- | --- |
-| **v0.4.5** Builder Kernel foundation | Released | Tag `v0.4.5-kernel-foundation` (+ audited tag) |
-| **v0.4.5.1** Builder Kernel hardening | Released | Tag `v0.4.5.1-hardening` |
-| **v0.4.7** Plugin SDK Foundation | Released | Tag `v0.4.7-plugin-sdk`; `src/lib/plugin-sdk/` |
+| **v0.4.5** Builder Kernel foundation | Released | Tag `v0.4.5-kernel-foundation` (+ audited tag); [release notes](./releases/v0.4.5-kernel-foundation.md) |
+| **v0.4.5.1** Builder Kernel hardening | Released | Tag `v0.4.5.1-hardening`; [release notes](./releases/v0.4.5.1-hardening.md) |
+| **v0.4.7** Plugin SDK Foundation | Released | Tag `v0.4.7-plugin-sdk`; [release notes](./releases/v0.4.7-plugin-sdk.md) |
+| **v0.4.8** Enterprise repository readiness | Docs PR + tag `v0.4.8-repo-readiness` after merge | Documentation, GitHub governance, ADRs, runbooks — **not** a runtime feature |
 
 ## In progress / incomplete
 

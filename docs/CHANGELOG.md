@@ -4,13 +4,28 @@ All notable platform releases below are anchored to **git tags**. The npm packag
 
 Format follows Keep a Changelog conventions where applicable.
 
-## [Unreleased]
+## [v0.4.8-repo-readiness] — Enterprise repository readiness
 
-- Documentation restructure under `docs/` for open-source / portfolio presentation (this branch).
+**Tag (after merge):** `v0.4.8-repo-readiness`
+
+Documentation and governance only — no Builder Runtime / Canvas / marketplace code.
+
+### Added
+
+- Redesigned root README; proprietary LICENSE; root stubs for SECURITY / CONTRIBUTING / ROADMAP / CHANGELOG
+- GitHub ISSUE/PR templates, CODEOWNERS, `.github/SECURITY.md`
+- Engineering docs under `docs/` (architecture, kernel, plugin SDK, security, devops, ADRs, draft RFCs, runbooks, tutorials, examples)
+- Tag-anchored release notes under [releases/](./releases/)
+
+### Notes
+
+- Observatory (v0.4.6), Runtime (v0.5.0), Canvas, marketplace remain Planned / Not yet implemented
+- npm package remains `"private": true`
 
 ## [v0.4.7-plugin-sdk] — Plugin SDK Foundation
 
-**Tag:** `v0.4.7-plugin-sdk`
+**Tag:** `v0.4.7-plugin-sdk`  
+**Release notes:** [releases/v0.4.7-plugin-sdk.md](./releases/v0.4.7-plugin-sdk.md)
 
 ### Added
 
@@ -32,7 +47,8 @@ Format follows Keep a Changelog conventions where applicable.
 
 ## [v0.4.5.1-hardening] — Builder Kernel hardening
 
-**Tag:** `v0.4.5.1-hardening`
+**Tag:** `v0.4.5.1-hardening`  
+**Release notes:** [releases/v0.4.5.1-hardening.md](./releases/v0.4.5.1-hardening.md)
 
 ### Hardened
 
@@ -45,7 +61,8 @@ Format follows Keep a Changelog conventions where applicable.
 
 ## [v0.4.5-kernel-foundation] — Builder Kernel foundation
 
-**Tags:** `v0.4.5-kernel-foundation`, `v0.4.5-kernel-foundation-audited`
+**Tags:** `v0.4.5-kernel-foundation`, `v0.4.5-kernel-foundation-audited`  
+**Release notes:** [releases/v0.4.5-kernel-foundation.md](./releases/v0.4.5-kernel-foundation.md)
 
 ### Added
 

@@ -12,6 +12,7 @@ Engineering documentation for this repository. Claims are limited to what exists
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | System architecture |
 | [ROADMAP.md](./ROADMAP.md) | Versioned milestones |
 | [CHANGELOG.md](./CHANGELOG.md) | Release history from tags/commits |
+| [releases/](./releases/) | Tag-anchored release notes |
 
 ## Builder platform
 
