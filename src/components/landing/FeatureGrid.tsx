@@ -37,6 +37,7 @@ const FEATURES: Array<{ icon: LucideIcon; title: string; body: string }> = [
 export function FeatureGrid() {
   return (
     <section
+      data-testid="landing-feature-grid"
       className="bg-grid-pattern bg-grid-fade relative z-10 border-y border-border-subtle py-16"
       aria-labelledby="features-heading"
     >

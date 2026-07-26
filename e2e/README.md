@@ -30,6 +30,7 @@ PLAYWRIGHT_BASE_URL=http://127.0.0.1:5173 PLAYWRIGHT_WEB_SERVER=0 bun run test:e
 | File | Coverage |
 |------|----------|
 | `public-routes.pw.ts` | `/`, `/templates`, `/auth`, fake public artifact |
+| `landing.pw.ts` | Redesigned home: hero / how-it-works / feature grid + 390px overflow |
 | `share-public.pw.ts` | templates + 404 public artifact |
 | `palette.pw.ts` | Cmd+K when logged in (soft-pass on `/auth`) |
 | `mobile-shell.pw.ts` | 390px viewport overflow + chat entry |
