@@ -321,6 +321,13 @@
   .settings-row {
     @apply flex min-h-[52px] items-center justify-between gap-4 rounded-xl border border-border-subtle bg-surface px-4 py-3 transition-colors hover:bg-elevated;
   }
+  .animate-typing {
+    display: inline-block;
+    overflow: hidden;
+    white-space: nowrap;
+    vertical-align: bottom;
+    animation: type-reveal 1.6s steps(28, end) 0.4s both;
+  }
 }
 
 @keyframes fade-in-up {
@@ -334,6 +341,10 @@
 @keyframes shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+@keyframes type-reveal {
+  from { width: 0; }
+  to { width: 100%; }
 }
 
 /* Safe-area is applied on Header / Composer chrome — not on html (avoids >100dvh scroll). */

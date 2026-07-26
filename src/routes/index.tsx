@@ -1,5 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { Hero } from "@/components/landing/Hero";
+import { HowItWorks } from "@/components/landing/HowItWorks";
+import { FeatureGrid } from "@/components/landing/FeatureGrid";
+import { CommunityGallery } from "@/components/landing/CommunityGallery";
 
 const listPublicArtifacts = createServerFn({ method: "GET" }).handler(async () => {
   const { createClient } = await import("@supabase/supabase-js");
@@ -65,57 +69,30 @@ function LandingPage() {
         </nav>
       </header>
 
-      <main className="relative z-10 mx-auto max-w-4xl px-4 pb-20 pt-16 text-center sm:px-10">
-        <h1 className="font-mono text-4xl font-bold tracking-tighter sm:text-6xl">
-          <span className="text-gradient-accent">&gt;_ Build</span>
-          <br />
-          anything.
-        </h1>
-        <p className="mx-auto mt-5 max-w-lg text-sm text-muted-foreground sm:text-base">
-          Chat with Mistral, ship HTML on a live canvas, and share public artifacts.
-        </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link
-            to="/chat"
-            className="min-h-11 rounded-full bg-primary px-5 text-sm font-semibold leading-11 text-primary-foreground"
-          >
-            Open Builder
-          </Link>
-          <Link
-            to="/templates"
-            className="min-h-11 rounded-full border border-border-subtle px-5 text-sm leading-11 text-muted-foreground hover:bg-surface-2 hover:text-foreground"
-          >
-            Browse templates
-          </Link>
-        </div>
-
-        {made.length > 0 && (
-          <section className="mt-20 text-left" aria-labelledby="made-heading">
-            <h2 id="made-heading" className="text-center text-lg font-semibold">
-              Made with Builder
-            </h2>
-            <p className="mt-1 text-center text-sm text-muted-foreground">
-              Public artifacts from the community canvas.
-            </p>
-            <ul className="mt-6 grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3">
-              {made.map((a) => (
-                <li key={a.id}>
-                  <Link
-                    to="/a/$artifactId"
-                    params={{ artifactId: a.id }}
-                    className="block rounded-xl border border-border-subtle bg-surface-1/50 p-4 transition-colors hover:border-accent-primary/35"
-                  >
-                    <div className="font-mono text-[10px] uppercase text-muted-foreground">
-                      {a.kind}
-                    </div>
-                    <div className="mt-1 truncate text-sm font-medium">{a.title}</div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+      <main className="relative">
+        <Hero />
+        <HowItWorks />
+        <FeatureGrid />
+        <CommunityGallery made={made} />
       </main>
+
+      <footer className="relative z-10 border-t border-border-subtle px-4 py-8 sm:px-10">
+        <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3 text-sm">
+          <div className="font-mono text-xs text-muted-foreground">&gt;_ Builder</div>
+          <nav className="flex items-center gap-4 text-muted-foreground">
+            <Link to="/templates" className="hover:text-foreground">
+              Templates
+            </Link>
+            <Link
+              to="/auth"
+              search={{ next: "/chat", oauth_stage: "", lr: "", provider: "" }}
+              className="hover:text-foreground"
+            >
+              Sign in
+            </Link>
+          </nav>
+        </div>
+      </footer>
     </div>
   );
 }
