@@ -4,9 +4,15 @@ import { authSearch } from "@/integrations/lovable";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
     const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) throw redirect({ to: "/auth", search: authSearch("") });
+    if (error || !data.user) {
+      const next =
+        location.pathname.startsWith("/") && !location.pathname.startsWith("//")
+          ? `${location.pathname}${location.searchStr || ""}`
+          : "/chat";
+      throw redirect({ to: "/auth", search: authSearch(next) });
+    }
     return { user: data.user };
   },
   component: () => <Outlet />,

@@ -7,7 +7,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import React, { useEffect, useState, type ReactNode } from "react";
 import { Toaster } from "sonner";
 
 import appCss from "../styles.css?url";
@@ -17,6 +17,16 @@ import { bindInstallPromptCapture, warmPwaAssets } from "../lib/pwa-booster";
 import { getAppPreferences, syncSpeedModeDom } from "../lib/app-preferences";
 import { THEME_BOOTSTRAP_SCRIPT, useTheme } from "../lib/theme";
 import { supabase } from "@/integrations/supabase/client";
+
+/** Client-only: avoid sonner hooks during SSR (duplicate-React / invalid-hook crash). */
+function ClientToaster(props: React.ComponentProps<typeof Toaster>) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    setReady(true);
+  }, []);
+  if (!ready) return null;
+  return <Toaster {...props} />;
+}
 
 function NotFoundComponent() {
   return (
@@ -170,7 +180,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
-      <Toaster theme={resolved} position="top-center" richColors />
+      <ClientToaster theme={resolved} position="top-center" richColors />
     </QueryClientProvider>
   );
 }

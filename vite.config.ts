@@ -39,15 +39,21 @@ const lovableConfig = defineConfig({
     plugins: [mcpPlugin()],
     resolve: {
       tsconfigPaths: true,
+      dedupe: ["react", "react-dom"],
     },
     // Expose SUPABASE_* as well as VITE_* so Lovable Cloud secrets without VITE_ prefix work.
     envPrefix: ["VITE_", "SUPABASE_"],
     server: {
+      // Lovable Cloud Redirect URLs allowlist uses 127.0.0.1 (not localhost).
+      // Bind explicitly so Vite prints http://127.0.0.1:8080 and OAuth lr matches.
+      host: "127.0.0.1",
+      port: 8080,
+      strictPort: true, // never silently fall over to :8081 (breaks OAuth allowlist)
       watch: {
         // Debug NDJSON ingest must not trigger Vite HMR (render↔log feedback loop).
         ignored: ["**/.cursor/**"],
       },
-      // Optional: if something still hits relative /~oauth/* on localhost,
+      // Optional: if something still hits relative /~oauth/* on local loopback,
       // proxy to the published app (Google OAuth client lives there).
       proxy: {
         "/~oauth": {
@@ -67,6 +73,14 @@ export default async (env: ConfigEnv): Promise<UserConfig> => {
     resolve: {
       ...cfg.resolve,
       tsconfigPaths: true,
+      dedupe: [...new Set([...(cfg.resolve?.dedupe ?? []), "react", "react-dom"])],
+    },
+    // Force after Lovable wrapper merge (sandbox detection may rewrite host).
+    server: {
+      ...cfg.server,
+      host: "127.0.0.1",
+      port: 8080,
+      strictPort: true,
     },
     plugins: stripTsconfigPathsPlugins(cfg.plugins as PluginOption[] | undefined),
   };
