@@ -1,9 +1,9 @@
 # ADR-0005: Builder Runtime Foundation (v0.5.0)
 
-- **Status:** Proposed (pending architecture review approval)
+- **Status:** Accepted (decision locked; implementation not yet shipped)
 - **Date:** 2026-07
 - **Related:** [RFC-0001](../rfc/RFC-0001-runtime-layer.md), [ADR-0001](./ADR-0001-builder-kernel.md), [ADR-0003](./ADR-0003-plugin-isolation.md)
-- **Evidence:** Decision draft only — no Runtime code in this change. Implementation remains **Planned** as roadmap **v0.5.0** and must not start until this ADR is Accepted.
+- **Evidence:** Architecture review approved; decision is binding. No Runtime code shipped yet — implementation remains **Planned** as roadmap **v0.5.0** (Slice A+).
 
 ## Context
 
@@ -66,12 +66,12 @@ Each slice should land as its own PR with tests. Slice C must not silently becom
 ## Consequences
 
 - Positive: single place to reason about kernel lifetime, disposal, and host permissions
-- Positive: RFC-0001 open questions stay open without blocking Slice A (after this ADR is Accepted)
+- Positive: RFC-0001 open questions stay open without blocking Slice A
 - Positive: Canvas / marketplace / write-bridge remain explicitly sequenced after Runtime foundations and their own ADRs
 - Negative: dual plugin registries remain until a dedicated bridge ADR/milestone
-- Negative: Proposed status means architecture review must Approve before implementation or “Accepted” labeling
+- Negative: Accepted here means the **architecture decision** is locked — not that a `v0.5.0` Runtime tag has shipped
 
-## Open questions (deferred, not blocking Slice A after acceptance)
+## Open questions (deferred, not blocking Slice A)
 
 1. Persistence target: Supabase vs IndexedDB vs both
 2. Whether any Plugin SDK host bridge shares the `v0.5.0` tag or a follow-up release

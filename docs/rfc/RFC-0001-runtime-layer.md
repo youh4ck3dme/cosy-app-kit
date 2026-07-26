@@ -1,8 +1,8 @@
 # RFC-0001: Builder Runtime Foundation (v0.5.0)
 
-- **Status:** Draft (Not yet implemented)
+- **Status:** Accepted direction (via [ADR-0005](../adr/ADR-0005-builder-runtime-foundation.md)); implementation **Not yet implemented**
 - **Related roadmap:** v0.5.0
-- **Related ADR:** [ADR-0005](../adr/ADR-0005-builder-runtime-foundation.md) is the **decision draft** pending architecture review approval — not an accepted decision yet
+- **Related ADR:** [ADR-0005](../adr/ADR-0005-builder-runtime-foundation.md) is the binding decision (Accepted); this RFC remains the historical proposal
 
 ## Problem
 
@@ -33,4 +33,4 @@ Introduce a runtime layer that:
 
 ## Decision
 
-**Unresolved.** This RFC remains a draft proposal. [ADR-0005](../adr/ADR-0005-builder-runtime-foundation.md) holds the proposed decision text (scope, out-of-scope, slices) and is **Proposed / pending review**. Do not treat Runtime as decided or implemented until ADR-0005 is Accepted.
+**Accepted via [ADR-0005](../adr/ADR-0005-builder-runtime-foundation.md).** This RFC remains the historical proposal; ADR-0005 is the binding decision for scope, out-of-scope items, and suggested implementation slices. No Runtime implementation is implied by accepting the ADR alone — implementation remains Planned as v0.5.0.
