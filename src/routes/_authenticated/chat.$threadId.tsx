@@ -231,7 +231,12 @@ function ChatPage() {
       } else if (p.type === "data-plan") {
         const goal = typeof p.data.goal === "string" ? p.data.goal : "Plan ready";
         toast.message(goal, { id: "plan-ready", description: "Structured plan from Plan mode" });
+      } else if (p.type === "data-model-fallback") {
+        const to = typeof p.data.to === "string" ? p.data.to : "backup model";
+        const reason = typeof p.data.reason === "string" ? p.data.reason : undefined;
+        toast.message(`Switched to ${to}`, { id: "model-fallback", description: reason });
       }
+
     },
     onFinish: () => {
       qc.invalidateQueries({ queryKey: ["thread", threadId] });
