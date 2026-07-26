@@ -450,8 +450,69 @@ export function Canvas({
   const resetEdits = () => {
     if (Object.keys(edits).length) setUndoStack((s) => [...s.slice(-4), edits]);
     setEdits({});
+    setAddedFiles([]);
+    setRemovedPaths([]);
     setLogs([]);
   };
+
+  /** P3 — create a new file in the canvas (staged until Save). */
+  const addFile = () => {
+    if (!artifact) return;
+    const raw = window.prompt("New file path (e.g. about.html, styles.css, app.js)");
+    const path = (raw ?? "").trim().replace(/^\/+/, "");
+    if (!path) return;
+    if (!/^[\w./-]+$/.test(path)) {
+      toast.error("Use letters, numbers, dot, dash, slash only");
+      return;
+    }
+    if (files.some((f) => f.path === path)) {
+      toast.error(`${path} already exists`);
+      setActiveFile(path);
+      return;
+    }
+    const ext = path.split(".").pop()?.toLowerCase() ?? "";
+    const language =
+      ext === "html" || ext === "htm"
+        ? "html"
+        : ext === "css"
+          ? "css"
+          : ext === "js" || ext === "mjs"
+            ? "javascript"
+            : ext === "json"
+              ? "json"
+              : ext === "md"
+                ? "markdown"
+                : "plaintext";
+    const content = isHtmlPath(path)
+      ? `<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="utf-8" />\n    <meta name="viewport" content="width=device-width, initial-scale=1" />\n    <title>${htmlPageLabel(path)}</title>\n  </head>\n  <body>\n    <h1>${htmlPageLabel(path)}</h1>\n    <p><a href="${entryPath ?? "index.html"}">Back home</a></p>\n  </body>\n</html>\n`
+      : "";
+    setRemovedPaths((p) => p.filter((x) => x !== path));
+    setAddedFiles((a) => [...a, { path, language, content }]);
+    setActiveFile(path);
+    setView("code");
+    toast.success(`${path} added — Save to keep it`);
+  };
+
+  /** P3 — delete a file from the canvas (staged until Save). */
+  const deleteFile = (path: string) => {
+    if (!artifact || files.length <= 1) {
+      toast.error("An artifact needs at least one file");
+      return;
+    }
+    if (!window.confirm(`Delete ${path}? Save to make it permanent.`)) return;
+    setAddedFiles((a) => a.filter((f) => f.path !== path));
+    setRemovedPaths((p) => (p.includes(path) ? p : [...p, path]));
+    setEdits((e) => {
+      const nextEdits = { ...e };
+      delete nextEdits[path];
+      return nextEdits;
+    });
+    if (activeFile === path) setActiveFile(null);
+    if (previewPath === path) setPreviewPath(null);
+    toast.success(`${path} removed`);
+  };
+
+
 
   const restoreUndo = () => {
     const last = undoStack[undoStack.length - 1];
