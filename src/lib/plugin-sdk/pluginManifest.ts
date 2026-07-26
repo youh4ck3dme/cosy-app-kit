@@ -22,6 +22,16 @@ export interface ManifestValidationResult {
   errors: string[];
 }
 
+/** Deep-freeze a validated manifest so permissions cannot be mutated post-validation. */
+export function freezePluginManifest(manifest: PluginManifest): PluginManifest {
+  return Object.freeze({
+    name: manifest.name,
+    version: manifest.version,
+    ...(manifest.description !== undefined ? { description: manifest.description } : {}),
+    permissions: Object.freeze([...manifest.permissions]),
+  });
+}
+
 export function validatePluginManifest(input: unknown): ManifestValidationResult {
   const parsed = PluginManifestSchema.safeParse(input);
   if (!parsed.success) {
@@ -32,7 +42,7 @@ export function validatePluginManifest(input: unknown): ManifestValidationResult
       ),
     };
   }
-  return { success: true, manifest: parsed.data, errors: [] };
+  return { success: true, manifest: freezePluginManifest(parsed.data), errors: [] };
 }
 
 export function assertValidPluginManifest(input: unknown): PluginManifest {

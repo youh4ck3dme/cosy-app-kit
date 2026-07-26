@@ -41,20 +41,31 @@ export class PluginSdkRegistry {
   constructor(private readonly options: PluginSdkOptions = {}) {}
 
   private createContext(plugin: RegisteredPlugin): PluginContext {
-    const granted = plugin.manifest.permissions;
-    const manifestSnapshot: PluginManifest = {
-      ...plugin.manifest,
-      permissions: [...granted],
-    };
+    // Independent frozen grant list — never alias a mutable caller array.
+    const granted: readonly PluginPermission[] = Object.freeze([
+      ...plugin.manifest.permissions,
+    ]);
+    const manifestSnapshot: PluginManifest = Object.freeze({
+      name: plugin.manifest.name,
+      version: plugin.manifest.version,
+      ...(plugin.manifest.description !== undefined
+        ? { description: plugin.manifest.description }
+        : {}),
+      permissions: granted,
+    });
 
     return Object.freeze({
       pluginId: plugin.manifest.name,
-      manifest: Object.freeze(manifestSnapshot),
+      manifest: manifestSnapshot,
       hasPermission: (permission: PluginPermission) => hasPermission(granted, permission),
       readDocument: () =>
-        hasPermission(granted, "document.read") ? this.options.documentSource?.read() : undefined,
+        hasPermission(granted, "document.read")
+          ? this.options.documentSource?.read()
+          : undefined,
       readCanvas: () =>
-        hasPermission(granted, "canvas.read") ? this.options.canvasSource?.read() : undefined,
+        hasPermission(granted, "canvas.read")
+          ? this.options.canvasSource?.read()
+          : undefined,
     });
   }
 
@@ -80,7 +91,21 @@ export class PluginSdkRegistry {
     return this.toMetadata(entry);
   }
 
+  /**
+   * Removes a plugin's registry entry. Requires the plugin to already be
+   * destroyed (or never installed) — call `destroy()` first for anything
+   * that reached "installed"/"enabled"/"disabled", so `onDestroy()` always
+   * runs before bookkeeping is dropped. Silently bypassing teardown here
+   * would leak whatever a plugin's own lifecycle hooks were responsible for
+   * releasing.
+   */
   remove(pluginId: string): void {
+    const entry = this.require(pluginId);
+    if (entry.state !== "registered" && entry.state !== "destroyed") {
+      throw new Error(
+        `Cannot remove plugin "${pluginId}" while in state "${entry.state}" — call destroy() first.`,
+      );
+    }
     this.plugins.delete(pluginId);
   }
 

@@ -11,6 +11,7 @@ export {
 
 export {
   assertValidPluginManifest,
+  freezePluginManifest,
   type ManifestValidationResult,
   PluginManifestSchema,
   validatePluginManifest,

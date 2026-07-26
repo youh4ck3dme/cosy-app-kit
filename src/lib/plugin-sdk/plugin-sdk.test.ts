@@ -17,7 +17,11 @@ import {
   runInstall,
 } from "./pluginLifecycle";
 import { PluginSdkRegistry } from "./pluginRegistry";
-import type { PluginContext, PluginLifecycleHandlers } from "./plugin.types";
+import type {
+  PluginContext,
+  PluginLifecycleHandlers,
+  PluginPermission,
+} from "./plugin.types";
 
 describe("pluginManifest", () => {
   it("accepts a minimal valid manifest", () => {
@@ -65,6 +69,20 @@ describe("pluginManifest", () => {
     });
     expect(manifest.name).toBe("example");
     expect(manifest.permissions).toEqual(["document.read", "canvas.read"]);
+  });
+
+  it("validated manifest and permissions array are frozen", () => {
+    const manifest = assertValidPluginManifest({
+      name: "frozen",
+      version: "1.0.0",
+      permissions: ["document.read"],
+    });
+    expect(Object.isFrozen(manifest)).toBe(true);
+    expect(Object.isFrozen(manifest.permissions)).toBe(true);
+    expect(() => {
+      (manifest.permissions as PluginPermission[]).push("canvas.read");
+    }).toThrow();
+    expect(manifest.permissions).toEqual(["document.read"]);
   });
 });
 
@@ -179,6 +197,38 @@ describe("PluginSdkRegistry", () => {
     expect(registry.list().map((p) => p.manifest.name)).toEqual(["b"]);
   });
 
+  it("remove() throws on an unknown plugin id instead of silently no-op'ing", () => {
+    const registry = new PluginSdkRegistry();
+    expect(() => registry.remove("ghost")).toThrow(/unknown plugin/i);
+  });
+
+  it("remove() refuses to drop a plugin that is installed/enabled/disabled without destroy() first", async () => {
+    const destroyed: string[] = [];
+    const registry = new PluginSdkRegistry();
+    registry.register(
+      { name: "guarded", version: "1.0.0" },
+      { onDestroy: () => { destroyed.push("guarded"); } },
+    );
+
+    await registry.install("guarded");
+    expect(() => registry.remove("guarded")).toThrow(/call destroy\(\) first/i);
+
+    await registry.enable("guarded");
+    expect(() => registry.remove("guarded")).toThrow(/call destroy\(\) first/i);
+
+    await registry.disable("guarded");
+    expect(() => registry.remove("guarded")).toThrow(/call destroy\(\) first/i);
+
+    // Entry must still exist — every rejected remove() left it untouched.
+    expect(registry.get("guarded")).toBeDefined();
+    expect(destroyed).toEqual([]);
+
+    await registry.destroy("guarded");
+    expect(() => registry.remove("guarded")).not.toThrow();
+    expect(registry.get("guarded")).toBeUndefined();
+    expect(destroyed).toEqual(["guarded"]);
+  });
+
   it("operating on an unregistered plugin id throws", async () => {
     const registry = new PluginSdkRegistry();
     await expect(registry.install("ghost")).rejects.toThrow(/unknown plugin/i);
@@ -275,5 +325,44 @@ describe("PluginSdkRegistry", () => {
 
     // Context object itself is frozen — a plugin cannot bolt on new capabilities either.
     expect(Object.isFrozen(capturedContext)).toBe(true);
+  });
+
+  it("plugin cannot mutate context permissions or escalate grants", async () => {
+    let captured: PluginContext | undefined;
+    const registry = new PluginSdkRegistry({
+      documentSource: { read: () => ({ secret: "doc" }) },
+      canvasSource: { read: () => ({ secret: "canvas" }) },
+    });
+    registry.register(
+      { name: "escalator", version: "1.0.0", permissions: ["document.read"] },
+      { onInstall: (ctx) => { captured = ctx; } },
+    );
+    await registry.install("escalator");
+
+    expect(captured).toBeDefined();
+    const ctx = captured!;
+    const originalGrants = [...ctx.manifest.permissions];
+
+    expect(Object.isFrozen(ctx.manifest)).toBe(true);
+    expect(Object.isFrozen(ctx.manifest.permissions)).toBe(true);
+
+    expect(() => {
+      (ctx.manifest.permissions as PluginPermission[]).push("canvas.read");
+    }).toThrow();
+
+    expect(ctx.manifest.permissions).toEqual(originalGrants);
+    expect(ctx.manifest.permissions).toEqual(["document.read"]);
+    expect(ctx.hasPermission("document.read")).toBe(true);
+    expect(ctx.hasPermission("canvas.read")).toBe(false);
+    expect(ctx.readDocument()).toEqual({ secret: "doc" });
+    expect(ctx.readCanvas()).toBeUndefined();
+
+    // Registered manifest stays sealed too — no back-channel escalation.
+    const stored = registry.get("escalator")!.manifest;
+    expect(Object.isFrozen(stored.permissions)).toBe(true);
+    expect(() => {
+      (stored.permissions as PluginPermission[]).push("canvas.modify");
+    }).toThrow();
+    expect(stored.permissions).toEqual(["document.read"]);
   });
 });

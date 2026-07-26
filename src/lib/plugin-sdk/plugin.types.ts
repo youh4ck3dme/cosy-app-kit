@@ -12,10 +12,11 @@ export const PLUGIN_PERMISSIONS = [
 export type PluginPermission = (typeof PLUGIN_PERMISSIONS)[number];
 
 export interface PluginManifest {
-  name: string;
-  version: string;
-  description?: string;
-  permissions: PluginPermission[];
+  readonly name: string;
+  readonly version: string;
+  readonly description?: string;
+  /** Frozen after validation — plugins must never mutate grants. */
+  readonly permissions: readonly PluginPermission[];
 }
 
 export type PluginLifecycleHook = "onInstall" | "onEnable" | "onDisable" | "onDestroy";
