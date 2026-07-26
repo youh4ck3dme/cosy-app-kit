@@ -128,6 +128,13 @@ export {
 export { IRToCommandCompiler } from "./imports/ir/irToCommandCompiler";
 
 export {
+  BuilderPlaygroundController,
+  createBuilderPlayground,
+  type PlaygroundListener,
+  type PlaygroundSnapshot,
+} from "./playground/playgroundController";
+
+export {
   CANVAS_SANDBOX_ATTR,
   type CanvasRpcMessage,
   type CanvasRpcMessageType,
