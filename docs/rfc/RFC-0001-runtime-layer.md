@@ -2,6 +2,7 @@
 
 - **Status:** Draft (Not yet implemented)
 - **Related roadmap:** v0.5.0
+- **Related ADR:** [ADR-0005](../adr/ADR-0005-builder-runtime-foundation.md) is the **decision draft** pending architecture review approval — not an accepted decision yet
 
 ## Problem
 
@@ -13,7 +14,7 @@ Introduce a runtime layer that:
 
 - owns kernel lifecycle for a session
 - defines host boundaries for document load/save (persistence mechanism TBD)
-- prepares for a future Canvas consumer without embedding editor UI in the kernel
+- stays separate from Design Canvas; Canvas requires its own future ADR and milestone
 
 ## Alternatives
 
@@ -32,4 +33,4 @@ Introduce a runtime layer that:
 
 ## Decision
 
-Undecided — draft only. No implementation implied.
+**Unresolved.** This RFC remains a draft proposal. [ADR-0005](../adr/ADR-0005-builder-runtime-foundation.md) holds the proposed decision text (scope, out-of-scope, slices) and is **Proposed / pending review**. Do not treat Runtime as decided or implemented until ADR-0005 is Accepted.

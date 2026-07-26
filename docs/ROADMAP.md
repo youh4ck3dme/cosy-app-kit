@@ -21,7 +21,7 @@ Status is derived from git tags, phase prompts under `.nexify-forge/prompts/`, h
 
 | Version | Intent | Status |
 | --- | --- | --- |
-| **v0.5.0** Builder Runtime Foundation | Wire kernel into a durable runtime surface (host session, safer boundaries) | Planned |
+| **v0.5.0** Builder Runtime Foundation | Wire kernel into a durable runtime surface (host session, safer boundaries) | Planned — [ADR-0005](./adr/ADR-0005-builder-runtime-foundation.md) Proposed (pending review); implementation not started |
 | Design Canvas (kernel consumer) | iframe / PostMessage canvas consuming `BuilderDocument` | Not yet implemented (RPC types only) |
 | Visual import adapters | Vision / Figma / HTML → IR | Not yet implemented (IR compiler exists; adapters do not) |
 | Marketplace | Discover/install third-party plugins at product scale | Not yet implemented |
