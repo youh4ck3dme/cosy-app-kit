@@ -6,9 +6,10 @@ Format follows Keep a Changelog conventions where applicable.
 
 ## [v0.4.8-repo-readiness] — Enterprise repository readiness
 
-**Tag (after merge):** `v0.4.8-repo-readiness`
+**Tag:** `v0.4.8-repo-readiness`  
+**Release notes:** [releases/v0.4.8-repo-readiness.md](./releases/v0.4.8-repo-readiness.md)
 
-Documentation and governance only — no Builder Runtime / Canvas / marketplace code.
+Documentation and governance only — no Builder Runtime / Canvas / marketplace code. **No production runtime code changed.**
 
 ### Added
 
