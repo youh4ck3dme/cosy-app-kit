@@ -19,9 +19,7 @@ describe("example: basic-command", () => {
       props: { text: "Hello" },
     });
 
-    const result = kernel.dispatch(
-      new AddNodeCommand({ parentId: rootId, node }),
-    );
+    const result = kernel.dispatch(new AddNodeCommand({ parentId: rootId, node }));
 
     expect(result.success).toBe(true);
     expect(kernel.getDocument().tree.nodes[node.id]?.props.text).toBe("Hello");

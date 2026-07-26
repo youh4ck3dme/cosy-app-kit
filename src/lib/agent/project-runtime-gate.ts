@@ -78,8 +78,7 @@ function extractLocalHtmlHrefs(html: string): string[] {
 
 function extractScriptAndLinkRefs(html: string): string[] {
   const refs: string[] = [];
-  const re =
-    /(?:src|href)\s*=\s*["'](\.\/)?([^"']+\.(?:js|css|html?))["']/gi;
+  const re = /(?:src|href)\s*=\s*["'](\.\/)?([^"']+\.(?:js|css|html?))["']/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(html)) !== null) {
     refs.push(normalizePath(m[2]!));
@@ -95,7 +94,11 @@ function hasHashPageNav(html: string): boolean {
 function jsSyntaxHeuristics(js: string): string[] {
   const fails: string[] = [];
   // The real FleetOps bug: stray character before `if` glued after statement
-  if (/;\s*n\s*if\s*\(/m.test(js) || /\)n\s*if\s*\(/m.test(js) || /availableVehicles[^;]*;n\s*if/m.test(js)) {
+  if (
+    /;\s*n\s*if\s*\(/m.test(js) ||
+    /\)n\s*if\s*\(/m.test(js) ||
+    /availableVehicles[^;]*;n\s*if/m.test(js)
+  ) {
     fails.push("js_stray_n_before_if");
   }
   // Unbalanced braces (rough)
@@ -215,7 +218,9 @@ export function analyzeProjectRuntime(files: ProjectFile[]): ProjectRuntimeRepor
       /function\s+updateDashboard\s*\([^)]*\)\s*\{[^}]*getElementById\([^)]+\)\.(textContent|innerHTML)/s.test(
         content,
       ) &&
-      !/function\s+updateDashboard\s*\([^)]*\)\s*\{[^}]*if\s*\(\s*[^)]*getElementById/s.test(content) &&
+      !/function\s+updateDashboard\s*\([^)]*\)\s*\{[^}]*if\s*\(\s*[^)]*getElementById/s.test(
+        content,
+      ) &&
       !/function\s+updateDashboard[\s\S]{0,400}if\s*\(\s*!?\s*(isDashboard|document\.getElementById)/.test(
         content,
       )
@@ -231,7 +236,11 @@ export function analyzeProjectRuntime(files: ProjectFile[]): ProjectRuntimeRepor
         `Prefer createElement + textContent over innerHTML for state-driven lists (${js.path}).`,
       );
     }
-    if (multiPage && !/addEventListener\s*\(\s*["']click["']/.test(content) && /data-action|onclick/.test(content)) {
+    if (
+      multiPage &&
+      !/addEventListener\s*\(\s*["']click["']/.test(content) &&
+      /data-action|onclick/.test(content)
+    ) {
       softFails.push(`weak_event_delegation:${js.path}`);
     }
     if (multiPage && /localStorage/.test(content) && !/try\s*\{[\s\S]*localStorage/.test(content)) {

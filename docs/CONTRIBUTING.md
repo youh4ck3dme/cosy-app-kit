@@ -38,12 +38,12 @@ See [CODE_STYLE.md](./CODE_STYLE.md).
 
 ## Tests required
 
-| Change area | Minimum |
-| --- | --- |
-| Kernel | Targeted Vitest + `src/lib/builder` green |
-| Plugin SDK | `plugin-sdk.test.ts` green |
-| Product UI | Relevant unit tests; e2e when flow-critical (local) |
-| Docs only | Link and command accuracy |
+| Change area | Minimum                                             |
+| ----------- | --------------------------------------------------- |
+| Kernel      | Targeted Vitest + `src/lib/builder` green           |
+| Plugin SDK  | `plugin-sdk.test.ts` green                          |
+| Product UI  | Relevant unit tests; e2e when flow-critical (local) |
+| Docs only   | Link and command accuracy                           |
 
 ## Pull requests
 

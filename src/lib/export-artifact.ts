@@ -8,7 +8,8 @@ import { validateProject } from "@/lib/agent/project-validate";
 
 function fileList(a: Artifact): ArtifactFile[] {
   if (a.files && a.files.length > 0) return a.files;
-  const path = a.kind === "html" ? "index.html" : a.kind === "markdown" ? "README.md" : "artifact.txt";
+  const path =
+    a.kind === "html" ? "index.html" : a.kind === "markdown" ? "README.md" : "artifact.txt";
   return [{ path, language: a.kind, content: a.content }];
 }
 
@@ -30,7 +31,10 @@ export function sortArtifactFiles(files: ArtifactFile[]): ArtifactFile[] {
 }
 
 export function projectExportSlug(title: string): string {
-  const slug = title.replace(/\W+/g, "-").toLowerCase().replace(/^-+|-+$/g, "");
+  const slug = title
+    .replace(/\W+/g, "-")
+    .toLowerCase()
+    .replace(/^-+|-+$/g, "");
   return slug || "artifact";
 }
 

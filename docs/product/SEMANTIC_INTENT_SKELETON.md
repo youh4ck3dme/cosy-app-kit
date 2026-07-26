@@ -21,29 +21,29 @@ On the **first Build turn** of an empty thread:
 
 ### Intents (MVP)
 
-| Intent | Product shape |
-|--------|----------------|
-| `booking` | Service → date → slot → form → confirm + staff + cancel (BookSlot-class) |
-| `landing` | Hero / features / pricing teaser / CTA |
-| `dashboard` | Sidebar + KPIs + chart slot + activity empty state |
-| `crud` | List + filters + empty state + create drawer shell |
-| `waitlist` | Atmospheric capture + validation shell + social proof row |
+| Intent      | Product shape                                                            |
+| ----------- | ------------------------------------------------------------------------ |
+| `booking`   | Service → date → slot → form → confirm + staff + cancel (BookSlot-class) |
+| `landing`   | Hero / features / pricing teaser / CTA                                   |
+| `dashboard` | Sidebar + KPIs + chart slot + activity empty state                       |
+| `crud`      | List + filters + empty state + create drawer shell                       |
+| `waitlist`  | Atmospheric capture + validation shell + social proof row                |
 
 ### Success metrics
 
-| Metric | Target |
-|--------|--------|
-| Time-to-first-canvas paint (skeleton) | **&lt; 3 s** after send (auth + DB insert; no model wait) |
-| Intent hit rate on curated demos | ≥ 90 % correct top intent |
-| SCORECARD lift | D1, D7, D8, D10 baseline from skeleton alone; Build raises D2–D6, D11 |
-| Mistral-only | No OpenAI / Lovable Gateway; skeleton is local TS templates |
+| Metric                                | Target                                                                |
+| ------------------------------------- | --------------------------------------------------------------------- |
+| Time-to-first-canvas paint (skeleton) | **&lt; 3 s** after send (auth + DB insert; no model wait)             |
+| Intent hit rate on curated demos      | ≥ 90 % correct top intent                                             |
+| SCORECARD lift                        | D1, D7, D8, D10 baseline from skeleton alone; Build raises D2–D6, D11 |
+| Mistral-only                          | No OpenAI / Lovable Gateway; skeleton is local TS templates           |
 
 ### Non-goals (MVP)
 
-- LLM-based intent classification  
-- Multi-file project packages / `launch_site` auto-seed  
-- Design-canvas editor, marketplace, CRDT  
-- Plan mode seeding  
+- LLM-based intent classification
+- Multi-file project packages / `launch_site` auto-seed
+- Design-canvas editor, marketplace, CRDT
+- Plan mode seeding
 
 ---
 
@@ -84,30 +84,30 @@ User prompt (Build mode, empty thread)
      Filled product on same artifact
 ```
 
-| Layer | Path | Role |
-|-------|------|------|
-| Detect | `src/lib/agent/semantic-intent/detect.ts` | Intent + brand extraction |
-| Skeletons | `src/lib/agent/semantic-intent/skeletons.ts` | Deterministic HTML templates |
-| Seed | `src/lib/agent/semantic-intent/seed.ts` | Insert artifact + snapshot |
-| Wire | `src/routes/api/chat.ts` | Pre-stream seed + system appendix |
-| Stream contract | `src/lib/agent/stream-parts.ts` | `data-intent-detected` |
-| Client | `chat.$threadId.tsx` `onData` | Toast + focus canvas artifact |
+| Layer           | Path                                         | Role                              |
+| --------------- | -------------------------------------------- | --------------------------------- |
+| Detect          | `src/lib/agent/semantic-intent/detect.ts`    | Intent + brand extraction         |
+| Skeletons       | `src/lib/agent/semantic-intent/skeletons.ts` | Deterministic HTML templates      |
+| Seed            | `src/lib/agent/semantic-intent/seed.ts`      | Insert artifact + snapshot        |
+| Wire            | `src/routes/api/chat.ts`                     | Pre-stream seed + system appendix |
+| Stream contract | `src/lib/agent/stream-parts.ts`              | `data-intent-detected`            |
+| Client          | `chat.$threadId.tsx` `onData`                | Toast + focus canvas artifact     |
 
 ### SCORECARD mapping (skeleton guarantees)
 
-| ID | Skeleton contribution |
-|----|------------------------|
-| D1 | Single-file HTML, no CDN |
-| D2 | Flow shells / CTAs present (logic TBD by Build) |
-| D3 | `data-nf-slot` / `BUILD_HOOK` markers for domain engine |
-| D4 | localStorage try/catch scaffold |
-| D5 | Staff/operator panel empty state (booking/dashboard/crud) |
-| D6 | Secondary reverse path shell (cancel / undo region) |
-| D7 | Empty states + toast host; no dead primary chrome |
-| D8 | Mobile-first CSS (~390px), desktop ≥768 enhancement |
-| D9 | Labels, aria, focus-visible, Escape-ready dialog shell |
-| D10 | 1 prompt → skeleton + Build fill (high promptability) |
-| D11 | Stable structure so iterative `edit_file` is safer |
+| ID  | Skeleton contribution                                     |
+| --- | --------------------------------------------------------- |
+| D1  | Single-file HTML, no CDN                                  |
+| D2  | Flow shells / CTAs present (logic TBD by Build)           |
+| D3  | `data-nf-slot` / `BUILD_HOOK` markers for domain engine   |
+| D4  | localStorage try/catch scaffold                           |
+| D5  | Staff/operator panel empty state (booking/dashboard/crud) |
+| D6  | Secondary reverse path shell (cancel / undo region)       |
+| D7  | Empty states + toast host; no dead primary chrome         |
+| D8  | Mobile-first CSS (~390px), desktop ≥768 enhancement       |
+| D9  | Labels, aria, focus-visible, Escape-ready dialog shell    |
+| D10 | 1 prompt → skeleton + Build fill (high promptability)     |
+| D11 | Stable structure so iterative `edit_file` is safer        |
 
 ---
 
@@ -115,28 +115,28 @@ User prompt (Build mode, empty thread)
 
 ### In scope
 
-- [x] Rule-based detector (5 intents + `unknown`)  
-- [x] 5 premium single-file skeletons  
-- [x] Seed on first Build turn when thread has **zero** artifacts  
-- [x] Pre-stream `data-artifact-created` + `data-intent-detected`  
-- [x] System appendix: prefer `edit_file` on seeded artifact  
-- [x] Unit tests (detect + skeleton invariants)  
-- [x] Product brief (this doc) + 3 demo prompts  
+- [x] Rule-based detector (5 intents + `unknown`)
+- [x] 5 premium single-file skeletons
+- [x] Seed on first Build turn when thread has **zero** artifacts
+- [x] Pre-stream `data-artifact-created` + `data-intent-detected`
+- [x] System appendix: prefer `edit_file` on seeded artifact
+- [x] Unit tests (detect + skeleton invariants)
+- [x] Product brief (this doc) + 3 demo prompts
 
 ### Out of scope / follow-ups
 
-- LLM re-rank / multi-label intents  
-- Skeleton versioning UI  
-- Auto-skip seed when user asks for markdown-only  
-- E2E Playwright “3s canvas” gate  
-- Plan-mode preview cards  
+- LLM re-rank / multi-label intents
+- Skeleton versioning UI
+- Auto-skip seed when user asks for markdown-only
+- E2E Playwright “3s canvas” gate
+- Plan-mode preview cards
 
 ### Acceptance
 
-1. `bun test src/lib/agent/semantic-intent` green  
-2. Manual: empty thread + demo prompt → canvas shows skeleton **before** long Build text  
-3. Codestral continues and mutates same artifact (or creates only if tools force)  
-4. No OpenAI / gateway paths introduced  
+1. `bun test src/lib/agent/semantic-intent` green
+2. Manual: empty thread + demo prompt → canvas shows skeleton **before** long Build text
+3. Codestral continues and mutates same artifact (or creates only if tools force)
+4. No OpenAI / gateway paths introduced
 
 ---
 
@@ -172,6 +172,6 @@ Build a dark ops dashboard called Harbor Control with sidebar, KPI cards, revenu
 
 ## 5) Operator notes
 
-- Seed runs only when: `mode=build`, `create_artifact` enabled, **no** artifacts on thread, intent ≠ `unknown`, confidence ≥ threshold.  
-- Fail-open: seed errors never block the Mistral stream.  
+- Seed runs only when: `mode=build`, `create_artifact` enabled, **no** artifacts on thread, intent ≠ `unknown`, confidence ≥ threshold.
+- Fail-open: seed errors never block the Mistral stream.
 - Mistral-only: templates are code, not a second model call.

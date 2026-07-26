@@ -6,14 +6,14 @@
 
 Repo: `youh4ck3dme/cosy-app-kit` · branch **`main`**
 
-| Rule | Setting |
-|------|---------|
-| Direct push to `main` | **Blocked** (PR required) |
-| Applies to admins too | **Yes** (`enforce_admins`) |
-| Force-push | **Blocked** |
-| Delete branch `main` | **Blocked** |
-| Required CI | **Yes** — check name: `Install · test · typecheck · build` |
-| Approvals required | **0** (solo-friendly; PR still required) |
+| Rule                  | Setting                                                    |
+| --------------------- | ---------------------------------------------------------- |
+| Direct push to `main` | **Blocked** (PR required)                                  |
+| Applies to admins too | **Yes** (`enforce_admins`)                                 |
+| Force-push            | **Blocked**                                                |
+| Delete branch `main`  | **Blocked**                                                |
+| Required CI           | **Yes** — check name: `Install · test · typecheck · build` |
+| Approvals required    | **0** (solo-friendly; PR still required)                   |
 
 ## Allowed workflow
 
@@ -44,8 +44,8 @@ gh pr merge --merge   # only when YOU explicitly choose
 
 If an AI uses **your** `gh` login (`youh4ck3dme`), it can still:
 
-1. push a **feature branch**, and  
-2. open a PR, and  
+1. push a **feature branch**, and
+2. open a PR, and
 3. if you left it unrestricted — run `gh pr merge`.
 
 Protection **stops silent `push` to `main`**.  

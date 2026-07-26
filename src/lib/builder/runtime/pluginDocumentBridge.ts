@@ -18,9 +18,7 @@ import type { BuilderRuntime } from "./builderRuntime";
  * Read-only document accessor for Plugin SDK hosts.
  * Each `read()` returns a fresh frozen clone via Runtime's public facade.
  */
-export function createReadonlyPluginDocumentSource(
-  runtime: BuilderRuntime,
-): PluginDocumentSource {
+export function createReadonlyPluginDocumentSource(runtime: BuilderRuntime): PluginDocumentSource {
   return {
     read() {
       if (runtime.disposed) {
@@ -44,9 +42,7 @@ export type CreateDevPluginSdkHostOptions = {
  * Dev / flag-gated Plugin SDK host bound to a Runtime session.
  * Supplies documentSource only — never canvasSource.
  */
-export function createDevPluginSdkHost(
-  options: CreateDevPluginSdkHostOptions,
-): PluginSdkRegistry {
+export function createDevPluginSdkHost(options: CreateDevPluginSdkHostOptions): PluginSdkRegistry {
   if (options.enablePluginDocumentSource !== true) {
     throw new Error(
       "createDevPluginSdkHost requires enablePluginDocumentSource: true (ADR-0005 Slice C).",

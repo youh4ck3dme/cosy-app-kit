@@ -65,7 +65,9 @@ describe("composeSystem M3", () => {
   it("exports artifact polish catalog with edit_file guidance", () => {
     expect(ARTIFACT_POLISH_ACTIONS.length).toBeGreaterThanOrEqual(5);
     const ids = ARTIFACT_POLISH_ACTIONS.map((a) => a.id);
-    expect(ids).toEqual(expect.arrayContaining(["mobile-first", "theme", "a11y", "visual", "export"]));
+    expect(ids).toEqual(
+      expect.arrayContaining(["mobile-first", "theme", "a11y", "visual", "export"]),
+    );
     for (const action of ARTIFACT_POLISH_ACTIONS) {
       expect(action.prompt.length).toBeGreaterThan(80);
       expect(action.prompt).toMatch(/edit_file|CURRENT artifact|mobile-first/i);

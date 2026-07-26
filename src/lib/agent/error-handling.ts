@@ -3,7 +3,13 @@
  * Server still formats via formatAiGatewayError; client uses these for banners.
  */
 
-export type ChatErrorKind = "rate_limit" | "credits" | "auth" | "unavailable" | "offline" | "generic";
+export type ChatErrorKind =
+  | "rate_limit"
+  | "credits"
+  | "auth"
+  | "unavailable"
+  | "offline"
+  | "generic";
 
 export function classifyChatError(message: string): ChatErrorKind {
   const m = message.toLowerCase();

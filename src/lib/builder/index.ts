@@ -151,11 +151,7 @@ export {
   type CanvasRpcMessageType,
 } from "./renderer/canvas/canvasRpc.types";
 
-export {
-  collectDescendantIds,
-  getNode,
-  walkNodeIds,
-} from "./nodes/nodeGraph";
+export { collectDescendantIds, getNode, walkNodeIds } from "./nodes/nodeGraph";
 
 /** Kernel Observatory Foundation (v0.4.6) — diagnostics / health / telemetry. */
 export type {

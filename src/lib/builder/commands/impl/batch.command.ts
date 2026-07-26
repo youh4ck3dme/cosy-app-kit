@@ -1,8 +1,4 @@
-import type {
-  CommandResult,
-  ICommand,
-  SerializedCommand,
-} from "../command.interface";
+import type { CommandResult, ICommand, SerializedCommand } from "../command.interface";
 import type { BuilderDocument } from "../../document/document.types";
 
 export interface BatchPayload {

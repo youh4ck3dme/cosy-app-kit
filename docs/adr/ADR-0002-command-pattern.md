@@ -17,12 +17,12 @@ Document edits must be reversible, serializable, and fail closed. Ad-hoc mutatio
 
 ## Alternatives considered
 
-| Option | Verdict | Why |
-| --- | --- | --- |
-| Explicit `ICommand` + kernel `HistoryManager` | **Chosen** | Fail-closed snapshot + invariants; serializable undo; no React coupling |
-| Direct in-place document mutation | Rejected | Partial failures leave corrupt graphs; no durable undo contract |
-| Redux (or similar UI store) as source of truth | Rejected | UI-centric store model; couples engine to React/subscriber patterns; poor fit for headless library + cold serialize |
-| MobX (or similar observable object graph) | Rejected | Implicit mutation tracking; harder to seal trust boundaries and export deterministic history |
+| Option                                         | Verdict    | Why                                                                                                                 |
+| ---------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------- |
+| Explicit `ICommand` + kernel `HistoryManager`  | **Chosen** | Fail-closed snapshot + invariants; serializable undo; no React coupling                                             |
+| Direct in-place document mutation              | Rejected   | Partial failures leave corrupt graphs; no durable undo contract                                                     |
+| Redux (or similar UI store) as source of truth | Rejected   | UI-centric store model; couples engine to React/subscriber patterns; poor fit for headless library + cold serialize |
+| MobX (or similar observable object graph)      | Rejected   | Implicit mutation tracking; harder to seal trust boundaries and export deterministic history                        |
 
 ## Consequences
 

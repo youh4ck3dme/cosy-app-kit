@@ -69,9 +69,7 @@ function EmbedPage() {
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const reducedMotion = useReducedMotionSafe();
   const bridgeTokenRef = useRef(
-    typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `tok-${Date.now()}`,
+    typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `tok-${Date.now()}`,
   );
 
   const files = useMemo(() => {
@@ -110,7 +108,10 @@ function EmbedPage() {
 
   const srcDoc = useMemo(() => {
     if (!isHtml || !entry || urlMode) return null;
-    return injectScriptIntoHtmlHead(entry.content, buildPreviewBridgeScript(bridgeTokenRef.current));
+    return injectScriptIntoHtmlHead(
+      entry.content,
+      buildPreviewBridgeScript(bridgeTokenRef.current),
+    );
   }, [entry, isHtml, urlMode]);
 
   useEffect(() => {

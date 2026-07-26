@@ -4,7 +4,7 @@
 **Kernel commit baseline:** `349aec1` — `feat(nexify-forge): phase 04.5 builder kernel`  
 **Prior forensic:** `.nexify-forge/reports/BUILDER_KERNEL_FORENSIC_AUDIT.md`  
 **Scope:** `src/lib/builder/**` only  
-**Purpose:** Prevent partial / unordered hardening before Phase 05 Canvas  
+**Purpose:** Prevent partial / unordered hardening before Phase 05 Canvas
 
 ---
 
@@ -26,18 +26,18 @@ Phase 04.5.1 must close the blockers below in the listed order. Do not start Can
 
 ## Architecture readiness score
 
-| Area | Score | Gate status |
-|---|---:|---|
-| Document mutability model | 25 | BLOCKER |
-| Command engine integrity | 55 | BLOCKER |
-| History / replay durability | 35 | BLOCKER |
-| Graph consistency | 30 | BLOCKER |
-| Transaction system | 40 | BLOCKER (`BatchCommand` only) |
-| Serialization / AI / collab | 35 | BLOCKER |
-| Plugin security | 20 | BLOCKER (min skeleton) |
-| Performance headroom | 70 | WARN (cap history in 04.5.1) |
-| Test evidence | 45 | BLOCKER (must expand) |
-| **Overall** | **48** | **NO-GO for Canvas** |
+| Area                        |  Score | Gate status                   |
+| --------------------------- | -----: | ----------------------------- |
+| Document mutability model   |     25 | BLOCKER                       |
+| Command engine integrity    |     55 | BLOCKER                       |
+| History / replay durability |     35 | BLOCKER                       |
+| Graph consistency           |     30 | BLOCKER                       |
+| Transaction system          |     40 | BLOCKER (`BatchCommand` only) |
+| Serialization / AI / collab |     35 | BLOCKER                       |
+| Plugin security             |     20 | BLOCKER (min skeleton)        |
+| Performance headroom        |     70 | WARN (cap history in 04.5.1)  |
+| Test evidence               |     45 | BLOCKER (must expand)         |
+| **Overall**                 | **48** | **NO-GO for Canvas**          |
 
 ---
 
@@ -55,15 +55,15 @@ Phase 04.5.1 must close the blockers below in the listed order. Do not start Can
 
 ## Must fix before Canvas (acceptance summary)
 
-| ID | Acceptance criteria (observable) |
-|---|---|
-| C1 | External assignment via returned document reference cannot mutate kernel state; mutations only succeed through `dispatch` / `transaction` |
-| C2 | Undoing `ADD_NODE` either refuses when children exist, or removes entire subtree atomically and restores on redo |
-| C3 | `serialize → JSON → registry.create → execute/undo` round-trip works for ADD/REMOVE/MOVE/UPDATE/BATCH without private instance fields |
-| C4 | `validateDocument(doc)` rejects `ROOT_MISSING`, `ORPHAN_NODE`, `CYCLE_FOUND`, `INVALID_PARENT_REFERENCE`, `DUPLICATE_CHILD`, `DANGLING_CHILD_ID` |
-| H1 | `kernel.transaction(fn \| ICommand[])` commits all or rolls back all; one `HistoryEntry` |
-| H2 | `"BATCH"` registered; nested commands deserialize recursively |
-| H3 | Plugin manifest permissions enforced; native node overwrite denied by default |
+| ID  | Acceptance criteria (observable)                                                                                                                 |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| C1  | External assignment via returned document reference cannot mutate kernel state; mutations only succeed through `dispatch` / `transaction`        |
+| C2  | Undoing `ADD_NODE` either refuses when children exist, or removes entire subtree atomically and restores on redo                                 |
+| C3  | `serialize → JSON → registry.create → execute/undo` round-trip works for ADD/REMOVE/MOVE/UPDATE/BATCH without private instance fields            |
+| C4  | `validateDocument(doc)` rejects `ROOT_MISSING`, `ORPHAN_NODE`, `CYCLE_FOUND`, `INVALID_PARENT_REFERENCE`, `DUPLICATE_CHILD`, `DANGLING_CHILD_ID` |
+| H1  | `kernel.transaction(fn \| ICommand[])` commits all or rolls back all; one `HistoryEntry`                                                         |
+| H2  | `"BATCH"` registered; nested commands deserialize recursively                                                                                    |
+| H3  | Plugin manifest permissions enforced; native node overwrite denied by default                                                                    |
 
 ---
 
@@ -71,15 +71,15 @@ Phase 04.5.1 must close the blockers below in the listed order. Do not start Can
 
 ### Exposures (source truth)
 
-| API / path | Writable? | Evidence |
-|---|---|---|
-| `BuilderKernel.getDocument()` | **Yes — live ref** | `return this.document` |
-| `BuilderKernel.getHistory()` | Yes — live `HistoryManager` | stacks are private but methods mutate |
-| `bootstrapBuilderKernel().history` | Same | facade returns `kernel.getHistory()` |
-| `getNode(document, id)` | Returns live node | `nodes/nodeGraph.ts` |
-| `walkNodeIds` / `collectDescendantIds` | Read-only helpers, but take live doc | |
-| Public export of types + factories | Callers can build docs and pass in | `index.ts` |
-| Command `execute/undo` | Mutate in place | all `impl/*` |
+| API / path                             | Writable?                            | Evidence                              |
+| -------------------------------------- | ------------------------------------ | ------------------------------------- |
+| `BuilderKernel.getDocument()`          | **Yes — live ref**                   | `return this.document`                |
+| `BuilderKernel.getHistory()`           | Yes — live `HistoryManager`          | stacks are private but methods mutate |
+| `bootstrapBuilderKernel().history`     | Same                                 | facade returns `kernel.getHistory()`  |
+| `getNode(document, id)`                | Returns live node                    | `nodes/nodeGraph.ts`                  |
+| `walkNodeIds` / `collectDescendantIds` | Read-only helpers, but take live doc |                                       |
+| Public export of types + factories     | Callers can build docs and pass in   | `index.ts`                            |
+| Command `execute/undo`                 | Mutate in place                      | all `impl/*`                          |
 
 ### Answers
 
@@ -95,11 +95,11 @@ Phase 04.5.1 must close the blockers below in the listed order. Do not start Can
 
 ### Risk card
 
-| | |
-|---|---|
-| **Current risk** | Silent corruption; Canvas/AI cannot trust document as command-sourced |
-| **Severity** | CRITICAL |
-| **Required fix** | Seal read API + deep-clone on ingest + command-only writes |
+|                         |                                                                                                                 |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------- |
+| **Current risk**        | Silent corruption; Canvas/AI cannot trust document as command-sourced                                           |
+| **Severity**            | CRITICAL                                                                                                        |
+| **Required fix**        | Seal read API + deep-clone on ingest + command-only writes                                                      |
 | **Acceptance criteria** | Unit test: mutate returned object → kernel document unchanged; only `dispatch` changes state and pushes history |
 
 ---
@@ -108,13 +108,13 @@ Phase 04.5.1 must close the blockers below in the listed order. Do not start Can
 
 ### Reconstruct-from-JSON matrix
 
-| Command | `serialize()` payload | Hidden instance state | `fromSerialized` / registry | Round-trip execute | Round-trip undo |
-|---|---|---|---|---|---|
-| `ADD_NODE` | full `node` + `parentId` + `index?` | none for undo (inverse is delete) | YES | YES (if ids fixed) | **PARTIAL** — orphans children (C2) |
-| `REMOVE_NODE` | `{ nodeId }` only | **`snapshot` subtree** | YES factory | YES | **NO** after deserialize |
-| `MOVE_NODE` | `{ nodeId, newParentId, index? }` | **`snapshot` prev parent/index** | YES | YES | **NO** after deserialize |
-| `UPDATE_PROPERTY` | `{ nodeId, path, value }` | **`previousValue`** | YES | YES | **NO** after deserialize |
-| `BATCH` | `{ count, commands[] }` | **`executed[]` live cmds** | **NO registry** | manual only | **NO** durable |
+| Command           | `serialize()` payload               | Hidden instance state             | `fromSerialized` / registry | Round-trip execute | Round-trip undo                     |
+| ----------------- | ----------------------------------- | --------------------------------- | --------------------------- | ------------------ | ----------------------------------- |
+| `ADD_NODE`        | full `node` + `parentId` + `index?` | none for undo (inverse is delete) | YES                         | YES (if ids fixed) | **PARTIAL** — orphans children (C2) |
+| `REMOVE_NODE`     | `{ nodeId }` only                   | **`snapshot` subtree**            | YES factory                 | YES                | **NO** after deserialize            |
+| `MOVE_NODE`       | `{ nodeId, newParentId, index? }`   | **`snapshot` prev parent/index**  | YES                         | YES                | **NO** after deserialize            |
+| `UPDATE_PROPERTY` | `{ nodeId, path, value }`           | **`previousValue`**               | YES                         | YES                | **NO** after deserialize            |
+| `BATCH`           | `{ count, commands[] }`             | **`executed[]` live cmds**        | **NO registry**             | manual only        | **NO** durable                      |
 
 ### Determinism notes
 
@@ -129,6 +129,7 @@ SerializedCommand → CommandFactory → ICommand → Execution
 ```
 
 Gaps:
+
 1. Payload Zod schemas per command type.
 2. Inverse / before-state embedded in serialized form (or event-sourced model).
 3. `BATCH` factory + nested reconstruction.
@@ -146,12 +147,12 @@ Gaps:
 
 ### Survive matrix
 
-| Scenario | Survives today? |
-|---|---|
-| Browser refresh | **NO** — no persistence adapter; undo state lost |
-| Server persistence | **NO** — no adapter; serialized undo incomplete |
-| AI replay | **PARTIAL** — can re-`execute` ADD/UPDATE/MOVE/REMOVE from empty base if starting snapshot known; cannot undo from JSON |
-| Collaboration sync | **NO** — no vector clocks / OT / CRDT; live mutation model |
+| Scenario           | Survives today?                                                                                                         |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| Browser refresh    | **NO** — no persistence adapter; undo state lost                                                                        |
+| Server persistence | **NO** — no adapter; serialized undo incomplete                                                                         |
+| AI replay          | **PARTIAL** — can re-`execute` ADD/UPDATE/MOVE/REMOVE from empty base if starting snapshot known; cannot undo from JSON |
+| Collaboration sync | **NO** — no vector clocks / OT / CRDT; live mutation model                                                              |
 
 ### Required durable record (design contract for 04.5.1)
 
@@ -172,11 +173,11 @@ Each history event MUST store at minimum:
 
 **Inverse strategies (pick one consistently):**
 
-| Strategy | Pros | Cons |
-|---|---|---|
-| A. Store `beforePatch` JSON | Simple undo | Larger history |
-| B. Store inverse command | Compact | Harder for BATCH |
-| C. Document snapshots every N | Fast restore | Memory / disk |
+| Strategy                      | Pros         | Cons             |
+| ----------------------------- | ------------ | ---------------- |
+| A. Store `beforePatch` JSON   | Simple undo  | Larger history   |
+| B. Store inverse command      | Compact      | Harder for BATCH |
+| C. Document snapshots every N | Fast restore | Memory / disk    |
 
 **Recommendation for 04.5.1:** Strategy A for UPDATE/MOVE/REMOVE; ADD inverse = REMOVE by id (with subtree policy); BATCH = ordered list of inverses.
 
@@ -186,15 +187,15 @@ Each history event MUST store at minimum:
 
 ### Corruption scenarios (possible today)
 
-| Scenario | How |
-|---|---|
-| Orphan node | `ADD_NODE.undo` after children added; or load crafted JSON |
-| Cycle | Load crafted `parentId` cycle (MOVE blocks some live cycles) |
-| Duplicate logical child | Children array can list same id twice if mutated externally |
-| Missing root | Blocked by parse if `rootId` absent from map |
-| Invalid parent ref | Child `parentId` ≠ parent’s `children` — accepted by Zod |
-| Dangling child id | `children` points to missing node — accepted by Zod |
-| Duplicate node keys | Impossible in one `Record` key; duplicate ids across meaning N/A |
+| Scenario                | How                                                              |
+| ----------------------- | ---------------------------------------------------------------- |
+| Orphan node             | `ADD_NODE.undo` after children added; or load crafted JSON       |
+| Cycle                   | Load crafted `parentId` cycle (MOVE blocks some live cycles)     |
+| Duplicate logical child | Children array can list same id twice if mutated externally      |
+| Missing root            | Blocked by parse if `rootId` absent from map                     |
+| Invalid parent ref      | Child `parentId` ≠ parent’s `children` — accepted by Zod         |
+| Dangling child id       | `children` points to missing node — accepted by Zod              |
+| Duplicate node keys     | Impossible in one `Record` key; duplicate ids across meaning N/A |
 
 ### Required `validateDocument(document)` codes
 
@@ -242,14 +243,14 @@ kernel.transaction((tx) => {
 
 ### Semantics
 
-| Rule | Spec |
-|---|---|
-| Atomic commit | All nested execute succeed → one `HistoryEntry` (`BATCH`) |
-| Rollback | On first failure, undo already-executed nested commands in reverse |
-| Events | Emit single `COMMAND_EXECUTED` for BATCH (not N nested), or emit nested + batch — **choose one**; recommend single batch event + `metadata.count` |
-| Nested transactions | **Forbid in 04.5.1** (throw `TRANSACTION_NESTING_UNSUPPORTED`) |
-| Failure recovery | Return `{ success:false, error }`; document unchanged vs pre-tx |
-| Isolation | No external reads should observe mid-tx state (if sync JS, OK if no await mid-tx) |
+| Rule                | Spec                                                                                                                                              |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Atomic commit       | All nested execute succeed → one `HistoryEntry` (`BATCH`)                                                                                         |
+| Rollback            | On first failure, undo already-executed nested commands in reverse                                                                                |
+| Events              | Emit single `COMMAND_EXECUTED` for BATCH (not N nested), or emit nested + batch — **choose one**; recommend single batch event + `metadata.count` |
+| Nested transactions | **Forbid in 04.5.1** (throw `TRANSACTION_NESTING_UNSUPPORTED`)                                                                                    |
+| Failure recovery    | Return `{ success:false, error }`; document unchanged vs pre-tx                                                                                   |
+| Isolation           | No external reads should observe mid-tx state (if sync JS, OK if no await mid-tx)                                                                 |
 
 ### Rollback strategy
 
@@ -273,26 +274,26 @@ Kernel Execution
 
 ### Consumer flows
 
-| Consumer | Needs |
-|---|---|
-| AI | Emit allowlisted `SerializedCommand[]`; kernel validates + `transaction` |
-| Cloud save | Persist `exportDocument()` + append-only event log with inverses |
+| Consumer    | Needs                                                                         |
+| ----------- | ----------------------------------------------------------------------------- |
+| AI          | Emit allowlisted `SerializedCommand[]`; kernel validates + `transaction`      |
+| Cloud save  | Persist `exportDocument()` + append-only event log with inverses              |
 | Multiplayer | Later: ordered ops with actor ids; **out of 04.5.1** beyond event shape stubs |
 
 ### Missing pieces now
 
-1. Per-command Zod schemas  
-2. Inverse in serialized events  
-3. `dispatchSerialized` / `replay(events, baseDocument)`  
-4. BATCH registry  
-5. Actor/source metadata on `HistoryEntry`  
-6. Document version monotonic check on replay  
+1. Per-command Zod schemas
+2. Inverse in serialized events
+3. `dispatchSerialized` / `replay(events, baseDocument)`
+4. BATCH registry
+5. Actor/source metadata on `HistoryEntry`
+6. Document version monotonic check on replay
 
 ### AI generation safety (min for 04.5.1)
 
-- Reject unknown command types  
-- Reject paths outside allowlist for `UPDATE_PROPERTY`  
-- Reject ADD of unknown `node.type` unless plugin permitted  
+- Reject unknown command types
+- Reject paths outside allowlist for `UPDATE_PROPERTY`
+- Reject ADD of unknown `node.type` unless plugin permitted
 - Always apply Vision IR via `transaction(compiler.compile(...))`
 
 ---
@@ -313,24 +314,24 @@ Plugin.register(facade)
 
 ### Malicious plugin capabilities today
 
-| Action | Possible? |
-|---|---|
-| Overwrite core nodes (`Button`, …) | **YES** |
-| Replace command factories | **YES** |
-| Corrupt documents | **YES** (via custom commands or if given doc access later) |
-| Subscribe to all events | **YES** |
+| Action                             | Possible?                                                  |
+| ---------------------------------- | ---------------------------------------------------------- |
+| Overwrite core nodes (`Button`, …) | **YES**                                                    |
+| Replace command factories          | **YES**                                                    |
+| Corrupt documents                  | **YES** (via custom commands or if given doc access later) |
+| Subscribe to all events            | **YES**                                                    |
 
 ### Minimum permission model (04.5.1 skeleton)
 
 ```ts
 type PluginPermission =
   | "nodes.register"
-  | "nodes.overwrite"      // default DENY for native types
+  | "nodes.overwrite" // default DENY for native types
   | "commands.register"
-  | "commands.overwrite"   // default DENY for built-ins
+  | "commands.overwrite" // default DENY for built-ins
   | "events.subscribe"
-  | "document.read"        // via sealed API only
-  | "document.write";      // only through dispatch — rarely granted
+  | "document.read" // via sealed API only
+  | "document.write"; // only through dispatch — rarely granted
 ```
 
 ```ts
@@ -348,25 +349,25 @@ Enforce at facade methods; deny by default; never hand raw writable document to 
 
 # AUDIT AREA 8 — PERFORMANCE LIMITS
 
-| Scale | Lookup | Single cmd | Large REMOVE snapshot | Unbounded undo | Verdict |
-|---:|---|---|---|---|---|
-| 100 | OK | OK | OK | OK | Fine |
-| 1 000 | OK | OK | Noticeable | Watch | Cap history |
-| 10 000 | OK | OK | Expensive clones | Risk | Need compaction |
-| 100 000 | OK map | OK | Severe | Fail | Out of scope without redesign |
+|   Scale | Lookup | Single cmd | Large REMOVE snapshot | Unbounded undo | Verdict                       |
+| ------: | ------ | ---------- | --------------------- | -------------- | ----------------------------- |
+|     100 | OK     | OK         | OK                    | OK             | Fine                          |
+|   1 000 | OK     | OK         | Noticeable            | Watch          | Cap history                   |
+|  10 000 | OK     | OK         | Expensive clones      | Risk           | Need compaction               |
+| 100 000 | OK map | OK         | Severe                | Fail           | Out of scope without redesign |
 
 ### Expensive ops today
 
-1. `structuredClone` entire subtree on REMOVE  
-2. Unbounded undo/redo stacks  
-3. Full-document Zod parse on load (OK) + missing invariant walk O(n) once added  
-4. History holding live `ICommand` instances + cloned snapshots  
+1. `structuredClone` entire subtree on REMOVE
+2. Unbounded undo/redo stacks
+3. Full-document Zod parse on load (OK) + missing invariant walk O(n) once added
+4. History holding live `ICommand` instances + cloned snapshots
 
 ### 04.5.1 performance minimum
 
-- `maxHistoryEntries` (e.g. 100) with drop-from-bottom  
-- Deep-clone only for REMOVE inverse payload (unavoidable)  
-- Invariant validation O(n) acceptable to 10k if once per command  
+- `maxHistoryEntries` (e.g. 100) with drop-from-bottom
+- Deep-clone only for REMOVE inverse payload (unavoidable)
+- Invariant validation O(n) acceptable to 10k if once per command
 
 ---
 
@@ -375,58 +376,67 @@ Enforce at facade methods; deny by default; never hand raw writable document to 
 Execute **strictly in this order**. Do not reorder. Do not start Canvas in parallel.
 
 ### STEP 1 — Seal document mutability
+
 **Files:**  
 `kernel/builderKernel.ts`, `document/documentFactory.ts` (clone helpers), `commands/impl/addNode.command.ts`, new `document/readonly.ts` (optional), tests  
 **Purpose:** Readonly/export API; deep-clone on ADD; command-only mutation  
-**Tests:** External mutate does not affect kernel; ADD payload aliasing test  
+**Tests:** External mutate does not affect kernel; ADD payload aliasing test
 
 ### STEP 2 — Graph invariant validator
+
 **Files:**  
 `document/documentInvariants.ts`, `document/documentValidator.ts`, `kernel/builderKernel.ts` (`loadDocument` + post-dispatch)  
 **Purpose:** `validateDocument` with error codes listed above  
-**Tests:** Fixtures for each error code; valid default doc passes  
+**Tests:** Fixtures for each error code; valid default doc passes
 
 ### STEP 3 — Fix ADD_NODE undo / subtree policy
+
 **Files:**  
 `commands/impl/addNode.command.ts`, `commandEngine.test.ts`  
 **Purpose:** No orphans on undo (refuse or recursive remove — pick refuse-if-children for simplicity + clarity)  
-**Tests:** Add parent+child → undo parent fails OR removes both; document validates after  
+**Tests:** Add parent+child → undo parent fails OR removes both; document validates after
 
 ### STEP 4 — Serializable inverses
+
 **Files:**  
 `commands/command.interface.ts`, each `impl/*.ts`, `history/historyManager.ts`  
 **Purpose:** Embed `inverse` (or before-state) in `SerializedCommand`; `fromSerialized` restores undoability  
-**Tests:** serialize → JSON.parse/stringify → registry.create → undo/redo parity  
+**Tests:** serialize → JSON.parse/stringify → registry.create → undo/redo parity
 
 ### STEP 5 — Command payload Zod + registry hardening
+
 **Files:**  
 `commands/schemas.ts` (new), `commands/commandManager.ts`  
 **Purpose:** Validate before factory; remove unsafe casts  
-**Tests:** Reject malformed payloads; accept golden fixtures  
+**Tests:** Reject malformed payloads; accept golden fixtures
 
 ### STEP 6 — Transaction API + BATCH registry
+
 **Files:**  
 `kernel/builderKernel.ts`, `commands/impl/batch.command.ts`, `commands/commandManager.ts`  
 **Purpose:** `kernel.transaction`; register `BATCH`; nested deserialize; forbid nesting  
-**Tests:** Mid-batch failure rolls back; one history entry; JSON round-trip BATCH  
+**Tests:** Mid-batch failure rolls back; one history entry; JSON round-trip BATCH
 
 ### STEP 7 — Plugin permission skeleton
+
 **Files:**  
 `plugins/plugin.types.ts`, `plugins/pluginRegistry.ts`, `registry/nodeRegistry.ts`  
 **Purpose:** Manifest permissions; deny native overwrite by default  
-**Tests:** Unauthorized overwrite throws; authorized register succeeds  
+**Tests:** Unauthorized overwrite throws; authorized register succeeds
 
 ### STEP 8 — History bounds + actor metadata stubs
+
 **Files:**  
 `history/historyManager.ts`, `kernel/builderKernel.ts`  
 **Purpose:** `maxHistoryEntries`; optional `source` on entries  
-**Tests:** Overflow drops oldest; exportSerialized length capped  
+**Tests:** Overflow drops oldest; exportSerialized length capped
 
 ### STEP 9 — Hardening regression suite + sign-off
+
 **Files:**  
 `src/lib/builder/*hardening*.test.ts`, update `.nexify-forge/prompts/04.5-builder-kernel.md` or add `04.5.1-hardening.md`  
 **Purpose:** Prove C1–C4 / H1–H3 closed  
-**Tests:** Full matrix green; `bun run typecheck` + `bun run test:unit`  
+**Tests:** Full matrix green; `bun run typecheck` + `bun run test:unit`
 
 **STOP.** Architecture Sign-off. Only then Phase 05 Canvas.
 

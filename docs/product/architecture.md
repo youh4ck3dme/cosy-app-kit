@@ -30,19 +30,19 @@ flowchart LR
 
 ## Key paths
 
-| Path | Role |
-|------|------|
-| `src/routes/api/chat.ts` | Stream + tools + persist + skeleton seed |
-| `src/lib/agent/*` | tools, prompts, memory, artifacts, errors |
-| `src/lib/agent/semantic-intent/*` | Intent detect + product skeletons |
-| `src/components/app-shell/*` | Chat shell + canvas |
-| `src/lib/models.ts` | Catalog + routing |
-| `docs/progress.md` | BPI scoreboard |
-| `docs/todo.md` | Hub — parallel agent boards |
-| `docs/groktodo.md` | Grok world (backend / agent) |
-| `docs/cursortodo.md` | Cursor world A→Z |
-| `docs/agent-tools.md` | Tools + versions API for UI |
-| `artifact_versions` | Snapshots on tool/fence/save/restore |
+| Path                              | Role                                      |
+| --------------------------------- | ----------------------------------------- |
+| `src/routes/api/chat.ts`          | Stream + tools + persist + skeleton seed  |
+| `src/lib/agent/*`                 | tools, prompts, memory, artifacts, errors |
+| `src/lib/agent/semantic-intent/*` | Intent detect + product skeletons         |
+| `src/components/app-shell/*`      | Chat shell + canvas                       |
+| `src/lib/models.ts`               | Catalog + routing                         |
+| `docs/progress.md`                | BPI scoreboard                            |
+| `docs/todo.md`                    | Hub — parallel agent boards               |
+| `docs/groktodo.md`                | Grok world (backend / agent)              |
+| `docs/cursortodo.md`              | Cursor world A→Z                          |
+| `docs/agent-tools.md`             | Tools + versions API for UI               |
+| `artifact_versions`               | Snapshots on tool/fence/save/restore      |
 
 ## Auth / data
 

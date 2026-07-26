@@ -38,10 +38,10 @@ Do **not** debug Google OAuth / chat because of those console lines.
 
 Bump constants in [`src/lib/deploy-rev.ts`](../../src/lib/deploy-rev.ts) when you ship:
 
-| Constant | When to bump |
-|----------|----------------|
-| `BUILD_MARKER` | Agent API, tools, prompts, models |
-| `SHELL_REV` | UI shell, PWA, viewport lock, settings |
+| Constant       | When to bump                           |
+| -------------- | -------------------------------------- |
+| `BUILD_MARKER` | Agent API, tools, prompts, models      |
+| `SHELL_REV`    | UI shell, PWA, viewport lock, settings |
 
 Verify live:
 
@@ -55,13 +55,13 @@ Expected after this ship: `shellRev: "native-shell-1"`, `buildMarker: "mistral-a
 
 ## If prod smoke fails after merge
 
-| Symptom | Fix |
-|---------|-----|
-| `shellRev` mismatch | Lovable **Publish** not done yet → Publish, re-run `bun run prod-smoke` |
-| `manifest.id` missing | Same — old bundle still live |
+| Symptom                                               | Fix                                                                                                                                                              |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shellRev` mismatch                                   | Lovable **Publish** not done yet → Publish, re-run `bun run prod-smoke`                                                                                          |
+| `manifest.id` missing                                 | Same — old bundle still live                                                                                                                                     |
 | CORS on `manifest.webmanifest` → `vercel.com/sso-api` | You are on an **SSO-protected Vercel preview**. Test PWA on https://cosy-app-kit.lovable.app or disable Deployment Protection / use Bypass — not an app CORS fix |
-| `mistralKeyPresent: false` | Lovable Cloud → Secrets → `MISTRAL_API_KEY` → redeploy |
-| Apple meta tags missing in `/chat` HTML | Publish + hard refresh (SW cache) |
+| `mistralKeyPresent: false`                            | Lovable Cloud → Secrets → `MISTRAL_API_KEY` → redeploy                                                                                                           |
+| Apple meta tags missing in `/chat` HTML               | Publish + hard refresh (SW cache)                                                                                                                                |
 
 ---
 

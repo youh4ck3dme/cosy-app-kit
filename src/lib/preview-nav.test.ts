@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  joinArtifactPath,
-  matchArtifactFile,
-  resolvePreviewNavTarget,
-} from "@/lib/preview-nav";
+import { joinArtifactPath, matchArtifactFile, resolvePreviewNavTarget } from "@/lib/preview-nav";
 
 const FILES = ["index.html", "about.html", "contact.html", "pricing.html", "css/site.css"];
 

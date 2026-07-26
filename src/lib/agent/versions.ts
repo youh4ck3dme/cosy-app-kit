@@ -27,9 +27,7 @@ export async function snapshotArtifactVersion(
   supabase: Client,
   input: SnapshotInput,
 ): Promise<{ ok: true; versionId: string } | { ok: false; error: string }> {
-  const filesJson = (
-    Array.isArray(input.files) ? input.files : input.files
-  ) as unknown as Json;
+  const filesJson = (Array.isArray(input.files) ? input.files : input.files) as unknown as Json;
 
   const { data, error } = await supabase
     .from("artifact_versions")

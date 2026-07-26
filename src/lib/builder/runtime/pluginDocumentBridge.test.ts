@@ -4,10 +4,7 @@ import type { PluginContext } from "@/lib/plugin-sdk";
 import { AddNodeCommand } from "../commands/impl/addNode.command";
 import { createNodeFromDefaults } from "../document/documentFactory";
 import { createBuilderRuntime } from "./builderRuntime";
-import {
-  createDevPluginSdkHost,
-  createReadonlyPluginDocumentSource,
-} from "./pluginDocumentBridge";
+import { createDevPluginSdkHost, createReadonlyPluginDocumentSource } from "./pluginDocumentBridge";
 
 describe("Runtime Plugin documentSource bridge (ADR-0005 Slice C)", () => {
   it("createReadonlyPluginDocumentSource reads a frozen document via Runtime", () => {
@@ -79,9 +76,7 @@ describe("Runtime Plugin documentSource bridge (ADR-0005 Slice C)", () => {
     expect((ctx as { writeDocument?: unknown }).writeDocument).toBeUndefined();
 
     const doc = ctx?.readDocument() as ReturnType<typeof runtime.getReadonlyDocument>;
-    expect(
-      Object.values(doc.tree.nodes).some((n) => n.props.text === "from-runtime"),
-    ).toBe(true);
+    expect(Object.values(doc.tree.nodes).some((n) => n.props.text === "from-runtime")).toBe(true);
 
     // Host never passes canvasSource — even with canvas.read granted.
     expect(ctx?.readCanvas()).toBeUndefined();
@@ -92,8 +87,8 @@ describe("Runtime Plugin documentSource bridge (ADR-0005 Slice C)", () => {
   it("createDevPluginSdkHost refuses a disposed Runtime", () => {
     const runtime = createBuilderRuntime();
     runtime.dispose();
-    expect(() =>
-      createDevPluginSdkHost({ runtime, enablePluginDocumentSource: true }),
-    ).toThrow(/disposed/i);
+    expect(() => createDevPluginSdkHost({ runtime, enablePluginDocumentSource: true })).toThrow(
+      /disposed/i,
+    );
   });
 });

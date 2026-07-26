@@ -32,9 +32,7 @@ export class AuditTrail {
       action: input.action,
       timestamp: input.timestamp ?? Date.now(),
       ...(input.actor !== undefined ? { actor: input.actor } : {}),
-      ...(input.payload !== undefined
-        ? { payload: Object.freeze({ ...input.payload }) }
-        : {}),
+      ...(input.payload !== undefined ? { payload: Object.freeze({ ...input.payload }) } : {}),
     });
     this.entries.push(entry);
     while (this.entries.length > this.maxEntries) {
@@ -64,9 +62,7 @@ export class AuditTrail {
   private cloneFrozen(entry: AuditEntry): AuditEntry {
     return Object.freeze({
       ...entry,
-      ...(entry.payload !== undefined
-        ? { payload: Object.freeze({ ...entry.payload }) }
-        : {}),
+      ...(entry.payload !== undefined ? { payload: Object.freeze({ ...entry.payload }) } : {}),
     });
   }
 

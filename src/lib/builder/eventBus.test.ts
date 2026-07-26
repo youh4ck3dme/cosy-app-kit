@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { AddNodeCommand } from "@/lib/builder/commands/impl/addNode.command";
-import { createDefaultDocument, createNodeFromDefaults } from "@/lib/builder/document/documentFactory";
+import {
+  createDefaultDocument,
+  createNodeFromDefaults,
+} from "@/lib/builder/document/documentFactory";
 import { BuilderKernel, BuilderUiState } from "@/lib/builder/kernel/builderKernel";
 import { KernelEventBus } from "@/lib/builder/kernel/eventBus";
 

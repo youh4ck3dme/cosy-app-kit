@@ -952,7 +952,9 @@ export function Canvas({
                   ) : (
                     <Share2 className="h-3.5 w-3.5" />
                   )}
-                  <span className="hidden md:inline">{artifact.is_public ? "Shared" : "Share"}</span>
+                  <span className="hidden md:inline">
+                    {artifact.is_public ? "Shared" : "Share"}
+                  </span>
                 </button>
               </>
             )}
@@ -1272,19 +1274,12 @@ export function Canvas({
                   style={{ height: frame.iframeHeight, width: frame.mediaWidth }}
                 >
                   {!iframeLoaded && (
-                    <Skeleton
-                      aria-hidden
-                      className="absolute inset-0 rounded-none"
-                    />
+                    <Skeleton aria-hidden className="absolute inset-0 rounded-none" />
                   )}
                   <iframe
                     key={key}
                     ref={iframeRef}
-                    {...(previewSrc
-                      ? { src: previewSrc }
-                      : srcDoc
-                        ? { srcDoc }
-                        : {})}
+                    {...(previewSrc ? { src: previewSrc } : srcDoc ? { srcDoc } : {})}
                     sandbox="allow-scripts allow-forms"
                     onLoad={() => setIframeLoaded(true)}
                     onError={() => setIframeLoaded(true)}

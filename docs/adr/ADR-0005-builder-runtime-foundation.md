@@ -28,14 +28,14 @@ Canvas integration requires a separate future ADR and implementation milestone.
 
 ### What Runtime is not (this milestone)
 
-| Out of scope for v0.5.0 | Reason |
-| --- | --- |
-| Design Canvas iframe / PostMessage runtime | Separate roadmap item; RPC types only today; no Canvas surface under this ADR |
-| Marketplace / third-party plugin install | Sequencing principle rejects marketplace-before-isolation completion |
-| Mutation-rich Plugin SDK host (`document.write` / `document.modify`) | Declared inert; activating write is a later bridge milestone |
-| Locked persistence schema (Supabase vs IndexedDB) | Premature lock-in called out in RFC-0001 |
-| Unifying kernel `PluginRegistry` and `PluginSdkRegistry` permissions | Separate bridge work; not implied by Runtime session ownership |
-| Replacing the product AI Builder chat/artifact canvas | Distinct product track |
+| Out of scope for v0.5.0                                              | Reason                                                                        |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Design Canvas iframe / PostMessage runtime                           | Separate roadmap item; RPC types only today; no Canvas surface under this ADR |
+| Marketplace / third-party plugin install                             | Sequencing principle rejects marketplace-before-isolation completion          |
+| Mutation-rich Plugin SDK host (`document.write` / `document.modify`) | Declared inert; activating write is a later bridge milestone                  |
+| Locked persistence schema (Supabase vs IndexedDB)                    | Premature lock-in called out in RFC-0001                                      |
+| Unifying kernel `PluginRegistry` and `PluginSdkRegistry` permissions | Separate bridge work; not implied by Runtime session ownership                |
+| Replacing the product AI Builder chat/artifact canvas                | Distinct product track                                                        |
 
 ### Hard constraints (carry forward)
 
@@ -47,21 +47,21 @@ Canvas integration requires a separate future ADR and implementation milestone.
 
 ### Suggested implementation slices (non-binding order)
 
-| Slice | Intent | Status |
-| --- | --- | --- |
-| **A** | Session lifecycle + host facade over existing `bootstrapBuilderKernel` (create/dispose, readonly document, dispatch/undo/redo pass-through) | Shipped — [#21](https://github.com/youh4ck3dme/cosy-app-kit/pull/21) |
-| **B** | Persistence **ports** only (load/save interfaces + in-memory or test double); no production schema migration | Shipped — [#24](https://github.com/youh4ck3dme/cosy-app-kit/pull/24) |
+| Slice | Intent                                                                                                                                           | Status                                                               |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| **A** | Session lifecycle + host facade over existing `bootstrapBuilderKernel` (create/dispose, readonly document, dispatch/undo/redo pass-through)      | Shipped — [#21](https://github.com/youh4ck3dme/cosy-app-kit/pull/21) |
+| **B** | Persistence **ports** only (load/save interfaces + in-memory or test double); no production schema migration                                     | Shipped — [#24](https://github.com/youh4ck3dme/cosy-app-kit/pull/24) |
 | **C** | Optional read-only Plugin SDK `documentSource` wiring behind an explicit flag/dev host — still no write permissions activated; no `canvasSource` | Shipped — [#25](https://github.com/youh4ck3dme/cosy-app-kit/pull/25) |
 
 Slice C must not silently become a full SDK↔kernel permission unification. No slice may implement Canvas/RPC contracts.
 
 ## Alternatives considered
 
-| Alternative | Outcome |
-| --- | --- |
-| Wire kernel calls directly from React components | Rejected — blurs boundaries; hard to enforce isolation |
-| Delay all integration until Canvas ships | Rejected — kernel drifts from product needs; no session owner |
-| Ship persistence schema + Runtime + Canvas in one milestone | Rejected — couples undecided storage to host lifecycle |
+| Alternative                                                 | Outcome                                                       |
+| ----------------------------------------------------------- | ------------------------------------------------------------- |
+| Wire kernel calls directly from React components            | Rejected — blurs boundaries; hard to enforce isolation        |
+| Delay all integration until Canvas ships                    | Rejected — kernel drifts from product needs; no session owner |
+| Ship persistence schema + Runtime + Canvas in one milestone | Rejected — couples undecided storage to host lifecycle        |
 
 ## Consequences
 

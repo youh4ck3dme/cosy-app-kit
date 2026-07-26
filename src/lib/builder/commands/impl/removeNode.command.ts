@@ -1,8 +1,4 @@
-import type {
-  CommandResult,
-  ICommand,
-  SerializedCommand,
-} from "../command.interface";
+import type { CommandResult, ICommand, SerializedCommand } from "../command.interface";
 import type { BuilderDocument, BuilderNode, NodeId } from "../../document/document.types";
 import { cloneNode } from "../../document/cloneDocument";
 import { collectDescendantIds } from "../../nodes/nodeGraph";

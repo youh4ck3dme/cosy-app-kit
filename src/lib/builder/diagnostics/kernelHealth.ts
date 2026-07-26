@@ -54,9 +54,7 @@ function deriveStatus(
  * Aggregate Observatory health snapshot from diagnostic stores.
  * Read-only — does not execute commands or touch BuilderKernel state.
  */
-export function getKernelHealth(
-  options: KernelHealthOptions = {},
-): KernelHealthReport {
+export function getKernelHealth(options: KernelHealthOptions = {}): KernelHealthReport {
   const telemetry = options.telemetry ?? globalCommandTelemetry;
   const invariants = options.invariants ?? globalInvariantReporter;
   const pluginsInput = options.plugins ?? getPluginHealthSnapshot();
@@ -73,11 +71,7 @@ export function getKernelHealth(
     ids: Object.freeze([...(pluginsInput.ids ?? [])]),
   });
 
-  const status = deriveStatus(
-    commandSummary.failed,
-    criticalCount,
-    errorCount,
-  );
+  const status = deriveStatus(commandSummary.failed, criticalCount, errorCount);
 
   return Object.freeze({
     status,

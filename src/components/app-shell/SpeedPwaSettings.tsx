@@ -89,7 +89,10 @@ export function SpeedPwaSettings() {
           description="Install Builder like a native app and warm offline assets on launch."
         />
         <div className="mb-3 flex flex-wrap gap-2">
-          <StatusPill ok={status.standalone} label={status.standalone ? "Standalone" : "Browser tab"} />
+          <StatusPill
+            ok={status.standalone}
+            label={status.standalone ? "Standalone" : "Browser tab"}
+          />
           <StatusPill ok={status.serviceWorker} label="Service worker" />
           <StatusPill ok={prefs.pwaBooster} label="Asset warm-up" />
         </div>
@@ -133,10 +136,10 @@ export function SpeedPwaSettings() {
             <div className="flex items-start gap-3 rounded-xl border border-dashed border-border-subtle bg-surface-1/60 px-4 py-3 text-xs text-muted-foreground">
               <Smartphone className="mt-0.5 h-4 w-4 shrink-0 text-accent-primary" aria-hidden />
               <p>
-                On iPhone: open this page in <strong className="text-foreground">Safari</strong>, tap{" "}
-                <strong className="text-foreground">Share</strong>, then{" "}
-                <strong className="text-foreground">Add to Home Screen</strong>. The shell lock above
-                keeps the UI from floating when the URL bar hides.
+                On iPhone: open this page in <strong className="text-foreground">Safari</strong>,
+                tap <strong className="text-foreground">Share</strong>, then{" "}
+                <strong className="text-foreground">Add to Home Screen</strong>. The shell lock
+                above keeps the UI from floating when the URL bar hides.
               </p>
             </div>
           )}

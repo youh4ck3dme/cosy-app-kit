@@ -47,7 +47,11 @@ const INTENT_TERMS: Record<SemanticIntent, WeightedTerm[]> = {
     { re: /\bcrud\b/i, w: 4, reason: "crud" },
     { re: /\binventory\b/i, w: 3, reason: "inventory" },
     { re: /\btable\b/i, w: 1, reason: "table" },
-    { re: /\b(list|manage)\s+(items?|records?|entries|products?|users?)\b/i, w: 3, reason: "list/manage records" },
+    {
+      re: /\b(list|manage)\s+(items?|records?|entries|products?|users?)\b/i,
+      w: 3,
+      reason: "list/manage records",
+    },
     { re: /\bcreate.?read.?update.?delete\b/i, w: 4, reason: "create-read-update-delete" },
     { re: /\bkanban\b/i, w: 2, reason: "kanban" },
     { re: /\btodo\b|\btasks?\b/i, w: 2, reason: "todo/tasks" },
@@ -104,7 +108,10 @@ export function extractBrand(prompt: string, intent: SemanticIntent | "unknown")
   for (const re of patterns) {
     const m = text.match(re);
     if (m?.[1]) {
-      const brand = m[1].replace(/[.,;:!?]+$/, "").trim().slice(0, 48);
+      const brand = m[1]
+        .replace(/[.,;:!?]+$/, "")
+        .trim()
+        .slice(0, 48);
       if (brand.length >= 2) return brand;
     }
   }

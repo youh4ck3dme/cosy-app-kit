@@ -130,8 +130,7 @@ export function resolveArtifactFile(
     byBase.set(basenamePath(n.path).toLowerCase(), { ...f, path: n.path });
   }
 
-  const hit =
-    byPath.get(norm.path) ?? byBase.get(basenamePath(norm.path).toLowerCase()) ?? null;
+  const hit = byPath.get(norm.path) ?? byBase.get(basenamePath(norm.path).toLowerCase()) ?? null;
   if (!hit) {
     return { ok: false, status: 404, reason: "not_found" };
   }

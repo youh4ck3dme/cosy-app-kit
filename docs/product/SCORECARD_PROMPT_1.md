@@ -85,20 +85,20 @@ ZAKÁZANÉ
 
 ## Rubrika — čo meria každá dimenzia
 
-| ID | Kritérium (1–5) | Čo hľadáš v HTML / čo Builder musí vedieť |
-|----|-----------------|-------------------------------------------|
-| **D1** | Single-file canvas fit | Jeden self-contained HTML (inline CSS/JS), funguje v sandboxed preview, bez broken CDN |
-| **D2** | Core user flow | Kompletný happy path (BookSlot: service→date→slot→form→confirm) bez TODO/dead CTA |
-| **D3** | Domain engine | Pravidlá domény (sloty/konflikty / ekvivalent) — nie len UI |
-| **D4** | Persistence | localStorage (try/catch), refresh zachová stav |
-| **D5** | Operator / staff mode | Zoznam + filter + status transitions |
-| **D6** | Self-serve reverse path | Cancel/undo s overením identity (ID+email) |
-| **D7** | UX integrity | Validácia, empty states, toasty; žiadne mŕtve controls / `alert()` |
-| **D8** | Responsive | Mobile-first ~390px; desktop layout; žiadny page horizontal scroll |
-| **D9** | A11y | Labels, focus, Escape na dialógoch, keyboard |
-| **D10** | Promptability | Reprodukovateľné 1–3 Build promptami |
-| **D11** | Safe iteration | Chat / `edit_file` opravy nerozbijú core engine |
-| **D12** | Prod readiness | Auth/DB/payments — **out of scope** produktu Buildera dnes (reportuj oddelene) |
+| ID      | Kritérium (1–5)         | Čo hľadáš v HTML / čo Builder musí vedieť                                              |
+| ------- | ----------------------- | -------------------------------------------------------------------------------------- |
+| **D1**  | Single-file canvas fit  | Jeden self-contained HTML (inline CSS/JS), funguje v sandboxed preview, bez broken CDN |
+| **D2**  | Core user flow          | Kompletný happy path (BookSlot: service→date→slot→form→confirm) bez TODO/dead CTA      |
+| **D3**  | Domain engine           | Pravidlá domény (sloty/konflikty / ekvivalent) — nie len UI                            |
+| **D4**  | Persistence             | localStorage (try/catch), refresh zachová stav                                         |
+| **D5**  | Operator / staff mode   | Zoznam + filter + status transitions                                                   |
+| **D6**  | Self-serve reverse path | Cancel/undo s overením identity (ID+email)                                             |
+| **D7**  | UX integrity            | Validácia, empty states, toasty; žiadne mŕtve controls / `alert()`                     |
+| **D8**  | Responsive              | Mobile-first ~390px; desktop layout; žiadny page horizontal scroll                     |
+| **D9**  | A11y                    | Labels, focus, Escape na dialógoch, keyboard                                           |
+| **D10** | Promptability           | Reprodukovateľné 1–3 Build promptami                                                   |
+| **D11** | Safe iteration          | Chat / `edit_file` opravy nerozbijú core engine                                        |
+| **D12** | Prod readiness          | Auth/DB/payments — **out of scope** produktu Buildera dnes (reportuj oddelene)         |
 
 ---
 
@@ -106,13 +106,13 @@ ZAKÁZANÉ
 
 Ak artifact **nie je** booking (napr. Ops Desk), mapuj význam dimenzií a v JSON uveď `"artifact": "<name>"` + upravený checklist:
 
-| ID | BookSlot (canonical) | Ops Desk / generic dashboard |
-|----|----------------------|------------------------------|
-| D2 | Booking flow | Interaktivita (filtre, drawer, modal, palette) |
-| D3 | Slot engine | Stavové UI / workflow konzistencia |
-| D5 | Staff ops | Primary operator actions |
-| D6 | Cancel self-serve | Secondary self-serve / undo path |
-| D1, D4, D7–D11 | rovnaký význam | rovnaký význam |
-| D12 | production readiness | production readiness |
+| ID             | BookSlot (canonical) | Ops Desk / generic dashboard                   |
+| -------------- | -------------------- | ---------------------------------------------- |
+| D2             | Booking flow         | Interaktivita (filtre, drawer, modal, palette) |
+| D3             | Slot engine          | Stavové UI / workflow konzistencia             |
+| D5             | Staff ops            | Primary operator actions                       |
+| D6             | Cancel self-serve    | Secondary self-serve / undo path               |
+| D1, D4, D7–D11 | rovnaký význam       | rovnaký význam                                 |
+| D12            | production readiness | production readiness                           |
 
 Ops Desk historicky používal D1–D9 (+ production out-of-scope). Pre backlog **SCORECARD-BUILDER** používaj **D1–D11** (+ D12 oddelene) tabuľku vyššie.

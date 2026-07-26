@@ -22,13 +22,13 @@ Serialized commands carry durable `inverse` material for cold undo where applica
 
 ## Built-in commands
 
-| Type | Class | File |
-| --- | --- | --- |
-| `ADD_NODE` | `AddNodeCommand` | `impl/addNode.command.ts` |
-| `REMOVE_NODE` | `RemoveNodeCommand` | `impl/removeNode.command.ts` |
+| Type              | Class                   | File                             |
+| ----------------- | ----------------------- | -------------------------------- |
+| `ADD_NODE`        | `AddNodeCommand`        | `impl/addNode.command.ts`        |
+| `REMOVE_NODE`     | `RemoveNodeCommand`     | `impl/removeNode.command.ts`     |
 | `UPDATE_PROPERTY` | `UpdatePropertyCommand` | `impl/updateProperty.command.ts` |
-| `MOVE_NODE` | `MoveNodeCommand` | `impl/moveNode.command.ts` |
-| `BATCH` | `BatchCommand` | `impl/batch.command.ts` |
+| `MOVE_NODE`       | `MoveNodeCommand`       | `impl/moveNode.command.ts`       |
+| `BATCH`           | `BatchCommand`          | `impl/batch.command.ts`          |
 
 These five are **core command types** (`CORE_COMMAND_TYPES`). Kernel plugins cannot register or overwrite them.
 

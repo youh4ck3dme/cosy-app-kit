@@ -1,8 +1,4 @@
-import type {
-  CommandResult,
-  ICommand,
-  SerializedCommand,
-} from "../command.interface";
+import type { CommandResult, ICommand, SerializedCommand } from "../command.interface";
 import type { BuilderDocument, BuilderNode, NodeId } from "../../document/document.types";
 import { cloneNode } from "../../document/cloneDocument";
 
@@ -44,7 +40,10 @@ export class AddNodeCommand implements ICommand<AddNodePayload> {
       };
     }
 
-    if (this.payload.node.parentId !== null && this.payload.node.parentId !== this.payload.parentId) {
+    if (
+      this.payload.node.parentId !== null &&
+      this.payload.node.parentId !== this.payload.parentId
+    ) {
       return {
         success: false,
         mutatedNodeIds: [],

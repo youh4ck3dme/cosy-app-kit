@@ -5,11 +5,7 @@ import { parseBuilderDocument } from "../document/documentValidator";
 import { validateDocument } from "../document/documentInvariants";
 import type { CommandResult, ICommand } from "../commands/command.interface";
 import { BatchCommand } from "../commands/impl/batch.command";
-import {
-  createHistoryEntry,
-  HistoryManager,
-  type HistoryView,
-} from "../history/historyManager";
+import { createHistoryEntry, HistoryManager, type HistoryView } from "../history/historyManager";
 import { KernelEventBus } from "./eventBus";
 
 export interface KernelDispatchResult extends CommandResult {
@@ -70,7 +66,8 @@ export class BuilderKernel {
       return {
         success: false,
         mutatedNodeIds: [],
-        error: "TRANSACTION_NESTING_UNSUPPORTED: use TransactionContext.dispatch inside transaction()",
+        error:
+          "TRANSACTION_NESTING_UNSUPPORTED: use TransactionContext.dispatch inside transaction()",
       };
     }
 
@@ -135,9 +132,7 @@ export class BuilderKernel {
    * Atomic multi-command commit as a single history entry.
    * Accepts either a command array or a callback that queues via tx.dispatch.
    */
-  transaction(
-    input: ICommand[] | ((tx: TransactionContext) => void),
-  ): KernelDispatchResult {
+  transaction(input: ICommand[] | ((tx: TransactionContext) => void)): KernelDispatchResult {
     if (this.transactionDepth > 0) {
       return {
         success: false,

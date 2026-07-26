@@ -18,15 +18,15 @@ Plugins implement `BuilderPlugin`:
 
 ## Permissions
 
-| Permission | Effect |
-| --- | --- |
-| `nodes.register` | Register node types |
-| `nodes.overwrite` | Overwrite existing (including native) node types |
-| `commands.register` | Register non-core command factories |
-| `commands.overwrite` | Overwrite existing non-core commands |
-| `events.subscribe` | Subscribe to kernel events |
-| `document.read` | Declared (facade surface is registry/event oriented today) |
-| `document.write` | Declared |
+| Permission           | Effect                                                     |
+| -------------------- | ---------------------------------------------------------- |
+| `nodes.register`     | Register node types                                        |
+| `nodes.overwrite`    | Overwrite existing (including native) node types           |
+| `commands.register`  | Register non-core command factories                        |
+| `commands.overwrite` | Overwrite existing non-core commands                       |
+| `events.subscribe`   | Subscribe to kernel events                                 |
+| `document.read`      | Declared (facade surface is registry/event oriented today) |
+| `document.write`     | Declared                                                   |
 
 Defaults when omitted: `nodes.register`, `commands.register`, `events.subscribe`.
 

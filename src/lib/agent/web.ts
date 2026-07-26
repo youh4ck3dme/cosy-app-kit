@@ -24,7 +24,12 @@ function isPrivateIp(hostname: string): boolean {
   if (/^127\./.test(hostname)) return true;
   if (/^169\.254\./.test(hostname)) return true;
   // IPv6 local
-  if (hostname === "::1" || hostname.startsWith("fc") || hostname.startsWith("fd") || hostname.startsWith("fe80")) {
+  if (
+    hostname === "::1" ||
+    hostname.startsWith("fc") ||
+    hostname.startsWith("fd") ||
+    hostname.startsWith("fe80")
+  ) {
     return true;
   }
   return false;

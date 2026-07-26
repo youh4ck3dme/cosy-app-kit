@@ -1,18 +1,10 @@
-export {
-  detectSemanticIntent,
-  extractBrand,
-  shouldSeedSkeleton,
-} from "./detect";
+export { detectSemanticIntent, extractBrand, shouldSeedSkeleton } from "./detect";
 export {
   formatSkeletonSystemAppendix,
   seedInstantProductSkeleton,
   type SeedSkeletonArgs,
 } from "./seed";
-export {
-  renderProductSkeleton,
-  REQUIRED_SKELETON_MARKERS,
-  type SkeletonInput,
-} from "./skeletons";
+export { renderProductSkeleton, REQUIRED_SKELETON_MARKERS, type SkeletonInput } from "./skeletons";
 export {
   INTENT_SEED_MIN_SCORE,
   SEMANTIC_INTENTS,

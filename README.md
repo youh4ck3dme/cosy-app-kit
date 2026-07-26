@@ -13,31 +13,31 @@ Evolve a working AI Builder product into a disciplined builder platform: sealed 
 
 ## What exists today
 
-| Area | Status | Location |
-| --- | --- | --- |
-| Product chat (Mistral only) | Implemented | `src/routes`, AI SDK + `@ai-sdk/mistral` |
-| Artifact preview canvas | Implemented | `src/components/app-shell` (not kernel Canvas) |
-| Supabase auth / DB | Implemented | `src/integrations/supabase`, `supabase/` |
-| Builder Kernel | Implemented (library) | `src/lib/builder/` — tags `v0.4.5*` / `v0.4.5.1-hardening` |
-| Plugin SDK | Implemented (library) | `src/lib/plugin-sdk/` — tag `v0.4.7-plugin-sdk` |
-| Kernel ↔ product UI wiring | Not yet implemented | Product UI does not import kernel; `/dev/builder-playground` is developer tooling only |
-| Builder Kernel Playground | Implemented (dev-only) | `/dev/builder-playground` — redirects away in production |
-| Design Canvas (kernel consumer) | Not yet implemented | RPC types only |
-| Kernel Observatory (v0.4.6) | Future milestone | Not a released public API |
-| Plugin marketplace | Not yet implemented | — |
+| Area                            | Status                 | Location                                                                               |
+| ------------------------------- | ---------------------- | -------------------------------------------------------------------------------------- |
+| Product chat (Mistral only)     | Implemented            | `src/routes`, AI SDK + `@ai-sdk/mistral`                                               |
+| Artifact preview canvas         | Implemented            | `src/components/app-shell` (not kernel Canvas)                                         |
+| Supabase auth / DB              | Implemented            | `src/integrations/supabase`, `supabase/`                                               |
+| Builder Kernel                  | Implemented (library)  | `src/lib/builder/` — tags `v0.4.5*` / `v0.4.5.1-hardening`                             |
+| Plugin SDK                      | Implemented (library)  | `src/lib/plugin-sdk/` — tag `v0.4.7-plugin-sdk`                                        |
+| Kernel ↔ product UI wiring      | Not yet implemented    | Product UI does not import kernel; `/dev/builder-playground` is developer tooling only |
+| Builder Kernel Playground       | Implemented (dev-only) | `/dev/builder-playground` — redirects away in production                               |
+| Design Canvas (kernel consumer) | Not yet implemented    | RPC types only                                                                         |
+| Kernel Observatory (v0.4.6)     | Future milestone       | Not a released public API                                                              |
+| Plugin marketplace              | Not yet implemented    | —                                                                                      |
 
 ## Feature matrix
 
-| Feature | Product app | Builder Kernel | Plugin SDK |
-| --- | --- | --- | --- |
-| Threaded chat + artifacts | Yes | — | — |
-| Document model + Zod | — | Yes | — |
-| Commands + undo/redo | — | Yes | — |
-| Structural invariants | — | Yes | — |
-| Kernel plugin registry | — | Yes | — |
-| Manifest + lifecycle FSM | — | — | Yes |
-| Sealed permission grants | — | Partial (facade) | Yes (frozen) |
-| Live Canvas editor for documents | Product artifact UI only | Not yet | Not yet |
+| Feature                          | Product app              | Builder Kernel   | Plugin SDK   |
+| -------------------------------- | ------------------------ | ---------------- | ------------ |
+| Threaded chat + artifacts        | Yes                      | —                | —            |
+| Document model + Zod             | —                        | Yes              | —            |
+| Commands + undo/redo             | —                        | Yes              | —            |
+| Structural invariants            | —                        | Yes              | —            |
+| Kernel plugin registry           | —                        | Yes              | —            |
+| Manifest + lifecycle FSM         | —                        | —                | Yes          |
+| Sealed permission grants         | —                        | Partial (facade) | Yes (frozen) |
+| Live Canvas editor for documents | Product artifact UI only | Not yet          | Not yet      |
 
 ## Architecture preview
 
@@ -79,10 +79,10 @@ bun run dev                  # http://127.0.0.1:8080 (not localhost — Lovable 
 
 Mistral product chat needs `MISTRAL_API_KEY` (server-only). Dual-model routing is already in code:
 
-| Mode | Model | Id |
-| --- | --- | --- |
-| Plan (default) | Mistral Large | `mistral-large-latest` |
-| Build (code/HTML) | Codestral | `codestral-latest` |
+| Mode              | Model         | Id                     |
+| ----------------- | ------------- | ---------------------- |
+| Plan (default)    | Mistral Large | `mistral-large-latest` |
+| Build (code/HTML) | Codestral     | `codestral-latest`     |
 
 Setup guide (placeholders only): [secrets/mistr.md](./secrets/mistr.md). Put real keys in `.env.local` or `secrets/mistr.local.md` (gitignored) — never commit them.
 
@@ -172,29 +172,29 @@ Examples: [examples/](./examples/)
 
 ## Documentation
 
-| Doc | Link |
-| --- | --- |
-| Docs index | [docs/README.md](./docs/README.md) |
-| Architecture | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) |
-| Builder Kernel | [docs/BUILDER_KERNEL.md](./docs/BUILDER_KERNEL.md) |
-| Plugin SDK | [docs/PLUGIN_SDK.md](./docs/PLUGIN_SDK.md) |
-| Security | [docs/SECURITY.md](./docs/SECURITY.md) / [SECURITY.md](./SECURITY.md) |
-| Roadmap | [docs/ROADMAP.md](./docs/ROADMAP.md) / [ROADMAP.md](./ROADMAP.md) |
-| Changelog | [docs/CHANGELOG.md](./docs/CHANGELOG.md) / [CHANGELOG.md](./CHANGELOG.md) |
-| Contributing | [docs/CONTRIBUTING.md](./docs/CONTRIBUTING.md) / [CONTRIBUTING.md](./CONTRIBUTING.md) |
-| ADRs | [docs/adr/](./docs/adr/) |
-| RFCs (draft) | [docs/rfc/](./docs/rfc/) |
-| Runbooks | [docs/runbooks/](./docs/runbooks/) |
-| DevOps | [docs/DEVOPS.md](./docs/DEVOPS.md) |
+| Doc            | Link                                                                                  |
+| -------------- | ------------------------------------------------------------------------------------- |
+| Docs index     | [docs/README.md](./docs/README.md)                                                    |
+| Architecture   | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)                                        |
+| Builder Kernel | [docs/BUILDER_KERNEL.md](./docs/BUILDER_KERNEL.md)                                    |
+| Plugin SDK     | [docs/PLUGIN_SDK.md](./docs/PLUGIN_SDK.md)                                            |
+| Security       | [docs/SECURITY.md](./docs/SECURITY.md) / [SECURITY.md](./SECURITY.md)                 |
+| Roadmap        | [docs/ROADMAP.md](./docs/ROADMAP.md) / [ROADMAP.md](./ROADMAP.md)                     |
+| Changelog      | [docs/CHANGELOG.md](./docs/CHANGELOG.md) / [CHANGELOG.md](./CHANGELOG.md)             |
+| Contributing   | [docs/CONTRIBUTING.md](./docs/CONTRIBUTING.md) / [CONTRIBUTING.md](./CONTRIBUTING.md) |
+| ADRs           | [docs/adr/](./docs/adr/)                                                              |
+| RFCs (draft)   | [docs/rfc/](./docs/rfc/)                                                              |
+| Runbooks       | [docs/runbooks/](./docs/runbooks/)                                                    |
+| DevOps         | [docs/DEVOPS.md](./docs/DEVOPS.md)                                                    |
 
 ## Roadmap (summary)
 
-| Version | Status |
-| --- | --- |
+| Version                              | Status              |
+| ------------------------------------ | ------------------- |
 | v0.4.5 / v0.4.5.1 Kernel + hardening | Released (git tags) |
-| v0.4.6 Observatory | Future milestone |
-| v0.4.7 Plugin SDK | Released (git tag) |
-| v0.5.0 Builder Runtime | Planned |
+| v0.4.6 Observatory                   | Future milestone    |
+| v0.4.7 Plugin SDK                    | Released (git tag)  |
+| v0.5.0 Builder Runtime               | Planned             |
 
 Full: [docs/ROADMAP.md](./docs/ROADMAP.md)
 
@@ -209,12 +209,12 @@ Full: [docs/ROADMAP.md](./docs/ROADMAP.md)
 
 ## Repository statistics (approximate, branch-dependent)
 
-| Signal | Value |
-| --- | --- |
-| npm name | `tanstack_start_ts` (`private: true`) |
-| npm version field | unset (releases via git tags) |
+| Signal            | Value                                        |
+| ----------------- | -------------------------------------------- |
+| npm name          | `tanstack_start_ts` (`private: true`)        |
+| npm version field | unset (releases via git tags)                |
 | Unit test pattern | `src/**/*.test.ts` + `examples/**/*.test.ts` |
-| E2E | Playwright local; not in GitHub CI |
+| E2E               | Playwright local; not in GitHub CI           |
 
 ## Contributing
 

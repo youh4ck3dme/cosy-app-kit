@@ -1,14 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  assertValidPluginManifest,
-  validatePluginManifest,
-} from "./pluginManifest";
-import {
-  hasPermission,
-  isValidPermission,
-  validatePermissions,
-} from "./pluginPermissions";
+import { assertValidPluginManifest, validatePluginManifest } from "./pluginManifest";
+import { hasPermission, isValidPermission, validatePermissions } from "./pluginPermissions";
 import {
   PluginLifecycleError,
   runDestroy,
@@ -17,11 +10,7 @@ import {
   runInstall,
 } from "./pluginLifecycle";
 import { PluginSdkRegistry } from "./pluginRegistry";
-import type {
-  PluginContext,
-  PluginLifecycleHandlers,
-  PluginPermission,
-} from "./plugin.types";
+import type { PluginContext, PluginLifecycleHandlers, PluginPermission } from "./plugin.types";
 
 describe("pluginManifest", () => {
   it("accepts a minimal valid manifest", () => {
@@ -122,7 +111,11 @@ describe("pluginLifecycle", () => {
 
   it("runInstall moves registered -> installed and calls onInstall", async () => {
     let called = false;
-    const handlers: PluginLifecycleHandlers = { onInstall: () => { called = true; } };
+    const handlers: PluginLifecycleHandlers = {
+      onInstall: () => {
+        called = true;
+      },
+    };
     const next = await runInstall(handlers, noopContext, "registered");
     expect(next).toBe("installed");
     expect(called).toBe(true);
@@ -130,7 +123,11 @@ describe("pluginLifecycle", () => {
 
   it("runEnable moves installed -> enabled and calls onEnable", async () => {
     let called = false;
-    const handlers: PluginLifecycleHandlers = { onEnable: () => { called = true; } };
+    const handlers: PluginLifecycleHandlers = {
+      onEnable: () => {
+        called = true;
+      },
+    };
     const next = await runEnable(handlers, noopContext, "installed");
     expect(next).toBe("enabled");
     expect(called).toBe(true);
@@ -138,7 +135,11 @@ describe("pluginLifecycle", () => {
 
   it("runDisable moves enabled -> disabled and calls onDisable", async () => {
     let called = false;
-    const handlers: PluginLifecycleHandlers = { onDisable: () => { called = true; } };
+    const handlers: PluginLifecycleHandlers = {
+      onDisable: () => {
+        called = true;
+      },
+    };
     const next = await runDisable(handlers, noopContext, "enabled");
     expect(next).toBe("disabled");
     expect(called).toBe(true);
@@ -146,7 +147,11 @@ describe("pluginLifecycle", () => {
 
   it("runDestroy is reachable from installed, enabled, or disabled and calls onDestroy", async () => {
     let calls = 0;
-    const handlers: PluginLifecycleHandlers = { onDestroy: () => { calls += 1; } };
+    const handlers: PluginLifecycleHandlers = {
+      onDestroy: () => {
+        calls += 1;
+      },
+    };
     await runDestroy(handlers, noopContext, "installed");
     await runDestroy(handlers, noopContext, "enabled");
     await runDestroy(handlers, noopContext, "disabled");
@@ -175,13 +180,17 @@ describe("PluginSdkRegistry", () => {
     const metadata = registry.register({ name: "good-plugin", version: "1.0.0" });
     expect(metadata.state).toBe("registered");
 
-    expect(() => registry.register({ name: "", version: "1.0.0" })).toThrow(/invalid plugin manifest/i);
+    expect(() => registry.register({ name: "", version: "1.0.0" })).toThrow(
+      /invalid plugin manifest/i,
+    );
   });
 
   it("rejects registering the same plugin id twice", () => {
     const registry = new PluginSdkRegistry();
     registry.register({ name: "dup", version: "1.0.0" });
-    expect(() => registry.register({ name: "dup", version: "1.0.1" })).toThrow(/already registered/i);
+    expect(() => registry.register({ name: "dup", version: "1.0.1" })).toThrow(
+      /already registered/i,
+    );
   });
 
   it("get/list/remove work as expected", () => {
@@ -190,7 +199,12 @@ describe("PluginSdkRegistry", () => {
     registry.register({ name: "b", version: "1.0.0" });
 
     expect(registry.get("a")?.manifest.name).toBe("a");
-    expect(registry.list().map((p) => p.manifest.name).sort()).toEqual(["a", "b"]);
+    expect(
+      registry
+        .list()
+        .map((p) => p.manifest.name)
+        .sort(),
+    ).toEqual(["a", "b"]);
 
     registry.remove("a");
     expect(registry.get("a")).toBeUndefined();
@@ -207,7 +221,11 @@ describe("PluginSdkRegistry", () => {
     const registry = new PluginSdkRegistry();
     registry.register(
       { name: "guarded", version: "1.0.0" },
-      { onDestroy: () => { destroyed.push("guarded"); } },
+      {
+        onDestroy: () => {
+          destroyed.push("guarded");
+        },
+      },
     );
 
     await registry.install("guarded");
@@ -240,10 +258,18 @@ describe("PluginSdkRegistry", () => {
     registry.register(
       { name: "lifecycle-plugin", version: "1.0.0" },
       {
-        onInstall: () => { events.push("install"); },
-        onEnable: () => { events.push("enable"); },
-        onDisable: () => { events.push("disable"); },
-        onDestroy: () => { events.push("destroy"); },
+        onInstall: () => {
+          events.push("install");
+        },
+        onEnable: () => {
+          events.push("enable");
+        },
+        onDisable: () => {
+          events.push("disable");
+        },
+        onDestroy: () => {
+          events.push("destroy");
+        },
       },
     );
 
@@ -268,7 +294,11 @@ describe("PluginSdkRegistry", () => {
     let seenWithPermission: PluginContext | undefined;
     registry.register(
       { name: "reader", version: "1.0.0", permissions: ["document.read"] },
-      { onInstall: (ctx) => { seenWithPermission = ctx; } },
+      {
+        onInstall: (ctx) => {
+          seenWithPermission = ctx;
+        },
+      },
     );
     await registry.install("reader");
 
@@ -281,7 +311,11 @@ describe("PluginSdkRegistry", () => {
     let seenWithoutPermission: PluginContext | undefined;
     registry.register(
       { name: "no-permissions", version: "1.0.0" },
-      { onInstall: (ctx) => { seenWithoutPermission = ctx; } },
+      {
+        onInstall: (ctx) => {
+          seenWithoutPermission = ctx;
+        },
+      },
     );
     await registry.install("no-permissions");
 
@@ -295,8 +329,16 @@ describe("PluginSdkRegistry", () => {
       documentSource: { read: () => ({ ok: true }) },
     });
     registry.register(
-      { name: "inspector", version: "1.0.0", permissions: ["document.read", "document.write", "document.modify"] },
-      { onInstall: (ctx) => { capturedContext = ctx; } },
+      {
+        name: "inspector",
+        version: "1.0.0",
+        permissions: ["document.read", "document.write", "document.modify"],
+      },
+      {
+        onInstall: (ctx) => {
+          capturedContext = ctx;
+        },
+      },
     );
     await registry.install("inspector");
 
@@ -335,7 +377,11 @@ describe("PluginSdkRegistry", () => {
     });
     registry.register(
       { name: "escalator", version: "1.0.0", permissions: ["document.read"] },
-      { onInstall: (ctx) => { captured = ctx; } },
+      {
+        onInstall: (ctx) => {
+          captured = ctx;
+        },
+      },
     );
     await registry.install("escalator");
 

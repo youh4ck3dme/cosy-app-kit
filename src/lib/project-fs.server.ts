@@ -211,7 +211,10 @@ export function buildProjectFileResponse(opts: {
   const headers = new Headers();
   headers.set("Content-Type", resolved.mime);
   headers.set("X-Content-Type-Options", "nosniff");
-  headers.set("Content-Security-Policy", buildPreviewCsp({ networkDisabled: opts.networkDisabled }));
+  headers.set(
+    "Content-Security-Policy",
+    buildPreviewCsp({ networkDisabled: opts.networkDisabled }),
+  );
   headers.set("X-Frame-Options", "SAMEORIGIN");
 
   if (opts.access === "public") {
@@ -269,9 +272,7 @@ export async function handleProjectPreviewRequest(
   }
 
   const path =
-    opts.filePath && opts.filePath !== ""
-      ? opts.filePath
-      : loaded.entryPath || "index.html";
+    opts.filePath && opts.filePath !== "" ? opts.filePath : loaded.entryPath || "index.html";
 
   return buildProjectFileResponse({
     files: loaded.files,

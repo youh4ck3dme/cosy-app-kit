@@ -241,16 +241,16 @@ Do not wait for permission between letters. Drive A→Z (or H→C★) to complet
 
 ## How to use
 
-1. Open Cursor Composer on branch `developeredit`.  
-2. Paste the fenced block **from `You are Cursor` through the end**.  
-3. Let it run; human only needed for Supabase SQL apply if H errors on missing table.  
+1. Open Cursor Composer on branch `developeredit`.
+2. Paste the fenced block **from `You are Cursor` through the end**.
+3. Let it run; human only needed for Supabase SQL apply if H errors on missing table.
 
 ## Status snapshot (for human)
 
-| Letters | Status |
-|---------|--------|
-| A–G | ✅ (earlier sessions) |
-| H–L | ✅ mega-prompt run (VersionTimeline, templates, embed, e2e local) |
-| **C★** | ✅ |
+| Letters                  | Status                                                                      |
+| ------------------------ | --------------------------------------------------------------------------- |
+| A–G                      | ✅ (earlier sessions)                                                       |
+| H–L                      | ✅ mega-prompt run (VersionTimeline, templates, embed, e2e local)           |
+| **C★**                   | ✅                                                                          |
 | Blocked for live restore | Apply SQL `20260720120000_artifact_versions.sql` — see `docs/migrations.md` |
-| Hub | `docs/todo.md` updated post-C★ |
+| Hub                      | `docs/todo.md` updated post-C★                                              |

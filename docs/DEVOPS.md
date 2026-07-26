@@ -2,11 +2,11 @@
 
 ## Branch strategy
 
-| Branch | Role |
-| --- | --- |
-| `main` | Protected production line. PR only. No direct push. No force-push. |
-| `developeredit` | Integration / working branch for product work |
-| `feature/*` / `docs/*` / `feat/*` | Topic branches |
+| Branch                            | Role                                                               |
+| --------------------------------- | ------------------------------------------------------------------ |
+| `main`                            | Protected production line. PR only. No direct push. No force-push. |
+| `developeredit`                   | Integration / working branch for product work                      |
+| `feature/*` / `docs/*` / `feat/*` | Topic branches                                                     |
 
 Source: `.github/BRANCH_PROTECTION.md`, `AGENTS.md`, `OMNIOPS_BLUEPRINT.md`.
 
@@ -56,10 +56,10 @@ See `.github/ISSUE_TEMPLATE/`.
 
 ## CI/CD overview
 
-| Workflow | Trigger | Action |
-| --- | --- | --- |
-| `ci.yml` | PR to `main`/`developeredit`; push `developeredit` | install, unit tests, typecheck, build |
-| `prod-smoke.yml` | push `main`; manual | `bun run prod-smoke` against production URL |
+| Workflow         | Trigger                                            | Action                                      |
+| ---------------- | -------------------------------------------------- | ------------------------------------------- |
+| `ci.yml`         | PR to `main`/`developeredit`; push `developeredit` | install, unit tests, typecheck, build       |
+| `prod-smoke.yml` | push `main`; manual                                | `bun run prod-smoke` against production URL |
 
 Playwright e2e is **not** in GitHub CI.
 
@@ -86,12 +86,12 @@ Formal on-call rotations and status pages: **Not yet implemented**.
 
 ## Monitoring strategy
 
-| Signal | Exists? |
-| --- | --- |
-| Prod smoke script / workflow | Yes |
-| `/api/ai-status` smoke expectation | Documented in agent/ops rules |
-| APM / error tracking SaaS | Not documented as configured in-repo |
-| Kernel Observatory metrics | Future milestone |
+| Signal                             | Exists?                              |
+| ---------------------------------- | ------------------------------------ |
+| Prod smoke script / workflow       | Yes                                  |
+| `/api/ai-status` smoke expectation | Documented in agent/ops rules        |
+| APM / error tracking SaaS          | Not documented as configured in-repo |
+| Kernel Observatory metrics         | Future milestone                     |
 
 ## Repository maintenance
 

@@ -1,4 +1,3 @@
-
 # 🎁 BONUS PACK — 5 mega-promptov na finálny lesk
 
 Posledná dávka promptov, ktoré posunú Builder z „funguje" do „ships na Product Hunt bez blushu". Každý prompt je copy-paste ready pre agenta, ~2000 slov, s konkrétnymi súbormi, DB zmenami a akceptačnými kritériami.
@@ -13,7 +12,7 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
 
 **Rozsah práce:**
 
-1. **Vizuálny audit celej aplikácie** — prejdi *každú* route (`/`, `/auth`, `/reset-password`, `/chat`, `/chat/$id`, `/a/$id`, `/settings/*`, `/templates`, `/explore`, `/status`) na 3 breakpointoch (360px, 768px, 1440px) a v Playwright screenshotoch identifikuj: nezarovnané padding, chýbajúce hover states, chýbajúce focus rings, príliš dlhé line-lengths (>75ch v proze), inconsistent border-radius (musí byť 8/12/16 iba, žiadne odchýlky), inconsistent shadow scale, farby mimo tokens. Vygeneruj `docs/visual-audit.md` s 30+ konkrétnymi issues.
+1. **Vizuálny audit celej aplikácie** — prejdi _každú_ route (`/`, `/auth`, `/reset-password`, `/chat`, `/chat/$id`, `/a/$id`, `/settings/*`, `/templates`, `/explore`, `/status`) na 3 breakpointoch (360px, 768px, 1440px) a v Playwright screenshotoch identifikuj: nezarovnané padding, chýbajúce hover states, chýbajúce focus rings, príliš dlhé line-lengths (>75ch v proze), inconsistent border-radius (musí byť 8/12/16 iba, žiadne odchýlky), inconsistent shadow scale, farby mimo tokens. Vygeneruj `docs/visual-audit.md` s 30+ konkrétnymi issues.
 
 2. **Motion system** — v `src/styles.css` definuj motion tokens: `--ease-out: cubic-bezier(0.16, 1, 0.3, 1)`, `--ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1)`, `--dur-fast: 150ms`, `--dur-base: 220ms`, `--dur-slow: 400ms`. Všetky hover/focus transitions používajú tieto tokens. Modal open = `--ease-spring --dur-base`. Toast in = `slide-up --ease-out --dur-fast`. Chip select = subtle `scale(0.98) → 1` bounce. Reasoning shimmer respektuje `prefers-reduced-motion` (fallback: statická opacity 0.7). Pridaj `motion-safe:` prefix všade kde treba.
 
@@ -34,9 +33,9 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
    - Rate-limit: „Slow down for a sec — cooling off in 12s" (nie „Too many requests")
    - Credits: „You've used 87% of today's credits. [Upgrade] or [Wait until midnight]"
    - Delete confirm: „Delete this thread? Its 24 messages go with it." (specifický count)
-   Vytvor `src/lib/copy.ts` centralizovaný string catalog pre neskorší i18n.
+     Vytvor `src/lib/copy.ts` centralizovaný string catalog pre neskorší i18n.
 
-5. **Empty & loading states** *(dopĺňa Krok N v master pláne)* — každá plocha má dedikovaný empty state s ilustráciou (SVG inline, tokens colored) + heading + subtext + CTA. Skeleton shimmer nahradí VŠETKY spinnery. Konkrétne skeletony: ThreadList (5 rows so mock timestamp + preview), MessageList (3 bubbles alternating widths), Canvas (grid + „Preparing sandbox…"), template grid (12 cards 200×280 s image placeholder), memory list (3 rows).
+5. **Empty & loading states** _(dopĺňa Krok N v master pláne)_ — každá plocha má dedikovaný empty state s ilustráciou (SVG inline, tokens colored) + heading + subtext + CTA. Skeleton shimmer nahradí VŠETKY spinnery. Konkrétne skeletony: ThreadList (5 rows so mock timestamp + preview), MessageList (3 bubbles alternating widths), Canvas (grid + „Preparing sandbox…"), template grid (12 cards 200×280 s image placeholder), memory list (3 rows).
 
 6. **Iconography konzistencia** — VÝHRADNE `lucide-react`, žiadne mixované sety, unified stroke-width `1.75`, size prop škála `14/16/18/20/24` (žiadne 15, 17). Icon buttons majú vždy `aria-label`. Vytvor `src/components/ui/icon-button.tsx` wrapper (`size`, `variant`, `tooltip` props) a nahraď VŠETKY raw `<button><X /></button>` inštancie.
 
@@ -56,6 +55,7 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
     - Scrollbar styled (subtle, matches theme).
 
 **Deliverables:**
+
 - `docs/visual-audit.md` (30+ issues + resolution status)
 - `docs/copy-guide.md` (tone + string catalog)
 - `src/lib/copy.ts`
@@ -64,6 +64,7 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
 - Screenshots before/after v `docs/polish-diff/`
 
 **Akceptačné kritériá:**
+
 - Lighthouse Best Practices ≥ 95 na 5 hlavných routes.
 - 0 raw spinnerov v shipnutom UI (grep `<Loader` alebo `animate-spin` bez pattern skeletonu).
 - 0 hardcoded farieb (`grep -rE '(text|bg|border)-(white|black|gray|slate|zinc)' src/` = clean).
@@ -80,17 +81,17 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
 1. **RLS audit** — spusti `security--run_security_scan` a `security--get_table_schema`. Pre každú tabuľku overiť: RLS enabled, policies scoped na `auth.uid()`, GRANT statements match policies, žiadne `TO anon` na user-owned data. Konkrétne kontroly:
    - `threads`: SELECT/INSERT/UPDATE/DELETE iba `user_id = auth.uid()`.
    - `messages`: cez `EXISTS (SELECT 1 FROM threads WHERE id = thread_id AND user_id = auth.uid())`.
-   - `artifacts`: rovnaká thread-owner logika + verejné SELECT policy iba pre `is_public = true` s narrow `SELECT (id, files, entry_path, ...)` column list — nikdy SELECT * pre anon.
+   - `artifacts`: rovnaká thread-owner logika + verejné SELECT policy iba pre `is_public = true` s narrow `SELECT (id, files, entry_path, ...)` column list — nikdy SELECT \* pre anon.
    - `thread_memory` / `project_memory`: owner-only.
    - `agent_settings`: `user_id = auth.uid()`.
    - `user_roles`: SELECT `authenticated`, žiadne INSERT/UPDATE/DELETE pre normal users (iba service_role).
    - `usage_daily`, `events`, `metrics_*`: SELECT vlastných, INSERT cez service_role only.
    - `api_keys` (post-1.0): iba `user_id = auth.uid()`, hash column, plain len raz pri creation.
 
-2. **Missing owner-read policies** *(edge case)* — akékoľvek stav-gated riadky (draft/pending/archived) potrebujú separátnu owner SELECT policy popri verejnej. Príklad artifactov: verejná policy filtruje `is_public = true`, owner potrebuje samostatnú `auth.uid() = user_id` policy inak vlastný draft nevidí.
+2. **Missing owner-read policies** _(edge case)_ — akékoľvek stav-gated riadky (draft/pending/archived) potrebujú separátnu owner SELECT policy popri verejnej. Príklad artifactov: verejná policy filtruje `is_public = true`, owner potrebuje samostatnú `auth.uid() = user_id` policy inak vlastný draft nevidí.
 
 3. **Secrets audit** — spusti `secrets--fetch_secrets`. Overit:
-   - `LOVABLE_API_KEY` — server-only, nikdy VITE_.
+   - `LOVABLE_API_KEY` — server-only, nikdy VITE\_.
    - `SUPABASE_SERVICE_ROLE_KEY` — server-only, importovaný iba cez `client.server.ts` inside handlerov s `await import(...)`.
    - Grep `src/` pre `VITE_.*(SECRET|SERVICE_ROLE|PRIVATE|API_KEY)` — zero results.
    - Grep pre hardcoded string patterns (`sk_`, `sb_secret_`, JWT format) v src/ — zero.
@@ -110,11 +111,13 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
    - Log unauthorized attempts do `security_events` table.
 
 6. **Input validation všade** — každý formulár + každý server fn input má Zod schema:
+
    ```ts
-   z.string().trim().min(1).max(10_000)  // messages
-   z.string().email().max(255)             // email
-   z.string().uuid()                       // IDs
+   z.string().trim().min(1).max(10_000); // messages
+   z.string().email().max(255); // email
+   z.string().uuid(); // IDs
    ```
+
    Nie textarea bez maxLength. Nie „unlimited" prompt (cap ~50k chars → prevent gateway abuse).
 
 7. **XSS prevention** — grep `dangerouslySetInnerHTML` v src/ → each instance sanitizovaný cez `DOMPurify` (lazy import). Iframe preview už má `sandbox="allow-scripts"` bez `allow-same-origin` — potvrdiť. CSP meta v injektnutom HTML: `default-src 'self' 'unsafe-inline' data: blob:; connect-src 'none'` (blokuje sieť z artifactu — model si nemôže spraviť exfil).
@@ -126,7 +129,7 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
    - `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`.
    - `Content-Security-Policy` (hlavná app): `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://ai.gateway.lovable.dev https://*.supabase.co wss://*.supabase.co`.
    - `Permissions-Policy: camera=(), microphone=(), geolocation=()`.
-   Verify na `securityheaders.com` → A alebo A+.
+     Verify na `securityheaders.com` → A alebo A+.
 
 9. **Auth flow hardening:**
    - Zapni HIBP password check cez `supabase--configure_auth` (`password_hibp_enabled: true`) — blokuje leaked passwords.
@@ -143,6 +146,7 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
 12. **Security memory update** — po fixnutí findings zavolaj `security--update_memory` s app-specific pravidlami (napr. „artifacts.is_public jediná verejná plocha, ostatné tabuľky owner-only", „všetky server fns musia mať auth middleware alebo byť explicitne public read cez publishable client").
 
 **Deliverables:**
+
 - `docs/security-checklist.md`
 - Migračné SQL súbory pre chýbajúce policies
 - Updated `src/server.ts` (headers)
@@ -150,6 +154,7 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
 - HIBP + email confirm nakonfigurované
 
 **Akceptačné kritériá:**
+
 - `security--run_security_scan` = 0 critical, 0 high.
 - `securityheaders.com` A+.
 - Manuálny test: hráč sa prihlási ako user A, skúsi `SELECT * FROM messages WHERE thread_id IN (thread user B)` cez Supabase Data API → error/empty.
@@ -161,11 +166,12 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
 
 **Cieľ:** Builder je installable na iOS/Android/Desktop, správa sa ako natívna app, používatelia si ho pridajú na home screen, dostávajú notifications keď stream skončí.
 
-*Postupuj podľa PWA skill-u — používaj `vite-plugin-pwa` s `generateSW`, guarded registration wrapper, nikdy neregistruj v Lovable preview.*
+_Postupuj podľa PWA skill-u — používaj `vite-plugin-pwa` s `generateSW`, guarded registration wrapper, nikdy neregistruj v Lovable preview._
 
 **Rozsah:**
 
 1. **Manifest** (`public/manifest.webmanifest`):
+
    ```json
    {
      "name": "Builder — AI Studio",
@@ -182,11 +188,26 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
      "icons": [
        { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
        { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-       { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+       {
+         "src": "/icons/icon-maskable-512.png",
+         "sizes": "512x512",
+         "type": "image/png",
+         "purpose": "maskable"
+       }
      ],
      "screenshots": [
-       { "src": "/screenshots/desktop.png", "sizes": "1920x1080", "type": "image/png", "form_factor": "wide" },
-       { "src": "/screenshots/mobile.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow" }
+       {
+         "src": "/screenshots/desktop.png",
+         "sizes": "1920x1080",
+         "type": "image/png",
+         "form_factor": "wide"
+       },
+       {
+         "src": "/screenshots/mobile.png",
+         "sizes": "1080x1920",
+         "type": "image/png",
+         "form_factor": "narrow"
+       }
      ],
      "share_target": {
        "action": "/chat/new",
@@ -194,7 +215,11 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
        "params": { "title": "title", "text": "text", "url": "url" }
      },
      "shortcuts": [
-       { "name": "New thread", "url": "/chat/new", "icons": [{ "src": "/icons/new.png", "sizes": "96x96" }] },
+       {
+         "name": "New thread",
+         "url": "/chat/new",
+         "icons": [{ "src": "/icons/new.png", "sizes": "96x96" }]
+       },
        { "name": "Templates", "url": "/templates" }
      ]
    }
@@ -209,6 +234,7 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
    - Otestuj cez `maskable.app/editor`.
 
 3. **Head tags** v `__root.tsx`:
+
    ```
    { rel: "manifest", href: "/manifest.webmanifest" }
    { name: "theme-color", content: "#0a0a0f" }
@@ -232,11 +258,11 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
 
 7. **Offline shell** — cached shell zobrazí custom `/offline.html` fallback ak navigation zlyhá bez cache. Message: „You're offline. Your queued messages will send when you reconnect." + link na `/chat` (posledný cached thread).
 
-8. **Offline queue** *(cross-ref s Prompt 07 M)* — messages napísané offline uložené v `idb-keyval`, drain hook v `useChat` po reconnect eventu. UI badge „3 messages queued".
+8. **Offline queue** _(cross-ref s Prompt 07 M)_ — messages napísané offline uložené v `idb-keyval`, drain hook v `useChat` po reconnect eventu. UI badge „3 messages queued".
 
 9. **Share target** — Android share menu → Builder → nový thread s prefill z shared text/url. Route `/chat/new?title=X&text=Y` vytvorí thread, prefill Composer, focus.
 
-10. **Push notifications** *(separátny messaging service worker — NIE app-shell SW)*:
+10. **Push notifications** _(separátny messaging service worker — NIE app-shell SW)_:
     - `public/firebase-messaging-sw.js` alebo `public/onesignal-sw.js` (podľa providera).
     - User opt-in v `/settings/notifications`.
     - Trigger: stream skončí a tab is hidden/blurred → notification „Your artifact is ready".
@@ -248,6 +274,7 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
 12. **Kill switch** (pre budúce cleanup) — `?sw=off` → wrapper unregister všetky matching SW pre app scope. Zapamätaj v `docs/pwa-recovery.md`.
 
 **Deliverables:**
+
 - `public/manifest.webmanifest`
 - Icons v `public/icons/`
 - Screenshots v `public/screenshots/`
@@ -257,6 +284,7 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
 - Docs `docs/pwa.md`
 
 **Akceptačné kritériá:**
+
 - Chrome DevTools → Application → Manifest = zelené (no errors).
 - Lighthouse PWA audit ≥ 90.
 - Install prompt appears na Chrome desktop po 30s engagement.
@@ -305,6 +333,7 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
 5. **Icon subsetting** — `lucide-react` s tree-shaking OK ak per-icon imports. Grep `from "lucide-react"` → ensure named. Consider `unplugin-icons` ak > 100 rôznych icons.
 
 6. **Framework version pins** — vytvor `docs/stack-versions.md`:
+
    ```
    Node/Bun: bun >= 1.2
    TanStack Start: 1.x
@@ -314,9 +343,11 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
    AI SDK: 6.x
    Supabase: 2.x
    ```
+
    Set `overrides` v `package.json` ak sub-deps forcujú staré verzie React (napr. niektoré ui knižnice).
 
 7. **Renovate config** (`.github/renovate.json` alebo `renovate.json`):
+
    ```json
    {
      "extends": ["config:base"],
@@ -338,6 +369,7 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
    - Odstráň `console.log` v prod build (Vite `esbuild.drop: ["console", "debugger"]` v prod).
 
 9. **TypeScript strict pass** — audit `tsconfig.json`:
+
    ```json
    {
      "strict": true,
@@ -347,6 +379,7 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
      "exactOptionalPropertyTypes": true
    }
    ```
+
    Fix všetky nové errors (očakávaj 10-30 v average projekte).
 
 10. **ESLint pravidlá** — pridaj `eslint-plugin-unused-imports`, `eslint-plugin-import` s `import/no-cycle`, `import/no-duplicates`. Fix všetky.
@@ -366,6 +399,7 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
     - Rozhodnutia na 6 mesiacov: „Zvažujeme migráciu na X ak Y." Ideálne nič.
 
 **Deliverables:**
+
 - `docs/deps-audit.md`
 - `docs/stack-versions.md`
 - `docs/adr/002-stack-review.md`
@@ -376,6 +410,7 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
 - Updated `eslint.config.js`
 
 **Akceptačné kritériá:**
+
 - `bunx knip` = 0 unused.
 - `bunx depcheck` = 0 unused, 0 missing.
 - Initial JS bundle ≤ 200KB gzip.
@@ -392,10 +427,15 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
 **Rozsah:**
 
 1. **Web Vitals monitoring** — inštaluj `web-vitals` package, wire v `__root.tsx`:
+
    ```ts
-   onCLS(sendToAnalytics); onLCP(sendToAnalytics); onINP(sendToAnalytics);
-   onFCP(sendToAnalytics); onTTFB(sendToAnalytics);
+   onCLS(sendToAnalytics);
+   onLCP(sendToAnalytics);
+   onINP(sendToAnalytics);
+   onFCP(sendToAnalytics);
+   onTTFB(sendToAnalytics);
    ```
+
    `sendToAnalytics` → `navigator.sendBeacon('/api/public/vitals', json)`. Server insert do `web_vitals(user_id, route, metric, value, rating, created_at)`.
 
 2. **LCP optimization** — pre `/` landing:
@@ -449,12 +489,14 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
     - Rollback: `lovable rollback` alebo git revert + redeploy < 5 min.
 
 12. **Feature flags** — pre risky features (nová UI, experimentálny model), pridaj env-based flags:
+
     ```ts
     export const flags = {
       newCanvas: process.env.VITE_FLAG_NEW_CANVAS === "true",
       voiceMode: process.env.VITE_FLAG_VOICE === "true",
     };
     ```
+
     Turn off without redeploy → env var change + Worker restart.
 
 13. **Alerting** — setup:
@@ -465,7 +507,7 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
 
 14. **Load test** (light) — `bunx artillery quick --count 20 --num 10 https://staging.builder.app` pre kľúčové routes. Confirm no crashes at 200 concurrent users. Not full-scale load test — just smoke.
 
-15. **Launch checklist** *(finalizuje Krok Z v master pláne)* — jeden markdown súbor `docs/launch-checklist.md` s 40+ položkami: DNS, SSL, custom domain, legal pages, contact email, status page, error monitoring, backup verified, rollback tested, first 100 users invited, announcement drafted (Twitter + LinkedIn + PH + HN), 3 demo videá, template gallery seeded, `/status` = green.
+15. **Launch checklist** _(finalizuje Krok Z v master pláne)_ — jeden markdown súbor `docs/launch-checklist.md` s 40+ položkami: DNS, SSL, custom domain, legal pages, contact email, status page, error monitoring, backup verified, rollback tested, first 100 users invited, announcement drafted (Twitter + LinkedIn + PH + HN), 3 demo videá, template gallery seeded, `/status` = green.
 
 16. **Post-launch monitoring rutina** — prvé 72h dashboard tab open:
     - Sentry / error stream.
@@ -480,6 +522,7 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
 17. **Incident response** — dokumentuj v `docs/incidents.md` template: symptom, timeline, impact, root cause, resolution, follow-up. Prvý incident sa určite stane — mať template pripravený.
 
 **Deliverables:**
+
 - `docs/perf-baseline.md` (before/after metrics)
 - `docs/launch-checklist.md`
 - `docs/dr.md` (disaster recovery)
@@ -489,6 +532,7 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
 - Feature flags system v `src/lib/flags.ts`
 
 **Akceptačné kritériá:**
+
 - Lighthouse mobile: Performance ≥ 90, LCP ≤ 2.5s, CLS ≤ 0.1, INP ≤ 200ms.
 - Bundle initial JS ≤ 200KB gzip.
 - Worker cold start ≤ 50ms P95.
@@ -500,22 +544,22 @@ Kompletná mapa: **P11 Polish · P12 Security · P13 PWA · P14 Stack Audit · P
 
 ## 🎯 Súhrn 15 promptov (kompletná mapa)
 
-| # | Prompt | Fáza | Písmeno v A-Z |
-|---|---|---|---|
-| 01 | Agent Intelligence (tools + reasoning) | Foundation | I |
-| 02 | Canvas Pro (Monaco + diff + versions) | Foundation | L |
-| 03 | Chat UX (attachments + actions + suggestions) | Foundation | dopĺňa E |
-| 04 | Command Palette + shortcuts | Foundation | K |
-| 05 | Onboarding + Templates | Growth | O |
-| 06 | Polish + SEO + a11y + boundaries | Polish | P + N |
-| 07 | Resilience (fallback + retry + offline) | Reliability | M + R |
-| 08 | Persistent Memory + RAG | Foundation | J |
-| 09 | Sharing + Embed + Growth loop | Growth | S |
-| 10 | Telemetry + Testing + CI | Ops | T + Q |
-| **11** | **Final Polish Pass** | **Polish** | **P** |
-| **12** | **Security Hardening** | **Ops** | **cross-cut** |
-| **13** | **PWA & Mobile Install** | **Growth** | **cross-cut** |
-| **14** | **Stack Audit & Deps** | **Ops** | **B** |
-| **15** | **Performance & Launch** | **Ops** | **Z** |
+| #      | Prompt                                        | Fáza        | Písmeno v A-Z |
+| ------ | --------------------------------------------- | ----------- | ------------- |
+| 01     | Agent Intelligence (tools + reasoning)        | Foundation  | I             |
+| 02     | Canvas Pro (Monaco + diff + versions)         | Foundation  | L             |
+| 03     | Chat UX (attachments + actions + suggestions) | Foundation  | dopĺňa E      |
+| 04     | Command Palette + shortcuts                   | Foundation  | K             |
+| 05     | Onboarding + Templates                        | Growth      | O             |
+| 06     | Polish + SEO + a11y + boundaries              | Polish      | P + N         |
+| 07     | Resilience (fallback + retry + offline)       | Reliability | M + R         |
+| 08     | Persistent Memory + RAG                       | Foundation  | J             |
+| 09     | Sharing + Embed + Growth loop                 | Growth      | S             |
+| 10     | Telemetry + Testing + CI                      | Ops         | T + Q         |
+| **11** | **Final Polish Pass**                         | **Polish**  | **P**         |
+| **12** | **Security Hardening**                        | **Ops**     | **cross-cut** |
+| **13** | **PWA & Mobile Install**                      | **Growth**  | **cross-cut** |
+| **14** | **Stack Audit & Deps**                        | **Ops**     | **B**         |
+| **15** | **Performance & Launch**                      | **Ops**     | **Z**         |
 
 Napíš `IDEM NA P11` (alebo iné číslo) a prepnem do build mode a spustím ten prompt. Odporúčaný poradie po dokončení P01-P10: **P14 → P12 → P11 → P13 → P15** (najprv upratať stack, potom security, potom lesk, potom install, potom launch).

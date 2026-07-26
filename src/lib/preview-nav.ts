@@ -57,7 +57,9 @@ export function matchArtifactFile(normalized: string, filePaths: string[]): stri
     if (withHtm) return withHtm;
   }
 
-  const base = normalized.includes("/") ? normalized.slice(normalized.lastIndexOf("/") + 1) : normalized;
+  const base = normalized.includes("/")
+    ? normalized.slice(normalized.lastIndexOf("/") + 1)
+    : normalized;
   const byBase = filePaths.filter((f) => {
     const fb = f.includes("/") ? f.slice(f.lastIndexOf("/") + 1) : f;
     return fb === base || fb.toLowerCase() === base.toLowerCase();

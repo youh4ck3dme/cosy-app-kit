@@ -4,34 +4,34 @@ Generated for branch `docs/enterprise-open-source-prep`. Scores are judgment bas
 
 ## Repository Coverage %
 
-| Area | Documented? | Notes |
-| --- | --- | --- |
-| Product app stack | Yes | README + product docs |
-| Builder Kernel | Yes | Dedicated docs + ADR |
-| Plugin SDK | Yes | Dedicated docs + ADR |
-| Commands / undo / invariants | Yes | |
-| Dual plugin systems | Yes | Explicitly separated |
-| CI / branch protection | Yes | DEVOPS + runbooks |
-| Deploy | Yes | `docs/product/deploy.md` |
-| Observatory v0.4.6 | Honest gap | Marked Future milestone |
-| Canvas / marketplace | Honest gap | Not yet implemented |
-| Auto-generated API reference | No | Manual `docs/api/` only |
+| Area                         | Documented? | Notes                    |
+| ---------------------------- | ----------- | ------------------------ |
+| Product app stack            | Yes         | README + product docs    |
+| Builder Kernel               | Yes         | Dedicated docs + ADR     |
+| Plugin SDK                   | Yes         | Dedicated docs + ADR     |
+| Commands / undo / invariants | Yes         |                          |
+| Dual plugin systems          | Yes         | Explicitly separated     |
+| CI / branch protection       | Yes         | DEVOPS + runbooks        |
+| Deploy                       | Yes         | `docs/product/deploy.md` |
+| Observatory v0.4.6           | Honest gap  | Marked Future milestone  |
+| Canvas / marketplace         | Honest gap  | Not yet implemented      |
+| Auto-generated API reference | No          | Manual `docs/api/` only  |
 
 **Estimated documentation coverage of shipped surfaces: ~85%**  
 **Estimated coverage if counting Planned features as requiring docs: ~70%** (draft RFCs present)
 
 ## Missing documentation (honest)
 
-| Item | Status |
-| --- | --- |
-| Published coverage reports / badge | Not configured in CI |
-| TypeDoc / API site | Not yet implemented |
-| Real product screenshots | Not in repo |
-| CODE_OF_CONDUCT | Deferred (not open community yet) |
-| FUNDING.yml | Deferred |
-| postmortems/ | Deferred (no fabricated incidents) |
-| OSI open-source LICENSE | Not adopted (proprietary LICENSE present) |
-| Kernel↔UI integration guide | N/A until wired |
+| Item                               | Status                                    |
+| ---------------------------------- | ----------------------------------------- |
+| Published coverage reports / badge | Not configured in CI                      |
+| TypeDoc / API site                 | Not yet implemented                       |
+| Real product screenshots           | Not in repo                               |
+| CODE_OF_CONDUCT                    | Deferred (not open community yet)         |
+| FUNDING.yml                        | Deferred                                  |
+| postmortems/                       | Deferred (no fabricated incidents)        |
+| OSI open-source LICENSE            | Not adopted (proprietary LICENSE present) |
+| Kernel↔UI integration guide        | N/A until wired                           |
 
 ## Suggested future docs
 
@@ -42,13 +42,13 @@ Generated for branch `docs/enterprise-open-source-prep`. Scores are judgment bas
 
 ## Scores (0–100)
 
-| Score | Value | Rationale |
-| --- | --- | --- |
+| Score                 | Value  | Rationale                                                                                          |
+| --------------------- | ------ | -------------------------------------------------------------------------------------------------- |
 | Documentation Quality | **82** | Consistent, evidence-linked, explicit gaps; some legacy product prompt noise under `docs/product/` |
-| Repository Maturity | **74** | Strong kernel/SDK + CI; private package; dual remotes complexity; kernel not product-wired |
-| Open Source Readiness | **45** | Proprietary license; private npm; no CoC; solid SECURITY stubs |
-| Enterprise Readiness | **70** | ADRs, runbooks, branch protection, smoke; limited formal incident/SLA |
-| Portfolio Readiness | **80** | Clear architecture story, ADRs, truthful roadmap, examples |
+| Repository Maturity   | **74** | Strong kernel/SDK + CI; private package; dual remotes complexity; kernel not product-wired         |
+| Open Source Readiness | **45** | Proprietary license; private npm; no CoC; solid SECURITY stubs                                     |
+| Enterprise Readiness  | **70** | ADRs, runbooks, branch protection, smoke; limited formal incident/SLA                              |
+| Portfolio Readiness   | **80** | Clear architecture story, ADRs, truthful roadmap, examples                                         |
 
 ## Open Source Readiness
 

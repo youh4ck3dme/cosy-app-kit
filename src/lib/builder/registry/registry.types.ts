@@ -32,13 +32,7 @@ export interface NodeConstraints {
   maxChildren?: number;
 }
 
-export type NodeCategory =
-  | "Layout"
-  | "Basic"
-  | "Forms"
-  | "Media"
-  | "E-commerce"
-  | "Advanced";
+export type NodeCategory = "Layout" | "Basic" | "Forms" | "Media" | "E-commerce" | "Advanced";
 
 /**
  * Headless node definition.

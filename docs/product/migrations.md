@@ -11,8 +11,8 @@ Creates:
 
 ### How to apply
 
-1. **Lovable Cloud** — open Supabase SQL editor for the linked project, paste file contents, run.  
-2. Or **Supabase CLI** (if linked): `supabase db push` / dashboard SQL.  
+1. **Lovable Cloud** — open Supabase SQL editor for the linked project, paste file contents, run.
+2. Or **Supabase CLI** (if linked): `supabase db push` / dashboard SQL.
 3. Confirm:
 
 ```sql

@@ -13,11 +13,11 @@ A `package-lock.json` may exist for tooling compatibility. Prefer Bun for instal
 
 ## Tooling versions (as used in CI)
 
-| Tool | CI usage |
-| --- | --- |
-| Bun | `oven-sh/setup-bun@v2` (`bun-version: latest`) |
-| Node.js | `24` |
-| TypeScript | `tsc --noEmit` via `bun run typecheck` |
+| Tool       | CI usage                                       |
+| ---------- | ---------------------------------------------- |
+| Bun        | `oven-sh/setup-bun@v2` (`bun-version: latest`) |
+| Node.js    | `24`                                           |
+| TypeScript | `tsc --noEmit` via `bun run typecheck`         |
 
 Exact dependency versions are pinned in `bun.lock`.
 
@@ -25,11 +25,11 @@ Exact dependency versions are pinned in `bun.lock`.
 
 See `.env.example` for the declared surface. Typical product categories:
 
-| Category | Purpose |
-| --- | --- |
-| Supabase URL / publishable key | Auth and database client |
-| Service-role / server secrets | Server-only; never commit |
-| `MISTRAL_API_KEY` | Product chat (Mistral only) |
+| Category                       | Purpose                     |
+| ------------------------------ | --------------------------- |
+| Supabase URL / publishable key | Auth and database client    |
+| Service-role / server secrets  | Server-only; never commit   |
+| `MISTRAL_API_KEY`              | Product chat (Mistral only) |
 
 Do not commit secrets. Use Lovable Cloud Secrets for hosted environments and local env files that remain gitignored.
 
@@ -44,9 +44,9 @@ bun run test:e2e
 
 ## Troubleshooting
 
-| Symptom | Check |
-| --- | --- |
-| Install diverges from CI | Use `bun install --frozen-lockfile` |
-| Typecheck fails after pull | `bun install` then `bun run typecheck` |
-| Chat fails at runtime | Confirm `MISTRAL_API_KEY` and AI policy (Mistral only) |
-| Unit tests fail with mock errors | Use `bun run test:unit` (Vitest), not bare `bun test` |
+| Symptom                          | Check                                                  |
+| -------------------------------- | ------------------------------------------------------ |
+| Install diverges from CI         | Use `bun install --frozen-lockfile`                    |
+| Typecheck fails after pull       | `bun install` then `bun run typecheck`                 |
+| Chat fails at runtime            | Confirm `MISTRAL_API_KEY` and AI policy (Mistral only) |
+| Unit tests fail with mock errors | Use `bun run test:unit` (Vitest), not bare `bun test`  |

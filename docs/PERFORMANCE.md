@@ -13,13 +13,13 @@ Do not treat those timings as contractual performance guarantees.
 
 ## Architecture complexity (expected)
 
-| Operation | Expected complexity | Notes |
-| --- | --- | --- |
-| Command execute (local tree edit) | Typically O(k) in touched nodes | Depends on command |
-| `validateDocument` | O(n) nodes | Includes cycle walk over parent pointers |
-| `cloneDocument` on dispatch | O(n) | Snapshot per dispatch |
-| History push | O(1) amortized | Evicts beyond max entries |
-| Undo / redo | Cost of inverse command | Plus validation paths as implemented |
+| Operation                         | Expected complexity             | Notes                                    |
+| --------------------------------- | ------------------------------- | ---------------------------------------- |
+| Command execute (local tree edit) | Typically O(k) in touched nodes | Depends on command                       |
+| `validateDocument`                | O(n) nodes                      | Includes cycle walk over parent pointers |
+| `cloneDocument` on dispatch       | O(n)                            | Snapshot per dispatch                    |
+| History push                      | O(1) amortized                  | Evicts beyond max entries                |
+| Undo / redo                       | Cost of inverse command         | Plus validation paths as implemented     |
 
 ## Memory considerations
 
@@ -35,21 +35,21 @@ Do not treat those timings as contractual performance guarantees.
 
 ## Future optimization points (Planned)
 
-| Idea | Status |
-| --- | --- |
+| Idea                                                          | Status              |
+| ------------------------------------------------------------- | ------------------- |
 | Structural sharing / persistent data structures for snapshots | Not yet implemented |
-| Incremental invariant checks | Not yet implemented |
-| Worker-thread validation for large documents | Not yet implemented |
-| Formal benchmark harness + CI budgets | Not yet implemented |
-| Observatory performance metrics (v0.4.6) | Future milestone |
+| Incremental invariant checks                                  | Not yet implemented |
+| Worker-thread validation for large documents                  | Not yet implemented |
+| Formal benchmark harness + CI budgets                         | Not yet implemented |
+| Observatory performance metrics (v0.4.6)                      | Future milestone    |
 
 ## Performance goals (targets, not measurements)
 
-| Goal | Target |
-| --- | --- |
-| Unit suite (full) | Stay fast enough for PR CI (< ~1–2 min wall including install/build today) |
-| Single dispatch on small docs | Interactive (< 16ms ideal) — **not yet benchmarked in CI** |
-| Large document validation | Linear; avoid accidental O(n²) parent walks — cycle walk is O(n) |
+| Goal                          | Target                                                                     |
+| ----------------------------- | -------------------------------------------------------------------------- |
+| Unit suite (full)             | Stay fast enough for PR CI (< ~1–2 min wall including install/build today) |
+| Single dispatch on small docs | Interactive (< 16ms ideal) — **not yet benchmarked in CI**                 |
+| Large document validation     | Linear; avoid accidental O(n²) parent walks — cycle walk is O(n)           |
 
 ## Related
 

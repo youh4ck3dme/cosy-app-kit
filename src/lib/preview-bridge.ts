@@ -13,10 +13,7 @@ export type PreviewBridgeOptions = {
   interceptHtmlNav?: boolean;
 };
 
-export function buildPreviewBridgeScript(
-  token: string,
-  opts: PreviewBridgeOptions = {},
-): string {
+export function buildPreviewBridgeScript(token: string, opts: PreviewBridgeOptions = {}): string {
   const t = JSON.stringify(token);
   const netOff = opts.networkDisabled === true ? "true" : "false";
   const interceptNav = opts.interceptHtmlNav !== false ? "true" : "false";
