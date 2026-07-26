@@ -576,7 +576,10 @@ export function Canvas({
     setLogs([]);
     setNetwork([]);
     setEdits({});
+    setAddedFiles([]);
+    setRemovedPaths([]);
     setUndoStack([]);
+
     bridgeTokenRef.current =
       typeof crypto !== "undefined" && crypto.randomUUID
         ? crypto.randomUUID()
