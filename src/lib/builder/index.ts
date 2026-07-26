@@ -135,6 +135,12 @@ export {
 } from "./playground/playgroundController";
 
 export {
+  createBuilderRuntime,
+  type BuilderRuntime,
+  type BuilderRuntimeOptions,
+} from "./runtime";
+
+export {
   CANVAS_SANDBOX_ATTR,
   type CanvasRpcMessage,
   type CanvasRpcMessageType,
