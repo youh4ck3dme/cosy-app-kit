@@ -46,11 +46,16 @@ Prod smoke workflow targets the published production URL.
 ## Aggregate gates
 
 ```bash
+bun run ship         # OmniOps daily: typecheck + unit + lint:gate + ship-gates + landing/chat e2e
 bun run verify       # typecheck + unit + lint:gate + smoke
-bun run verify:full  # verify + e2e
+bun run verify:full  # verify + full e2e
 ```
 
-CI subset: unit + typecheck + build.
+Ship-gates (`bun run test:ship-gates`) enforce preview CDN policy and required wow `data-testid`s. They also run in GitHub CI after unit tests.
+
+Daily path: [runbooks/daily-dev.md](./runbooks/daily-dev.md).
+
+CI subset: unit + **ship-gates** + typecheck + build.
 
 ## Coverage
 

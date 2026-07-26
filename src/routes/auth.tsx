@@ -277,7 +277,10 @@ function AuthPage() {
           BUILDER
         </div>
 
-        <div className="w-full rounded-2xl border border-border bg-panel/80 p-6 shadow-2xl backdrop-blur">
+        <div
+          data-testid="auth-sign-in"
+          className="w-full rounded-2xl border border-border bg-panel/80 p-6 shadow-2xl backdrop-blur"
+        >
           <h1 className="mb-1 text-xl font-semibold">
             {mode === "signin" ? "Sign in to Builder" : "Create your Builder account"}
           </h1>
