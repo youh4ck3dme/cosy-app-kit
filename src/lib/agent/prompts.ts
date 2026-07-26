@@ -118,6 +118,15 @@ export const EXPORT_SHARE_POLISH_PROMPT = `Build mode. On the CURRENT artifact (
 5) Keep existing flows intact
 Do not change core business logic.`;
 
+/** One-tap: background color/pattern toggle, scoped to a settings panel (not a design canvas). */
+export const BACKGROUND_POLISH_PROMPT = `Build mode. On the CURRENT artifact (edit_file — do NOT recreate):
+1) Add a background color/pattern control in an existing settings/options panel (create a minimal one only if none exists)
+2) Drive it via a CSS variable on <html> or <body>; persist the choice in localStorage
+3) Offer a small fixed set of presets (e.g. solid, subtle gradient, soft grid/dot pattern) — no image upload, no external assets
+4) Keep readable contrast against existing text/surface colors in both themes if a theme toggle exists
+5) No drag-and-drop canvas, no free-form shape/pattern editor
+Do not change core business logic.`;
+
 /** Catalog for one-tap Canvas polish actions (UI + tests). */
 export const ARTIFACT_POLISH_ACTIONS = [
   {
@@ -149,6 +158,12 @@ export const ARTIFACT_POLISH_ACTIONS = [
     label: "Export",
     title: "Ask Builder to add download/print export helpers",
     prompt: EXPORT_SHARE_POLISH_PROMPT,
+  },
+  {
+    id: "background",
+    label: "Background",
+    title: "Ask Builder to add a background color/pattern option",
+    prompt: BACKGROUND_POLISH_PROMPT,
   },
 ] as const;
 
