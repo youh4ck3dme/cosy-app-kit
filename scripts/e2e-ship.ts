@@ -5,7 +5,7 @@
  */
 import { spawnSync } from "node:child_process";
 
-const files = ["e2e/landing.pw.ts", "e2e/ship-chat.pw.ts"];
+const files = ["e2e/landing.pw.ts", "e2e/ship-chat.pw.ts", "e2e/full-journey.pw.ts"];
 if (process.env.E2E_EMAIL && process.env.E2E_PASSWORD) {
   files.push("e2e/authenticated.pw.ts");
   console.log("e2e:ship — including authenticated.pw.ts (E2E_EMAIL/PASSWORD set)");

@@ -220,6 +220,27 @@ function signInWithOAuthLocalFullPage(
   stage.searchParams.set("lr", lr);
   stage.searchParams.set("next", next);
   stage.searchParams.set("provider", provider);
+  // #region agent log
+  fetch("http://127.0.0.1:7902/ingest/0243bef4-d50a-482b-b552-d96902be1642", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d9cc51" },
+    body: JSON.stringify({
+      sessionId: "d9cc51",
+      runId: "pre-fix",
+      hypothesisId: "H-A",
+      location: "lovable/index.ts:signInWithOAuthLocalFullPage",
+      message: "redirecting to published oauth stage",
+      data: {
+        provider,
+        lr,
+        next,
+        stageHost: stage.host,
+        fromOrigin: window.location.origin,
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
   window.location.href = stage.toString();
   return { error: null, redirected: true };
 }
@@ -252,7 +273,36 @@ export function startPublishedOAuthAfterStage(
     state,
   });
 
-  window.location.href = `${PUBLISHED_ORIGIN}/~oauth/initiate?${params.toString()}`;
+  const initiateUrl = `${PUBLISHED_ORIGIN}/~oauth/initiate?${params.toString()}`;
+  // #region agent log
+  fetch("http://127.0.0.1:7902/ingest/0243bef4-d50a-482b-b552-d96902be1642", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d9cc51" },
+    body: JSON.stringify({
+      sessionId: "d9cc51",
+      runId: "pre-fix",
+      hypothesisId: "H-C",
+      location: "lovable/index.ts:startPublishedOAuthAfterStage",
+      message: "kicking oauth initiate",
+      data: {
+        provider,
+        redirect_uri: `${PUBLISHED_ORIGIN}/auth`,
+        lrHost: (() => {
+          try {
+            return new URL(lr).host;
+          } catch {
+            return "bad-lr";
+          }
+        })(),
+        next,
+        initiatePath: "/~oauth/initiate",
+        stateLen: state.length,
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
+  window.location.href = initiateUrl;
 }
 
 export const lovable = {
