@@ -61,6 +61,7 @@ Operational product docs relocated under [product/](./product/) (deploy, migrati
 | Document | Purpose |
 | --- | --- |
 | [product/SCORECARD_PROMPT_1.md](./product/SCORECARD_PROMPT_1.md) | Claude SCORECARD-BUILDER Prompt 1 (D1–D11 Builder-fit audit) |
+| [product/SEMANTIC_INTENT_SKELETON.md](./product/SEMANTIC_INTENT_SKELETON.md) | Semantic Intent → Instant Product Skeleton (brief, architecture, demos) |
 | [product/deploy.md](./product/deploy.md) | Production publish + PWA notes |
 | [product/smoke-checklist.md](./product/smoke-checklist.md) | Manual smoke checklist |
 ## Source inventory
