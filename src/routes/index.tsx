@@ -61,7 +61,7 @@ function LandingPage() {
           </Link>
           <Link
             to="/auth"
-            search={{ next: "/chat", oauth_stage: "", lr: "", provider: "" }}
+            search={{ next: "/builder", oauth_stage: "", lr: "", provider: "" }}
             className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground"
           >
             Sign in
@@ -85,7 +85,7 @@ function LandingPage() {
             </Link>
             <Link
               to="/auth"
-              search={{ next: "/chat", oauth_stage: "", lr: "", provider: "" }}
+              search={{ next: "/builder", oauth_stage: "", lr: "", provider: "" }}
               className="hover:text-foreground"
             >
               Sign in

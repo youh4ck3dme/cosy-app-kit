@@ -19,6 +19,7 @@ import { Route as DevBuilderPlaygroundRouteImport } from './routes/dev.builder-p
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiAiStatusRouteImport } from './routes/api/ai-status'
 import { Route as AArtifactIdRouteImport } from './routes/a.$artifactId'
+import { Route as AuthenticatedBuilderRouteImport } from './routes/_authenticated/builder'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat.index'
@@ -78,6 +79,11 @@ const AArtifactIdRoute = AArtifactIdRouteImport.update({
   id: '/a/$artifactId',
   path: '/a/$artifactId',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedBuilderRoute = AuthenticatedBuilderRouteImport.update({
+  id: '/builder',
+  path: '/builder',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const Char91DotwellKnownChar93OauthProtectedResourceRoute =
   Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
@@ -143,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/templates': typeof TemplatesRouteWithChildren
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/builder': typeof AuthenticatedBuilderRoute
   '/a/$artifactId': typeof AArtifactIdRouteWithChildren
   '/api/ai-status': typeof ApiAiStatusRoute
   '/api/chat': typeof ApiChatRoute
@@ -164,6 +171,7 @@ export interface FileRoutesByTo {
   '/templates': typeof TemplatesRouteWithChildren
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/builder': typeof AuthenticatedBuilderRoute
   '/a/$artifactId': typeof AArtifactIdRouteWithChildren
   '/api/ai-status': typeof ApiAiStatusRoute
   '/api/chat': typeof ApiChatRoute
@@ -187,6 +195,7 @@ export interface FileRoutesById {
   '/templates': typeof TemplatesRouteWithChildren
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/_authenticated/builder': typeof AuthenticatedBuilderRoute
   '/a/$artifactId': typeof AArtifactIdRouteWithChildren
   '/api/ai-status': typeof ApiAiStatusRoute
   '/api/chat': typeof ApiChatRoute
@@ -210,6 +219,7 @@ export interface FileRouteTypes {
     | '/templates'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/builder'
     | '/a/$artifactId'
     | '/api/ai-status'
     | '/api/chat'
@@ -231,6 +241,7 @@ export interface FileRouteTypes {
     | '/templates'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/builder'
     | '/a/$artifactId'
     | '/api/ai-status'
     | '/api/chat'
@@ -253,6 +264,7 @@ export interface FileRouteTypes {
     | '/templates'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/_authenticated/builder'
     | '/a/$artifactId'
     | '/api/ai-status'
     | '/api/chat'
@@ -359,6 +371,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AArtifactIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/builder': {
+      id: '/_authenticated/builder'
+      path: '/builder'
+      fullPath: '/builder'
+      preLoaderRoute: typeof AuthenticatedBuilderRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/.well-known/oauth-protected-resource': {
       id: '/.well-known/oauth-protected-resource'
       path: '/.well-known/oauth-protected-resource'
@@ -433,11 +452,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedBuilderRoute: typeof AuthenticatedBuilderRoute
   AuthenticatedChatThreadIdRoute: typeof AuthenticatedChatThreadIdRoute
   AuthenticatedChatIndexRoute: typeof AuthenticatedChatIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedBuilderRoute: AuthenticatedBuilderRoute,
   AuthenticatedChatThreadIdRoute: AuthenticatedChatThreadIdRoute,
   AuthenticatedChatIndexRoute: AuthenticatedChatIndexRoute,
 }
