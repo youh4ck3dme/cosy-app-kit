@@ -4,6 +4,7 @@ import {
   isIosSafari,
   isStandaloneDisplay,
   resetPwaBoosterForTests,
+  shouldWarmPwaAssets,
 } from "./pwa-booster";
 
 describe("pwa-booster", () => {
@@ -22,6 +23,14 @@ describe("pwa-booster", () => {
 
   it("detects standalone display mode", () => {
     expect(isStandaloneDisplay()).toBe(false);
+  });
+
+  it("skips warm on Vercel preview hosts (SSO-protected assets)", () => {
+    expect(shouldWarmPwaAssets("cosy-app-ecoyd22l8-h4ck3d.vercel.app")).toBe(false);
+    expect(shouldWarmPwaAssets("cosy-app-kit.vercel.app")).toBe(false);
+    expect(shouldWarmPwaAssets("cosy-app-kit.lovable.app")).toBe(true);
+    expect(shouldWarmPwaAssets("127.0.0.1")).toBe(true);
+    expect(shouldWarmPwaAssets("")).toBe(false);
   });
 
   it("detects iOS Safari user agent", () => {
