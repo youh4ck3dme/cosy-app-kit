@@ -22,6 +22,16 @@ Or re-run the GitHub Action **Prod smoke** (`workflow_dispatch`) from the Action
 
 4. **iPhone / PWA:** hard refresh or re-open from home screen. Settings → Speed & PWA booster toggles should be present.
 
+### PWA / manifest on Vercel preview URLs
+
+Production PWA assets live on **https://cosy-app-kit.lovable.app** (Lovable → Cloudflare). That host serves `/manifest.webmanifest` with HTTP 200.
+
+**Vercel Deployment Protection** on preview hosts (`*-h4ck3d.vercel.app`, etc.) redirects `/manifest.webmanifest` to `https://vercel.com/sso-api?…`. The browser then logs a CORS error — that is **not** an app CORS bug. Native `<link rel="manifest">` and any warm `fetch` will fail the same way until SSO is disabled, a Bypass is used, or you test on the unprotected production domain.
+
+Also expected in Chromium: `beforeinstallprompt` + “Banner not shown” — the app calls `preventDefault()` so install runs from Settings (`promptInstallApp`), not the default browser banner.
+
+Do **not** debug Google OAuth / chat because of those console lines.
+
 ---
 
 ## Deploy fingerprint
@@ -49,6 +59,7 @@ Expected after this ship: `shellRev: "native-shell-1"`, `buildMarker: "mistral-a
 |---------|-----|
 | `shellRev` mismatch | Lovable **Publish** not done yet → Publish, re-run `bun run prod-smoke` |
 | `manifest.id` missing | Same — old bundle still live |
+| CORS on `manifest.webmanifest` → `vercel.com/sso-api` | You are on an **SSO-protected Vercel preview**. Test PWA on https://cosy-app-kit.lovable.app or disable Deployment Protection / use Bypass — not an app CORS fix |
 | `mistralKeyPresent: false` | Lovable Cloud → Secrets → `MISTRAL_API_KEY` → redeploy |
 | Apple meta tags missing in `/chat` HTML | Publish + hard refresh (SW cache) |
 

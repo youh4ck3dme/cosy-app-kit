@@ -21,6 +21,16 @@ const WARM_PATHS = [
 let deferredInstall: InstallPromptEvent | null = null;
 let warmStarted = false;
 
+/**
+ * Vercel Deployment Protection on `*.vercel.app` previews redirects static
+ * assets through `vercel.com/sso-api`, which fails CORS for warm fetch.
+ * Skip warming there; test PWA on the unprotected production host instead.
+ */
+export function shouldWarmPwaAssets(hostname = typeof window !== "undefined" ? window.location.hostname : ""): boolean {
+  if (!hostname) return false;
+  return !hostname.endsWith(".vercel.app");
+}
+
 export function isStandaloneDisplay(): boolean {
   if (typeof window === "undefined") return false;
   return (
@@ -74,6 +84,10 @@ export async function promptInstallApp(): Promise<"accepted" | "dismissed" | "un
 /** Best-effort warm cache for icons/manifest (prod SW picks these up). */
 export async function warmPwaAssets(): Promise<void> {
   if (warmStarted || typeof window === "undefined") return;
+  if (!shouldWarmPwaAssets(window.location.hostname)) {
+    warmStarted = true;
+    return;
+  }
   warmStarted = true;
   await Promise.allSettled(
     WARM_PATHS.map((path) =>
