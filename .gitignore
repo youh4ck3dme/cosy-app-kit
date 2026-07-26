@@ -36,6 +36,10 @@ dist-ssr
 .env.*
 !.env.example
 
+# Private local secret notes (templates like *.example are OK)
+secrets/*.local.md
+!secrets/*.local.md.example
+
 # Local agent IDE settings
 .claude/
 

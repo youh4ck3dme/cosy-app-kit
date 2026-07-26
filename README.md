@@ -20,7 +20,8 @@ Evolve a working AI Builder product into a disciplined builder platform: sealed 
 | Supabase auth / DB | Implemented | `src/integrations/supabase`, `supabase/` |
 | Builder Kernel | Implemented (library) | `src/lib/builder/` — tags `v0.4.5*` / `v0.4.5.1-hardening` |
 | Plugin SDK | Implemented (library) | `src/lib/plugin-sdk/` — tag `v0.4.7-plugin-sdk` |
-| Kernel ↔ product UI wiring | Not yet implemented | No route/component imports of `@/lib/builder` |
+| Kernel ↔ product UI wiring | Not yet implemented | Product UI does not import kernel; `/dev/builder-playground` is developer tooling only |
+| Builder Kernel Playground | Implemented (dev-only) | `/dev/builder-playground` — redirects away in production |
 | Design Canvas (kernel consumer) | Not yet implemented | RPC types only |
 | Kernel Observatory (v0.4.6) | Future milestone | Not a released public API |
 | Plugin marketplace | Not yet implemented | — |
@@ -73,10 +74,91 @@ Do not treat placeholders as product screenshots.
 ```bash
 bun install
 cp .env.example .env.local   # then fill secrets locally — never commit them
+bun run dev                  # typically http://localhost:8080
+```
+
+Mistral product chat needs `MISTRAL_API_KEY` (server-only). Dual-model routing is already in code:
+
+| Mode | Model | Id |
+| --- | --- | --- |
+| Plan (default) | Mistral Large | `mistral-large-latest` |
+| Build (code/HTML) | Codestral | `codestral-latest` |
+
+Setup guide (placeholders only): [secrets/mistr.md](./secrets/mistr.md). Put real keys in `.env.local` or `secrets/mistr.local.md` (gitignored) — never commit them.
+
+Details: [docs/INSTALLATION.md](./docs/INSTALLATION.md) · [docs/GETTING_STARTED.md](./docs/GETTING_STARTED.md)
+
+## Local development commands
+
+Package manager is **Bun** (not npm/yarn).
+
+### Dev server
+
+```bash
+bun install
+cp .env.example .env.local   # fill MISTRAL_API_KEY + Supabase
 bun run dev
 ```
 
-Details: [docs/INSTALLATION.md](./docs/INSTALLATION.md) · [docs/GETTING_STARTED.md](./docs/GETTING_STARTED.md)
+Open `http://localhost:8080` (use the URL Vite prints if different).
+
+### Builder Kernel Playground (developer tooling)
+
+On `main` (already merged):
+
+```bash
+git checkout main && git pull
+bun run dev
+```
+
+Then open:
+
+```text
+http://localhost:8080/dev/builder-playground
+```
+
+Try: add Text node · Undo/Redo · validation · history · event viewer · JSON inspector.  
+Production/preview builds redirect this route to `/` (`import.meta.env.DEV` guard).
+
+### Unit tests
+
+```bash
+bun run test:unit
+bun run test:unit src/lib/builder
+bun run test:unit src/lib/plugin-sdk
+bun run test:unit src/lib/builder/playground
+bun run test:watch
+```
+
+### Engineering gate
+
+```bash
+bun run verify          # typecheck + unit + lint:gate + smoke
+bun run verify:full     # + Playwright e2e
+
+bun run typecheck
+bun run lint:gate
+bun run build
+bun run smoke
+```
+
+### Other
+
+```bash
+bun run build && bun run preview
+bun run test:e2e:install && bun run test:e2e
+bun run format
+```
+
+### Recommended first session
+
+1. `bun install`
+2. Fill `.env.local` using [secrets/mistr.md](./secrets/mistr.md)
+3. `bun run test:unit src/lib/builder/playground`
+4. `bun run dev` → `/dev/builder-playground`
+5. Sign in and open chat to exercise Large (Plan) + Codestral (Build)
+6. `bun run verify`
+7. Smoke AI: `curl -s http://localhost:8080/api/ai-status` → `mistralKeyPresent: true`
 
 ## Quick start — libraries
 
