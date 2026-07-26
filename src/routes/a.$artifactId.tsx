@@ -98,11 +98,12 @@ function PublicArtifactPage() {
       : `tok-${Date.now()}`,
   );
 
-  const files = useMemo(() => {
+  const files = useMemo<Array<{ path: string; language: string; content: string }>>(() => {
     if (!artifact) return [];
     if (artifact.files && artifact.files.length > 0) return artifact.files;
     return [{ path: "index.html", language: artifact.kind, content: artifact.content }];
   }, [artifact]);
+
 
   const entryPath =
     (artifact?.entry_path && files.some((f) => f.path === artifact.entry_path)
