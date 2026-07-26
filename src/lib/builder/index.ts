@@ -136,9 +136,12 @@ export {
 
 export {
   createBuilderRuntime,
+  createDevPluginSdkHost,
+  createReadonlyPluginDocumentSource,
   InMemoryRuntimePersistence,
   type BuilderRuntime,
   type BuilderRuntimeOptions,
+  type CreateDevPluginSdkHostOptions,
   type RuntimePersistence,
 } from "./runtime";
 

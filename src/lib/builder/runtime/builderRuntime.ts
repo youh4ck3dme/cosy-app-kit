@@ -8,7 +8,10 @@
  * Slice B adds an optional persistence port (load/save). No production
  * backend, no schema, no migrations — see persistence.ts.
  *
- * Out of scope here: Plugin SDK bridges (Slice C), Canvas / PostMessage / RPC.
+ * Slice C (pluginDocumentBridge.ts): optional read-only Plugin SDK
+ * documentSource behind an explicit enable flag — no canvasSource, no write API.
+ *
+ * Out of scope here: Canvas / PostMessage / RPC; production persistence backends.
  */
 
 import type { ICommand } from "../commands/command.interface";
