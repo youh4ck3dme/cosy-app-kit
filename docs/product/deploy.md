@@ -26,7 +26,7 @@ Or re-run the GitHub Action **Prod smoke** (`workflow_dispatch`) from the Action
 
 ## Deploy fingerprint
 
-Bump constants in [`src/lib/deploy-rev.ts`](../src/lib/deploy-rev.ts) when you ship:
+Bump constants in [`src/lib/deploy-rev.ts`](../../src/lib/deploy-rev.ts) when you ship:
 
 | Constant | When to bump |
 |----------|----------------|
@@ -59,4 +59,4 @@ Expected after this ship: `shellRev: "native-shell-1"`, `buildMarker: "mistral-a
 - **Install · test · typecheck · build** — runs on PRs to `main` / `developeredit`
 - **Prod smoke** — runs on push to `main` + manual dispatch; hits live URL
 
-See [`.github/workflows/prod-smoke.yml`](../.github/workflows/prod-smoke.yml).
+See [`.github/workflows/prod-smoke.yml`](../../.github/workflows/prod-smoke.yml).
