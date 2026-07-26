@@ -272,11 +272,18 @@ export function Canvas({
     return () => ro.disconnect();
   }, []);
 
-  const rawFiles = artifact ? fileList(artifact) : [];
+  const baseFiles = artifact ? fileList(artifact) : [];
+  // P3 — Canvas Pro: local file add/remove staged until Save.
+  const rawFiles = [
+    ...baseFiles.filter((f) => !removedPaths.includes(f.path)),
+    ...addedFiles.filter((f) => !baseFiles.some((b) => b.path === f.path)),
+  ];
   const files = rawFiles.map((f) => ({ ...f, content: edits[f.path] ?? f.content }));
   const htmlFiles = files.filter((f) => isHtmlPath(f.path));
   const multiPage = htmlFiles.length > 1;
-  const isDirty = Object.keys(edits).length > 0;
+  const isDirty =
+    Object.keys(edits).length > 0 || addedFiles.length > 0 || removedPaths.length > 0;
+
   const filePathsKey = rawFiles.map((f) => f.path).join("\0");
   const filePaths = useMemo(() => (filePathsKey ? filePathsKey.split("\0") : []), [filePathsKey]);
   const entryPath =
