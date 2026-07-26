@@ -82,6 +82,78 @@ export const MOBILE_FIRST_POLISH_PROMPT = `Rewrite this artifact mobile-first fo
 5) keep existing colors/brand
 Use edit_file on the current artifact when possible — do not recreate from scratch unless necessary.`;
 
+/** One-tap: dark/light theme without rewriting the app. */
+export const THEME_TOGGLE_POLISH_PROMPT = `Build mode. On the CURRENT artifact (edit_file / read_artifact first — do NOT recreate from scratch):
+1) Add a dark/light theme toggle in a sensible header/settings spot
+2) Drive colors via CSS variables (e.g. data-theme="dark"|"light" on <html> or <body>)
+3) Persist preference in localStorage; default to dark if unset
+4) Keep existing brand accents and layout; do not invent a new palette from scratch
+5) Ensure contrast stays readable in both themes
+Do not change core business logic.`;
+
+/** One-tap: accessibility + a few keyboard shortcuts. */
+export const A11Y_POLISH_PROMPT = `Build mode. On the CURRENT artifact (edit_file — do NOT recreate):
+1) Every interactive control has an accessible name (label / aria-label)
+2) Visible :focus-visible rings; Escape closes modals/drawers/palettes
+3) Forms associate <label> with inputs; errors are announced (aria-live or role=alert)
+4) Add 3–5 keyboard shortcuts for common actions (document them in a small Shortcuts hint)
+5) Do not remove existing features; keep colors/brand
+Do not change core business logic.`;
+
+/** One-tap: denser visual system — spacing, type, CSS vars (not a design canvas). */
+export const VISUAL_SYSTEM_POLISH_PROMPT = `Build mode. On the CURRENT artifact (edit_file — do NOT recreate):
+1) Introduce a small design token set as CSS variables (bg, surface, border, text, accent, radius, space)
+2) Consistent spacing rhythm; cards/sections align to a simple grid/flex system
+3) Typography scale (title / body / mono meta) — no random font sizes
+4) Touch targets ≥44px where primary actions exist
+5) Keep existing brand/accent; no drag-and-drop shape editor, no fake analytics widgets
+Do not change core business logic.`;
+
+/** One-tap: practical export/share without new backends. */
+export const EXPORT_SHARE_POLISH_PROMPT = `Build mode. On the CURRENT artifact (edit_file — do NOT recreate):
+1) Add a "Download HTML" (or ZIP-of-files if multi-file) control that exports the current app state/files the user can save
+2) Add print-friendly CSS (@media print) so Print → PDF works for the main view
+3) Optional: copy-share text (booking id / deep link hash) if the app already has an ID concept
+4) No external CDN; no analytics; no Figma/Adobe integrations
+5) Keep existing flows intact
+Do not change core business logic.`;
+
+/** Catalog for one-tap Canvas polish actions (UI + tests). */
+export const ARTIFACT_POLISH_ACTIONS = [
+  {
+    id: "mobile-first",
+    label: "Mobile-first",
+    title: "Ask Builder to rewrite layout mobile-first",
+    prompt: MOBILE_FIRST_POLISH_PROMPT,
+  },
+  {
+    id: "theme",
+    label: "Theme",
+    title: "Ask Builder to add dark/light theme toggle",
+    prompt: THEME_TOGGLE_POLISH_PROMPT,
+  },
+  {
+    id: "a11y",
+    label: "A11y",
+    title: "Ask Builder to improve accessibility and shortcuts",
+    prompt: A11Y_POLISH_PROMPT,
+  },
+  {
+    id: "visual",
+    label: "Visual",
+    title: "Ask Builder to tighten spacing, type, and CSS tokens",
+    prompt: VISUAL_SYSTEM_POLISH_PROMPT,
+  },
+  {
+    id: "export",
+    label: "Export",
+    title: "Ask Builder to add download/print export helpers",
+    prompt: EXPORT_SHARE_POLISH_PROMPT,
+  },
+] as const;
+
+export type ArtifactPolishActionId = (typeof ARTIFACT_POLISH_ACTIONS)[number]["id"];
+
 /**
  * One-tap polish for multi-file project packages (FleetOps-class runtime).
  * Prefer edit_file on existing files — keep file count and nav labels stable.

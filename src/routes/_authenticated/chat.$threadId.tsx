@@ -36,7 +36,7 @@ import { truncateThreadMessagesClient } from "@/lib/truncate-messages";
 import { extractEditFileSnippets } from "@/lib/edit-snippets";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { MOBILE_FIRST_POLISH_PROMPT, PROJECT_RUNTIME_POLISH_PROMPT } from "@/lib/agent/prompts";
+import { PROJECT_RUNTIME_POLISH_PROMPT } from "@/lib/agent/prompts";
 import { isPreviewMode, type PreviewMode } from "@/lib/preview-frame";
 
 export const Route = createFileRoute("/_authenticated/chat/$threadId")({
@@ -577,10 +577,9 @@ function ChatPage() {
               artifact={activeArtifact}
               threadId={threadId}
               editSnippets={editSnippets}
-              onPolishMobile={() => {
-                // One-tap mobile-first rewrite (MR-40 M3)
+              onPolishPrompt={(prompt) => {
                 setMode("Build");
-                void sendMessage({ text: MOBILE_FIRST_POLISH_PROMPT });
+                void sendMessage({ text: prompt });
                 setView("preview");
               }}
               onPolishProject={() => {

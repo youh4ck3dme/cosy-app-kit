@@ -42,6 +42,7 @@ import {
   type PreviewMode,
 } from "@/lib/preview-frame";
 import { analyzeResponsiveHtml, type ResponsiveReport } from "@/lib/agent/responsive-gate";
+import { ARTIFACT_POLISH_ACTIONS } from "@/lib/agent/prompts";
 import {
   analyzeProjectRuntime,
   isMultiPageProject,
@@ -152,6 +153,7 @@ export function Canvas({
   artifact,
   threadId,
   editSnippets = [],
+  onPolishPrompt,
   onPolishMobile,
   onPolishProject,
   onFixFromConsole,
@@ -160,7 +162,9 @@ export function Canvas({
   threadId?: string;
   /** From chat tool parts — enables Diff “Show model change”. */
   editSnippets?: EditFileSnippet[];
-  /** One-tap “Make mobile-first” → parent sends polish prompt (MR-40 M3). */
+  /** One-tap polish catalog → parent sends Build prompt. */
+  onPolishPrompt?: (prompt: string) => void;
+  /** @deprecated Prefer onPolishPrompt — kept for callers that only wire mobile. */
   onPolishMobile?: () => void;
   /** One-tap multi-file project runtime fix (FleetOps-class ZIP readiness). */
   onPolishProject?: () => void;
@@ -1192,20 +1196,38 @@ export function Canvas({
                         p{projectReport.score}
                       </span>
                     )}
-                    {onPolishMobile && entryHtml && (
-                      <button
-                        type="button"
-                        onClick={onPolishMobile}
-                        className={cn(
-                          "shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-semibold transition-colors",
-                          responsiveReport && !responsiveReport.ok
-                            ? "bg-amber-500/20 text-amber-200 hover:bg-amber-500/30"
-                            : "bg-surface-2 text-muted-foreground hover:bg-surface-3 hover:text-foreground",
-                        )}
-                        title="Ask Builder to rewrite layout mobile-first"
-                      >
-                        Mobile-first
-                      </button>
+                    {(onPolishPrompt || onPolishMobile) && entryHtml && (
+                      <div className="flex max-w-[min(100%,14rem)] flex-wrap items-center gap-0.5">
+                        {ARTIFACT_POLISH_ACTIONS.map((action) => {
+                          const run =
+                            action.id === "mobile-first" && !onPolishPrompt && onPolishMobile
+                              ? onPolishMobile
+                              : onPolishPrompt
+                                ? () => onPolishPrompt(action.prompt)
+                                : null;
+                          if (!run) return null;
+                          const emphasizeMobile =
+                            action.id === "mobile-first" &&
+                            responsiveReport &&
+                            !responsiveReport.ok;
+                          return (
+                            <button
+                              key={action.id}
+                              type="button"
+                              onClick={run}
+                              className={cn(
+                                "shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-semibold transition-colors",
+                                emphasizeMobile
+                                  ? "bg-amber-500/20 text-amber-200 hover:bg-amber-500/30"
+                                  : "bg-surface-2 text-muted-foreground hover:bg-surface-3 hover:text-foreground",
+                              )}
+                              title={action.title}
+                            >
+                              {action.label}
+                            </button>
+                          );
+                        })}
+                      </div>
                     )}
                     {onPolishProject && projectReport && !projectReport.ok && (
                       <button
@@ -1243,7 +1265,7 @@ export function Canvas({
                       ? { srcDoc }
                       : {})}
                   sandbox="allow-scripts allow-forms"
-                  className="block w-full border-0 bg-white"
+                  className="block w-full border-0 bg-panel"
                   style={{ height: frame.iframeHeight, width: frame.mediaWidth }}
                   title={artifact.title}
                 />
@@ -1307,7 +1329,7 @@ export function Canvas({
                     <iframe
                       src={previewSrc}
                       sandbox="allow-scripts allow-forms"
-                      className="pointer-events-none h-[200%] w-[200%] origin-top-left scale-50 border-0 bg-white"
+                      className="pointer-events-none h-[200%] w-[200%] origin-top-left scale-50 border-0 bg-surface-2"
                       title="Share preview"
                       tabIndex={-1}
                     />
@@ -1317,7 +1339,7 @@ export function Canvas({
                       // Same as main preview — empty sandbox logs "allow-scripts is not set"
                       // and confuses debugging (thumbnail is pointer-events-none only).
                       sandbox="allow-scripts allow-forms"
-                      className="pointer-events-none h-[200%] w-[200%] origin-top-left scale-50 border-0 bg-white"
+                      className="pointer-events-none h-[200%] w-[200%] origin-top-left scale-50 border-0 bg-surface-2"
                       title="Share preview"
                       tabIndex={-1}
                     />
