@@ -1085,7 +1085,7 @@ export function Canvas({
         </div>
       )}
 
-      {artifact && (view === "code" || view === "diff") && files.length > 1 && (
+      {artifact && (view === "code" || view === "diff") && files.length > 0 && (
         <div className="relative z-10 flex flex-none items-center gap-0.5 overflow-x-auto border-b border-border-subtle bg-surface-1/40 px-2 no-scrollbar">
           {multiPage && (
             <span className="shrink-0 px-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground tabular-nums">
@@ -1095,30 +1095,58 @@ export function Canvas({
           {files.map((f) => {
             const active = currentFile?.path === f.path;
             const edited = edits[f.path] !== undefined;
+            const isNew = addedFiles.some((a) => a.path === f.path);
             return (
-              <button
+              <span
                 key={f.path}
-                type="button"
-                onClick={() => {
-                  if (isHtmlPath(f.path)) {
-                    selectHtmlPage(f.path);
-                  } else {
-                    setActiveFile(f.path);
-                  }
-                }}
-                aria-pressed={active}
                 className={cn(
-                  "min-h-11 shrink-0 border-b-2 px-3 py-1.5 font-mono text-[11px] transition-colors",
-                  active
-                    ? "border-accent-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
+                  "group flex shrink-0 items-center border-b-2 transition-colors",
+                  active ? "border-accent-primary" : "border-transparent",
                 )}
               >
-                {f.path}
-                {edited && <span className="ml-1.5 text-accent-primary">●</span>}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isHtmlPath(f.path)) {
+                      selectHtmlPage(f.path);
+                    } else {
+                      setActiveFile(f.path);
+                    }
+                  }}
+                  aria-pressed={active}
+                  className={cn(
+                    "min-h-11 px-3 py-1.5 font-mono text-[11px] transition-colors",
+                    active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {f.path}
+                  {isNew && <span className="ml-1.5 text-accent-primary">+</span>}
+                  {edited && <span className="ml-1.5 text-accent-primary">●</span>}
+                </button>
+                {files.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => deleteFile(f.path)}
+                    aria-label={`Delete ${f.path}`}
+                    title={`Delete ${f.path}`}
+                    className="mr-1 hidden rounded p-1 text-muted-foreground hover:bg-surface-2 hover:text-foreground group-hover:block max-sm:block"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </span>
             );
           })}
+          <button
+            type="button"
+            onClick={addFile}
+            aria-label="New file"
+            title="New file"
+            className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 font-mono text-[11px] text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+          >
+            <Plus className="h-3 w-3" /> New file
+          </button>
+
           {isDirty && (
             <button
               onClick={resetEdits}
