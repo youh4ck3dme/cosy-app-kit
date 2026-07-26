@@ -16,6 +16,8 @@ import {
   Check,
   X,
   Undo2,
+  Plus,
+
   Columns2,
   Save,
   Maximize2,
@@ -188,6 +190,11 @@ export function Canvas({
   const [sharing, setSharing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [edits, setEdits] = useState<Record<string, string>>({});
+  /** P3 — files created locally in the canvas, persisted on Save. */
+  const [addedFiles, setAddedFiles] = useState<ArtifactFile[]>([]);
+  /** P3 — files removed locally in the canvas, persisted on Save. */
+  const [removedPaths, setRemovedPaths] = useState<string[]>([]);
+
   const [undoStack, setUndoStack] = useState<Record<string, string>[]>([]);
   const [diffMode, setDiffMode] = useState<"local" | "model">("local");
   /** Width of the scrollable canvas host (for fluid + fit scale). */
@@ -272,11 +279,18 @@ export function Canvas({
     return () => ro.disconnect();
   }, []);
 
-  const rawFiles = artifact ? fileList(artifact) : [];
+  const baseFiles = artifact ? fileList(artifact) : [];
+  // P3 — Canvas Pro: local file add/remove staged until Save.
+  const rawFiles = [
+    ...baseFiles.filter((f) => !removedPaths.includes(f.path)),
+    ...addedFiles.filter((f) => !baseFiles.some((b) => b.path === f.path)),
+  ];
   const files = rawFiles.map((f) => ({ ...f, content: edits[f.path] ?? f.content }));
   const htmlFiles = files.filter((f) => isHtmlPath(f.path));
   const multiPage = htmlFiles.length > 1;
-  const isDirty = Object.keys(edits).length > 0;
+  const isDirty =
+    Object.keys(edits).length > 0 || addedFiles.length > 0 || removedPaths.length > 0;
+
   const filePathsKey = rawFiles.map((f) => f.path).join("\0");
   const filePaths = useMemo(() => (filePathsKey ? filePathsKey.split("\0") : []), [filePathsKey]);
   const entryPath =
@@ -438,8 +452,69 @@ export function Canvas({
   const resetEdits = () => {
     if (Object.keys(edits).length) setUndoStack((s) => [...s.slice(-4), edits]);
     setEdits({});
+    setAddedFiles([]);
+    setRemovedPaths([]);
     setLogs([]);
   };
+
+  /** P3 — create a new file in the canvas (staged until Save). */
+  const addFile = () => {
+    if (!artifact) return;
+    const raw = window.prompt("New file path (e.g. about.html, styles.css, app.js)");
+    const path = (raw ?? "").trim().replace(/^\/+/, "");
+    if (!path) return;
+    if (!/^[\w./-]+$/.test(path)) {
+      toast.error("Use letters, numbers, dot, dash, slash only");
+      return;
+    }
+    if (files.some((f) => f.path === path)) {
+      toast.error(`${path} already exists`);
+      setActiveFile(path);
+      return;
+    }
+    const ext = path.split(".").pop()?.toLowerCase() ?? "";
+    const language =
+      ext === "html" || ext === "htm"
+        ? "html"
+        : ext === "css"
+          ? "css"
+          : ext === "js" || ext === "mjs"
+            ? "javascript"
+            : ext === "json"
+              ? "json"
+              : ext === "md"
+                ? "markdown"
+                : "plaintext";
+    const content = isHtmlPath(path)
+      ? `<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="utf-8" />\n    <meta name="viewport" content="width=device-width, initial-scale=1" />\n    <title>${htmlPageLabel(path)}</title>\n  </head>\n  <body>\n    <h1>${htmlPageLabel(path)}</h1>\n    <p><a href="${entryPath ?? "index.html"}">Back home</a></p>\n  </body>\n</html>\n`
+      : "";
+    setRemovedPaths((p) => p.filter((x) => x !== path));
+    setAddedFiles((a) => [...a, { path, language, content }]);
+    setActiveFile(path);
+    setView("code");
+    toast.success(`${path} added — Save to keep it`);
+  };
+
+  /** P3 — delete a file from the canvas (staged until Save). */
+  const deleteFile = (path: string) => {
+    if (!artifact || files.length <= 1) {
+      toast.error("An artifact needs at least one file");
+      return;
+    }
+    if (!window.confirm(`Delete ${path}? Save to make it permanent.`)) return;
+    setAddedFiles((a) => a.filter((f) => f.path !== path));
+    setRemovedPaths((p) => (p.includes(path) ? p : [...p, path]));
+    setEdits((e) => {
+      const nextEdits = { ...e };
+      delete nextEdits[path];
+      return nextEdits;
+    });
+    if (activeFile === path) setActiveFile(null);
+    if (previewPath === path) setPreviewPath(null);
+    toast.success(`${path} removed`);
+  };
+
+
 
   const restoreUndo = () => {
     const last = undoStack[undoStack.length - 1];
@@ -503,7 +578,10 @@ export function Canvas({
     setLogs([]);
     setNetwork([]);
     setEdits({});
+    setAddedFiles([]);
+    setRemovedPaths([]);
     setUndoStack([]);
+
     bridgeTokenRef.current =
       typeof crypto !== "undefined" && crypto.randomUUID
         ? crypto.randomUUID()
@@ -590,6 +668,13 @@ export function Canvas({
           t.tagName === "TEXTAREA" ||
           t.isContentEditable ||
           t.closest(".monaco-editor"));
+      // P3 — Cmd/Ctrl+S saves live edits, even from inside the code editor.
+      if ((e.metaKey || e.ctrlKey) && (e.key === "s" || e.key === "S")) {
+        if (!artifact || !isDirty || saving) return;
+        e.preventDefault();
+        void handleSaveEdits();
+        return;
+      }
       if (e.key === "Escape" && fullscreen) {
         e.preventDefault();
         setFullscreen(false);
@@ -603,7 +688,9 @@ export function Canvas({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [fullscreen, hasLivePreview, view]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleSaveEdits is stable per render
+  }, [fullscreen, hasLivePreview, view, artifact, isDirty, saving]);
+
 
   const handleShare = async () => {
     if (!artifact) return;
@@ -640,6 +727,9 @@ export function Canvas({
       });
       setUndoStack((s) => [...s.slice(-4), edits]);
       setEdits({});
+      setAddedFiles([]);
+      setRemovedPaths([]);
+
       toast.success("Saved to artifact");
       refresh();
     } catch (e) {
@@ -997,7 +1087,7 @@ export function Canvas({
         </div>
       )}
 
-      {artifact && (view === "code" || view === "diff") && files.length > 1 && (
+      {artifact && (view === "code" || view === "diff") && files.length > 0 && (
         <div className="relative z-10 flex flex-none items-center gap-0.5 overflow-x-auto border-b border-border-subtle bg-surface-1/40 px-2 no-scrollbar">
           {multiPage && (
             <span className="shrink-0 px-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground tabular-nums">
@@ -1007,30 +1097,58 @@ export function Canvas({
           {files.map((f) => {
             const active = currentFile?.path === f.path;
             const edited = edits[f.path] !== undefined;
+            const isNew = addedFiles.some((a) => a.path === f.path);
             return (
-              <button
+              <span
                 key={f.path}
-                type="button"
-                onClick={() => {
-                  if (isHtmlPath(f.path)) {
-                    selectHtmlPage(f.path);
-                  } else {
-                    setActiveFile(f.path);
-                  }
-                }}
-                aria-pressed={active}
                 className={cn(
-                  "min-h-11 shrink-0 border-b-2 px-3 py-1.5 font-mono text-[11px] transition-colors",
-                  active
-                    ? "border-accent-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
+                  "group flex shrink-0 items-center border-b-2 transition-colors",
+                  active ? "border-accent-primary" : "border-transparent",
                 )}
               >
-                {f.path}
-                {edited && <span className="ml-1.5 text-accent-primary">●</span>}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isHtmlPath(f.path)) {
+                      selectHtmlPage(f.path);
+                    } else {
+                      setActiveFile(f.path);
+                    }
+                  }}
+                  aria-pressed={active}
+                  className={cn(
+                    "min-h-11 px-3 py-1.5 font-mono text-[11px] transition-colors",
+                    active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {f.path}
+                  {isNew && <span className="ml-1.5 text-accent-primary">+</span>}
+                  {edited && <span className="ml-1.5 text-accent-primary">●</span>}
+                </button>
+                {files.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => deleteFile(f.path)}
+                    aria-label={`Delete ${f.path}`}
+                    title={`Delete ${f.path}`}
+                    className="mr-1 hidden rounded p-1 text-muted-foreground hover:bg-surface-2 hover:text-foreground group-hover:block max-sm:block"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </span>
             );
           })}
+          <button
+            type="button"
+            onClick={addFile}
+            aria-label="New file"
+            title="New file"
+            className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 font-mono text-[11px] text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+          >
+            <Plus className="h-3 w-3" /> New file
+          </button>
+
           {isDirty && (
             <button
               onClick={resetEdits}

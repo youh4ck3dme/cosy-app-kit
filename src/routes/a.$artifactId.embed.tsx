@@ -69,12 +69,13 @@ function EmbedPage() {
       : `tok-${Date.now()}`,
   );
 
-  const files = useMemo(() => {
+  const files = useMemo<Array<{ path: string; language: string; content: string }>>(() => {
     if (!artifact) return [];
     return artifact.files && artifact.files.length > 0
       ? artifact.files
       : [{ path: "index.html", language: artifact.kind, content: artifact.content }];
   }, [artifact]);
+
 
   const entryPath =
     (artifact?.entry_path && files.some((f) => f.path === artifact.entry_path)

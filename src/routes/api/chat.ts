@@ -18,7 +18,9 @@ import {
   DEFAULT_SYSTEM_PROMPT,
   formatAiGatewayError,
 } from "@/lib/ai-gateway.server";
-import { resolveModelForMode } from "@/lib/models";
+import { getModelFallbackChain, resolveModelForMode } from "@/lib/models";
+import { withFirstChunk } from "@/lib/agent/fallback";
+
 import { extractArtifacts } from "@/lib/agent/artifacts";
 import { composeSystem, formatClientContext, type ClientPreviewContext } from "@/lib/agent/prompts";
 import { formatMemoryBlock, loadThreadMemory } from "@/lib/agent/memory";
@@ -237,61 +239,95 @@ export const Route = createFileRoute("/api/chat")({
 
           const provider = createMistralProvider(mistralKey);
           const originalMessages = body.messages as UIMessage[];
+          const chain = getModelFallbackChain(thread.model, mode);
 
           // Wrap stream so we can emit transient data-* parts for Cursor toasts/canvas.
           const uiStream = createUIMessageStream({
             originalMessages,
             execute: async ({ writer }) => {
-              const result = streamText({
-                model: provider(modelId),
-                system,
-                temperature,
-                messages: modelMessages,
-                tools,
-                stopWhen: stepCountIs(mode === "plan" ? 12 : 25),
-                onError: ({ error }) => {
-                  console.error("[api/chat] streamText error", {
-                    modelId,
-                    threadId: thread.id,
-                    error,
-                  });
-                },
-                onStepFinish: ({ toolResults }) => {
-                  const parts = toolResultsToDataParts(
-                    (toolResults ?? []) as ToolResultLike[],
-                  );
-                  for (const part of parts) {
+              let lastError: unknown = null;
+
+              for (let attempt = 0; attempt < chain.length; attempt++) {
+                const candidate = chain[attempt];
+                const result = streamText({
+                  model: provider(candidate),
+                  system,
+                  temperature,
+                  messages: modelMessages,
+                  tools,
+                  stopWhen: stepCountIs(mode === "plan" ? 12 : 25),
+                  onError: ({ error }) => {
+                    console.error("[api/chat] streamText error", {
+                      candidate,
+                      threadId: thread.id,
+                      error,
+                    });
+                  },
+                  onStepFinish: ({ toolResults }) => {
+                    const parts = toolResultsToDataParts((toolResults ?? []) as ToolResultLike[]);
+                    for (const part of parts) {
+                      try {
+                        writer.write(part as Parameters<typeof writer.write>[0]);
+                      } catch (e) {
+                        console.warn("[api/chat] data part write failed", e);
+                      }
+                    }
+                  },
+                  onFinish: async ({ text, steps, toolResults }) => {
                     try {
-                      writer.write(part as Parameters<typeof writer.write>[0]);
+                      const fromSteps = collectToolResultsFromSteps(steps);
+                      const allTools: ToolResultLike[] =
+                        fromSteps.length > 0 ? fromSteps : ((toolResults ?? []) as ToolResultLike[]);
+                      await persistAssistant(text, candidate, allTools);
+                    } catch (finishErr) {
+                      console.error("[api/chat] onFinish failed", finishErr);
+                    }
+                  },
+                });
+
+                try {
+                  // Only hand the stream to the client once the provider accepted it,
+                  // so a dead/rate-limited model can still fall back silently.
+                  const safeStream = await withFirstChunk(
+                    result.toUIMessageStream({
+                      originalMessages,
+                      onError: (error) => {
+                        throw error;
+                      },
+                    }),
+                  );
+
+                  if (attempt > 0) {
+                    try {
+                      writer.write({
+                        type: "data-model-fallback",
+                        data: {
+                          from: chain[0],
+                          to: candidate,
+                          reason: formatAiGatewayError(lastError),
+                        },
+                        transient: true,
+                      } as Parameters<typeof writer.write>[0]);
                     } catch (e) {
-                      console.warn("[api/chat] data part write failed", e);
+                      console.warn("[api/chat] fallback notice write failed", e);
                     }
                   }
-                },
-                onFinish: async ({ text, steps, toolResults }) => {
-                  try {
-                    const fromSteps = collectToolResultsFromSteps(steps);
-                    const allTools: ToolResultLike[] =
-                      fromSteps.length > 0
-                        ? fromSteps
-                        : ((toolResults ?? []) as ToolResultLike[]);
-                    await persistAssistant(text, modelId, allTools);
-                  } catch (finishErr) {
-                    console.error("[api/chat] onFinish failed", finishErr);
-                  }
-                },
-              });
 
-              writer.merge(
-                result.toUIMessageStream({
-                  originalMessages,
-                }),
-              );
+                  writer.merge(safeStream);
+                  return;
+                } catch (err) {
+                  lastError = err;
+                  console.error("[api/chat] model attempt failed", { candidate, attempt, err });
+                }
+              }
+
+              throw lastError ?? new Error("All Mistral models failed");
             },
             onError: (error) => formatAiGatewayError(error),
           });
 
           return createUIMessageStreamResponse({ stream: uiStream });
+
         } catch (err) {
           console.error("[api/chat] unhandled", err);
           return new Response(formatAiGatewayError(err), { status: 500 });
