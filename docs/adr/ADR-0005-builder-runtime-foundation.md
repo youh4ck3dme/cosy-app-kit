@@ -1,9 +1,9 @@
 # ADR-0005: Builder Runtime Foundation (v0.5.0)
 
-- **Status:** Accepted (decision locked; implementation not yet shipped)
+- **Status:** Proposed (pending architecture review approval)
 - **Date:** 2026-07
 - **Related:** [RFC-0001](../rfc/RFC-0001-runtime-layer.md), [ADR-0001](./ADR-0001-builder-kernel.md), [ADR-0003](./ADR-0003-plugin-isolation.md)
-- **Evidence:** Decision record only — no Runtime code in this change. Implementation remains **Planned** as roadmap **v0.5.0**.
+- **Evidence:** Decision draft only — no Runtime code in this change. Implementation remains **Planned** as roadmap **v0.5.0** and must not start until this ADR is Accepted.
 
 ## Context
 
@@ -18,15 +18,19 @@ Introduce a **Builder Runtime** layer as the only long-lived host for a Builder 
 ### What Runtime is
 
 1. **Session owner** — creates, holds, and disposes a bootstrapped kernel for one editing/session lifetime.
-2. **Boundary** — product and future Canvas talk to Runtime APIs (load/save hooks, readonly document views, command dispatch facades), not to private kernel internals.
-3. **Host contracts** — defines interfaces for persistence and (later) read-only Plugin SDK document/canvas sources; concrete backends stay TBD.
-4. **Preparation for Canvas** — Runtime may expose snapshots / RPC-friendly views later; it must not embed a design editor UI inside the kernel.
+2. **Boundary** — product surfaces talk to Runtime APIs (load/save hooks, readonly document views, command dispatch facades), not to private kernel internals.
+3. **Host contracts** — defines interfaces for persistence and (later, under a separate bridge milestone) read-only Plugin SDK `documentSource` wiring; concrete backends stay TBD.
+
+### Canvas boundary (explicit)
+
+Runtime does not define Canvas APIs, RPC contracts, or plugin Canvas access.
+Canvas integration requires a separate future ADR and implementation milestone.
 
 ### What Runtime is not (this milestone)
 
 | Out of scope for v0.5.0 | Reason |
 | --- | --- |
-| Design Canvas iframe / PostMessage runtime | Separate roadmap item; RPC types only today |
+| Design Canvas iframe / PostMessage runtime | Separate roadmap item; RPC types only today; no Canvas surface under this ADR |
 | Marketplace / third-party plugin install | Sequencing principle rejects marketplace-before-isolation completion |
 | Mutation-rich Plugin SDK host (`document.write` / `document.modify`) | Declared inert; activating write is a later bridge milestone |
 | Locked persistence schema (Supabase vs IndexedDB) | Premature lock-in called out in RFC-0001 |
@@ -39,6 +43,7 @@ Introduce a **Builder Runtime** layer as the only long-lived host for a Builder 
 - Prefer `getReadonlyDocument()` / clones at trust boundaries; no silent aliasing of live document state.
 - Do **not** execute untrusted generated plugin code on the authenticated app origin ([SECURITY.md](../SECURITY.md)).
 - Kernel remains a library; Runtime is the host, not a second command engine.
+- Do **not** add Canvas/RPC-shaped API surface under this ADR; any such surface requires its own future ADR before any slice may implement it.
 
 ### Suggested implementation slices (non-binding order)
 
@@ -46,9 +51,9 @@ Introduce a **Builder Runtime** layer as the only long-lived host for a Builder 
 | --- | --- |
 | **A** | Session lifecycle + host facade over existing `bootstrapBuilderKernel` (create/dispose, readonly document, dispatch/undo/redo pass-through) |
 | **B** | Persistence **ports** only (load/save interfaces + in-memory or test double); no production schema migration |
-| **C** | Optional read-only Plugin SDK `documentSource` wiring behind an explicit flag/dev host — still no write permissions activated |
+| **C** | Optional read-only Plugin SDK `documentSource` wiring behind an explicit flag/dev host — still no write permissions activated; no `canvasSource` |
 
-Each slice should land as its own PR with tests. Slice C must not silently become a full SDK↔kernel permission unification.
+Each slice should land as its own PR with tests. Slice C must not silently become a full SDK↔kernel permission unification. No slice may implement Canvas/RPC contracts.
 
 ## Alternatives considered
 
@@ -61,12 +66,12 @@ Each slice should land as its own PR with tests. Slice C must not silently becom
 ## Consequences
 
 - Positive: single place to reason about kernel lifetime, disposal, and host permissions
-- Positive: RFC-0001 open questions stay open without blocking Slice A
-- Positive: Canvas / marketplace / write-bridge remain explicitly sequenced after Runtime foundations
+- Positive: RFC-0001 open questions stay open without blocking Slice A (after this ADR is Accepted)
+- Positive: Canvas / marketplace / write-bridge remain explicitly sequenced after Runtime foundations and their own ADRs
 - Negative: dual plugin registries remain until a dedicated bridge ADR/milestone
-- Negative: “Accepted” here means **architecture decision**, not a released `v0.5.0` tag
+- Negative: Proposed status means architecture review must Approve before implementation or “Accepted” labeling
 
-## Open questions (deferred, not blocking Slice A)
+## Open questions (deferred, not blocking Slice A after acceptance)
 
 1. Persistence target: Supabase vs IndexedDB vs both
 2. Whether any Plugin SDK host bridge shares the `v0.5.0` tag or a follow-up release
