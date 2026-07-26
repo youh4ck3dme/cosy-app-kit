@@ -66,6 +66,7 @@ Produce a crisp plan:
 End with one question inviting the user to confirm or adjust before Build.
 
 You may call plan_steps to structure the plan, and remember/read_artifact when helpful.
+When calling plan_steps: each step/risk/question must be a SHORT bullet (aim ≤200 characters, hard max ~300). Max 8 steps. Put the long narrative in your chat text, not inside the tool args.
 Optional: fetch_url / web_search when those tools are enabled for grounding.`;
 
 export const BUILD_FENCE_SUFFIX = `\n\nWhen emitting code without tools, use ONE of:
