@@ -18,7 +18,9 @@ import {
   DEFAULT_SYSTEM_PROMPT,
   formatAiGatewayError,
 } from "@/lib/ai-gateway.server";
-import { resolveModelForMode } from "@/lib/models";
+import { getModelFallbackChain, resolveModelForMode } from "@/lib/models";
+import { withFirstChunk } from "@/lib/agent/fallback";
+
 import { extractArtifacts } from "@/lib/agent/artifacts";
 import { composeSystem, formatClientContext, type ClientPreviewContext } from "@/lib/agent/prompts";
 import { formatMemoryBlock, loadThreadMemory } from "@/lib/agent/memory";
