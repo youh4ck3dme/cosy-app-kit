@@ -10,19 +10,18 @@ interface VisionUploaderProps {
 
 export function VisionUploader({ onImageProcess, isProcessing }: VisionUploaderProps) {
   const [isDragging, setIsDragging] = React.useState(false);
-  const tiltRef = React.useRef<HTMLDivElement>(null);
+  const tiltRef = useTiltEffect<HTMLDivElement>({ max: 5, scale: 1.02, speed: 400 });
   
   // Use our premium AMOLED PWA hooks
-  useTiltEffect(tiltRef, { max: 5, scale: 1.02, speed: 400 });
-  const { triggerHaptic } = useHaptic();
+  const { triggerClick, triggerSuccess, triggerError } = useHaptic();
 
   const handleDragOver = React.useCallback((e: React.DragEvent) => {
     e.preventDefault();
     if (!isDragging) {
       setIsDragging(true);
-      triggerHaptic("selection");
+      triggerClick();
     }
-  }, [isDragging, triggerHaptic]);
+  }, [isDragging, triggerClick]);
 
   const handleDragLeave = React.useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -31,12 +30,12 @@ export function VisionUploader({ onImageProcess, isProcessing }: VisionUploaderP
 
   const processFile = React.useCallback((file: File) => {
     if (!file.type.startsWith("image/")) {
-      triggerHaptic("error");
+      triggerError();
       return;
     }
     
     // We got an image, vibrate success and process
-    triggerHaptic("success");
+    triggerSuccess();
     const reader = new FileReader();
     reader.onload = (e) => {
       const result = e.target?.result as string;
@@ -45,7 +44,7 @@ export function VisionUploader({ onImageProcess, isProcessing }: VisionUploaderP
       }
     };
     reader.readAsDataURL(file);
-  }, [onImageProcess, triggerHaptic]);
+  }, [onImageProcess, triggerError, triggerSuccess]);
 
   const handleDrop = React.useCallback((e: React.DragEvent) => {
     e.preventDefault();

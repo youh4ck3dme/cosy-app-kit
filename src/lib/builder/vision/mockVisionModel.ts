@@ -14,100 +14,81 @@ export async function parseImageToRawNode(imageBase64: string): Promise<RawNode>
   const processingDelay = Math.random() * 1500 + 1500;
   await new Promise(resolve => setTimeout(resolve, processingDelay));
 
-  // The mock returns a raw HTML-like structure of a login form
   return {
-    type: "div",
-    props: {
-      className: "flex flex-col gap-6 p-8 bg-surface rounded-2xl shadow-xl w-full max-w-sm border border-border-subtle",
-    },
+    id: "root-container",
+    type: "box",
+    className: "flex flex-col gap-6 p-8 bg-surface rounded-2xl shadow-xl w-full max-w-sm border border-border-subtle",
     children: [
       {
-        type: "div",
-        props: {
-          className: "text-center",
-        },
+        id: "header-container",
+        type: "box",
+        className: "text-center",
         children: [
           {
-            type: "h2",
-            props: {
-              className: "text-2xl font-semibold tracking-tight text-foreground",
-            },
-            children: ["Welcome back"],
+            id: "title",
+            type: "text",
+            className: "text-2xl font-semibold tracking-tight text-foreground",
+            text: "Welcome back"
           },
           {
-            type: "p",
-            props: {
-              className: "text-sm text-muted-foreground mt-2",
-            },
-            children: ["Enter your credentials to continue"],
+            id: "subtitle",
+            type: "text",
+            className: "text-sm text-muted-foreground mt-2",
+            text: "Enter your credentials to continue"
           }
         ]
       },
       {
-        type: "form",
-        props: {
-          className: "flex flex-col gap-4",
-          // The semantic intent engine should detect this as a form and add onSubmit handler
-        },
+        id: "form-container",
+        type: "box",
+        className: "flex flex-col gap-4",
         children: [
           {
-            type: "div",
-            props: {
-              className: "flex flex-col gap-2",
-            },
+            id: "email-group",
+            type: "box",
+            className: "flex flex-col gap-2",
             children: [
               {
-                type: "label",
-                props: {
-                  className: "text-sm font-medium text-foreground",
-                  htmlFor: "email",
-                },
-                children: ["Email address"],
+                id: "email-label",
+                type: "text",
+                className: "text-sm font-medium text-foreground",
+                text: "Email address"
               },
               {
+                id: "email",
                 type: "input",
-                props: {
-                  type: "email",
-                  id: "email",
-                  name: "email",
-                  placeholder: "you@example.com",
-                  className: "flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors",
-                },
+                inputType: "email",
+                name: "email",
+                className: "flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
               }
             ]
           },
           {
-            type: "div",
-            props: {
-              className: "flex flex-col gap-2",
-            },
+            id: "password-group",
+            type: "box",
+            className: "flex flex-col gap-2",
             children: [
               {
-                type: "label",
-                props: {
-                  className: "text-sm font-medium text-foreground",
-                  htmlFor: "password",
-                },
-                children: ["Password"],
+                id: "password-label",
+                type: "text",
+                className: "text-sm font-medium text-foreground",
+                text: "Password"
               },
               {
+                id: "password",
                 type: "input",
-                props: {
-                  type: "password",
-                  id: "password",
-                  name: "password",
-                  className: "flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-colors",
-                },
+                inputType: "password",
+                name: "password",
+                className: "flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-colors"
               }
             ]
           },
           {
+            id: "submit-button",
             type: "button",
-            props: {
-              type: "submit",
-              className: "inline-flex items-center justify-center rounded-lg text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full mt-2",
-            },
-            children: ["Sign in"],
+            action: "submit",
+            className: "inline-flex items-center justify-center rounded-lg text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full mt-2",
+            text: "Sign in"
           }
         ]
       }
