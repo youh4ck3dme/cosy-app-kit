@@ -4,6 +4,7 @@ Operational procedures grounded in scripts and CI that exist in this repository.
 
 | Runbook                                        | Purpose                              |
 | ---------------------------------------------- | ------------------------------------ |
+| [daily-dev.md](./daily-dev.md)                 | One-command ship loop (OmniOps)      |
 | [build.md](./build.md)                         | Local / CI build                     |
 | [release.md](./release.md)                     | Platform library release             |
 | [tagging.md](./tagging.md)                     | Annotated git tags                   |

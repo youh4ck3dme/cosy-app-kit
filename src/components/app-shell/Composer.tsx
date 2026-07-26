@@ -145,6 +145,7 @@ export function Composer({
 
   return (
     <div
+      data-testid="chat-composer"
       className="relative w-full"
       onDragEnter={(e) => {
         e.preventDefault();

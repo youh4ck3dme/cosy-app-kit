@@ -31,6 +31,7 @@ Full blueprint (read first):
 | AI for product chat     | **Mistral only** — no OpenAI / Lovable AI Gateway                      |
 | Secrets                 | Never commit keys; Lovable Cloud Secrets + local `.env` / `.env.local` |
 | After prod deploy       | Smoke `/api/ai-status` + `/chat`                                       |
+| Daily verify            | **`bun run ship`** — see [`docs/runbooks/daily-dev.md`](./docs/runbooks/daily-dev.md) |
 
 ### Git lock on `main`
 

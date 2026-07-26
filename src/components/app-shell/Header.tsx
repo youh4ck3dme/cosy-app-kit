@@ -76,6 +76,7 @@ export function Header({
             <div className="hidden h-5 w-px shrink-0 bg-border-subtle sm:block" />
             {/* Always visible — mobile must reach Preview after artifact without opening the menu */}
             <div
+              data-testid="chat-preview-toggle"
               className="flex shrink-0 items-center rounded-lg border border-border-subtle bg-surface-1/70 p-0.5 text-[11px] font-mono font-medium"
               role="group"
               aria-label="Chat or preview"
@@ -194,7 +195,12 @@ export function Header({
           </div>
           <div className="flex-1 overflow-y-auto overscroll-y-contain stagger">
             <div className="p-3">
-              <div className="mb-2 flex gap-1 rounded-lg border border-border-subtle bg-surface-1/60 p-0.5">
+              <div
+                data-testid="chat-preview-toggle"
+                className="mb-2 flex gap-1 rounded-lg border border-border-subtle bg-surface-1/60 p-0.5"
+                role="group"
+                aria-label="Chat or preview"
+              >
                 {(["chat", "preview"] as const).map((v) => (
                   <button
                     key={v}

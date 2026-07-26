@@ -18,6 +18,9 @@
     "test:e2e:install": "playwright install chromium",
     "smoke": "bun scripts/smoke.ts",
     "prod-smoke": "bun scripts/prod-smoke.ts",
+    "test:ship-gates": "vitest run src/lib/ship-gates",
+    "test:e2e:ship": "bun scripts/e2e-ship.ts",
+    "ship": "bun scripts/ship.ts",
     "verify": "bun run typecheck && bun run test:unit && bun run lint:gate && bun run smoke",
     "verify:full": "bun run verify && bun run test:e2e",
     "format": "prettier --write ."

@@ -719,6 +719,7 @@ export function Canvas({
 
   return (
     <div
+      data-testid="builder-canvas"
       className={cn(
         "relative flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[color-mix(in_oklab,var(--color-background)_94%,black)]",
         fullscreen && "fixed inset-0 z-50 bg-background",
