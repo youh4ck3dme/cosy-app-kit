@@ -14,6 +14,7 @@ import { Route as McpRouteImport } from './routes/mcp'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TemplatesIndexRouteImport } from './routes/templates.index'
 import { Route as TemplatesSlugRouteImport } from './routes/templates.$slug'
 import { Route as DevBuilderPlaygroundRouteImport } from './routes/dev.builder-playground'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
@@ -54,6 +55,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const TemplatesIndexRoute = TemplatesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => TemplatesRoute,
 } as any)
 const TemplatesSlugRoute = TemplatesSlugRouteImport.update({
   id: '/$slug',
@@ -155,6 +161,7 @@ export interface FileRoutesByFullPath {
   '/api/chat': typeof ApiChatRoute
   '/dev/builder-playground': typeof DevBuilderPlaygroundRoute
   '/templates/$slug': typeof TemplatesSlugRoute
+  '/templates/': typeof TemplatesIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
@@ -168,7 +175,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/mcp': typeof McpRoute
-  '/templates': typeof TemplatesRouteWithChildren
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/builder': typeof AuthenticatedBuilderRoute
@@ -177,6 +183,7 @@ export interface FileRoutesByTo {
   '/api/chat': typeof ApiChatRoute
   '/dev/builder-playground': typeof DevBuilderPlaygroundRoute
   '/templates/$slug': typeof TemplatesSlugRoute
+  '/templates': typeof TemplatesIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
@@ -201,6 +208,7 @@ export interface FileRoutesById {
   '/api/chat': typeof ApiChatRoute
   '/dev/builder-playground': typeof DevBuilderPlaygroundRoute
   '/templates/$slug': typeof TemplatesSlugRoute
+  '/templates/': typeof TemplatesIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
@@ -225,6 +233,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/dev/builder-playground'
     | '/templates/$slug'
+    | '/templates/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/chat/$threadId'
@@ -238,7 +247,6 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/mcp'
-    | '/templates'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/builder'
@@ -247,6 +255,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/dev/builder-playground'
     | '/templates/$slug'
+    | '/templates'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/chat/$threadId'
@@ -270,6 +279,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/dev/builder-playground'
     | '/templates/$slug'
+    | '/templates/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/chat/$threadId'
@@ -335,6 +345,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/templates/': {
+      id: '/templates/'
+      path: '/'
+      fullPath: '/templates/'
+      preLoaderRoute: typeof TemplatesIndexRouteImport
+      parentRoute: typeof TemplatesRoute
     }
     '/templates/$slug': {
       id: '/templates/$slug'
@@ -468,10 +485,12 @@ const AuthenticatedRouteRouteWithChildren =
 
 interface TemplatesRouteChildren {
   TemplatesSlugRoute: typeof TemplatesSlugRoute
+  TemplatesIndexRoute: typeof TemplatesIndexRoute
 }
 
 const TemplatesRouteChildren: TemplatesRouteChildren = {
   TemplatesSlugRoute: TemplatesSlugRoute,
+  TemplatesIndexRoute: TemplatesIndexRoute,
 }
 
 const TemplatesRouteWithChildren = TemplatesRoute._addFileChildren(

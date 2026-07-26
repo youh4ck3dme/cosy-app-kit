@@ -90,7 +90,14 @@ function AuthPage() {
     setMounted(true);
     setLocalHint(isLocalHost());
 
+    // Never leave users (or e2e) stuck on "Completing sign-in…" if getUser hangs.
+    const BRIDGE_TIMEOUT_MS = 12_000;
+    const bridgeTimer = window.setTimeout(() => {
+      if (!cancelled) setBridging(false);
+    }, BRIDGE_TIMEOUT_MS);
+
     (async () => {
+      try {
       // ── 1) Published: local hopped here to STAGE return URL, then start Google ──
       if (!isLocalHost() && oauth_stage === "1" && lrParam && isLocalDevReturnUrl(lrParam)) {
         const nextPath = next || "/chat";
@@ -191,10 +198,14 @@ function AuthPage() {
       }
 
       setBridging(false);
+      } finally {
+        window.clearTimeout(bridgeTimer);
+      }
     })();
 
     return () => {
       cancelled = true;
+      window.clearTimeout(bridgeTimer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- OAuth bootstrap once per landing
   }, []);
