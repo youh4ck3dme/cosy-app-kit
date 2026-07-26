@@ -713,6 +713,9 @@ export function Canvas({
       });
       setUndoStack((s) => [...s.slice(-4), edits]);
       setEdits({});
+      setAddedFiles([]);
+      setRemovedPaths([]);
+
       toast.success("Saved to artifact");
       refresh();
     } catch (e) {
