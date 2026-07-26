@@ -43,37 +43,40 @@ export type Database = {
       }
       artifact_versions: {
         Row: {
-          id: string
           artifact_id: string
-          files: Json
           content: string
+          created_at: string
           entry_path: string | null
-          title: string | null
+          files: Json | null
+          id: string
+          label: string | null
           message_id: string | null
           source: string
-          created_at: string
+          title: string | null
         }
         Insert: {
-          id?: string
           artifact_id: string
-          files?: Json
           content?: string
+          created_at?: string
           entry_path?: string | null
-          title?: string | null
+          files?: Json | null
+          id?: string
+          label?: string | null
           message_id?: string | null
           source?: string
-          created_at?: string
+          title?: string | null
         }
         Update: {
-          id?: string
           artifact_id?: string
-          files?: Json
           content?: string
+          created_at?: string
           entry_path?: string | null
-          title?: string | null
+          files?: Json | null
+          id?: string
+          label?: string | null
           message_id?: string | null
           source?: string
-          created_at?: string
+          title?: string | null
         }
         Relationships: [
           {
