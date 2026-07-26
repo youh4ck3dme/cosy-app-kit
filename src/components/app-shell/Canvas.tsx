@@ -178,8 +178,10 @@ export function Canvas({
   /** Which HTML file the preview iframe is showing (multi-file nav). */
   const [previewPath, setPreviewPath] = useState<string | null>(null);
   const [key, setKey] = useState(0);
-  const [showConsole, setShowConsole] = useState(false);
-  const [showNetwork, setShowNetwork] = useState(false);
+  /** Bottom dock: Console | Network (mutually exclusive tabs, not both closed forever). */
+  const [bottomTab, setBottomTab] = useState<"console" | "network" | null>(null);
+  const showConsole = bottomTab === "console";
+  const showNetwork = bottomTab === "network";
   const [showShare, setShowShare] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [logs, setLogs] = useState<ConsoleEntry[]>([]);
@@ -553,27 +555,43 @@ export function Canvas({
           : [String(d.args ?? "")];
         setLogs((prev) => [...prev.slice(-199), { level, args, ts: Date.now() }]);
         // Surface real runtime failures immediately
-        if (level === "error") setShowConsole(true);
+        if (level === "error") setBottomTab("console");
       }
       if (d.__builder_network === token) {
+        const netType: "fetch" | "xhr" = d.type === "xhr" ? "xhr" : "fetch";
         if (d.phase === "start") {
           setNetwork((prev) =>
             [
               ...prev,
               {
-                id: d.id,
-                method: d.method,
-                url: d.url,
+                id: String(d.id ?? ""),
+                method: String(d.method ?? "GET").toUpperCase(),
+                url: String(d.url ?? ""),
                 status: null,
                 ms: null,
                 ts: Date.now(),
-              },
+                type: netType,
+              } satisfies NetworkEntry,
             ].slice(-100),
           );
         } else if (d.phase === "end") {
+          const status = typeof d.status === "number" ? d.status : 0;
+          const fail = status === 0 || status >= 400 || d.ok === false;
           setNetwork((prev) =>
-            prev.map((row) => (row.id === d.id ? { ...row, status: d.status, ms: d.ms } : row)),
+            prev.map((row) =>
+              row.id === d.id
+                ? {
+                    ...row,
+                    status,
+                    ms: typeof d.ms === "number" ? d.ms : row.ms,
+                    type: netType,
+                    ok: typeof d.ok === "boolean" ? d.ok : !fail,
+                    error: typeof d.error === "string" ? d.error : row.error,
+                  }
+                : row,
+            ),
           );
+          if (fail) setBottomTab("network");
         }
       }
     };
@@ -682,6 +700,7 @@ export function Canvas({
   const networkFails = network
     .filter((n) => n.status === 0 || (typeof n.status === "number" && n.status >= 400))
     .map((n) => `${n.method} ${n.url} → ${n.status ?? "?"}`);
+  const networkFailCount = networkFails.length;
 
   return (
     <div
@@ -833,10 +852,7 @@ export function Canvas({
             {artifact && hasLivePreview && (
               <>
                 <button
-                  onClick={() => {
-                    setShowConsole((s) => !s);
-                    if (!showConsole) setShowNetwork(false);
-                  }}
+                  onClick={() => setBottomTab((t) => (t === "console" ? null : "console"))}
                   className={cn(
                     "inline-flex min-h-9 items-center gap-1.5 rounded-md px-1.5 py-1.5 text-xs font-medium transition-colors sm:px-2",
                     showConsole
@@ -849,6 +865,7 @@ export function Canvas({
                       : "Console — live logs from sandboxed preview"
                   }
                   aria-label="Toggle console"
+                  aria-pressed={showConsole}
                 >
                   <Terminal className="h-3.5 w-3.5" />
                   <span className="hidden lg:inline">Console</span>
@@ -863,26 +880,32 @@ export function Canvas({
                   ) : null}
                 </button>
                 <button
-                  onClick={() => {
-                    setShowNetwork((s) => !s);
-                    if (!showNetwork) setShowConsole(false);
-                  }}
+                  onClick={() => setBottomTab((t) => (t === "network" ? null : "network"))}
                   className={cn(
                     "inline-flex min-h-9 items-center gap-1.5 rounded-md px-1.5 py-1.5 text-xs font-medium transition-colors sm:px-2",
                     showNetwork
                       ? "bg-surface-3 text-foreground"
                       : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
                   )}
-                  title="Network"
+                  title={
+                    networkFailCount
+                      ? `Network — ${networkFailCount} failed request(s)`
+                      : "Network — fetch/XHR from sandboxed preview"
+                  }
                   aria-label="Toggle network panel"
+                  aria-pressed={showNetwork}
                 >
                   <Network className="h-3.5 w-3.5" />
                   <span className="hidden lg:inline">Net</span>
-                  {network.length > 0 && (
+                  {networkFailCount > 0 ? (
+                    <span className="rounded-full bg-destructive/20 px-1.5 text-[10px] font-mono text-destructive tabular-nums">
+                      {networkFailCount}
+                    </span>
+                  ) : network.length > 0 ? (
                     <span className="rounded-full bg-accent-primary/20 px-1.5 text-[10px] font-mono text-accent-primary tabular-nums">
                       {network.length}
                     </span>
-                  )}
+                  ) : null}
                 </button>
               </>
             )}
@@ -1414,7 +1437,8 @@ export function Canvas({
                   Clear
                 </button>
                 <button
-                  onClick={() => setShowConsole(false)}
+                  type="button"
+                  onClick={() => setBottomTab(null)}
                   className="rounded p-1 text-muted-foreground hover:bg-surface-2 hover:text-foreground"
                   aria-label="Close console"
                 >
@@ -1447,7 +1471,13 @@ export function Canvas({
           </div>
         )}
 
-        {showNetwork && <NetworkPanel entries={network} onClear={() => setNetwork([])} />}
+        {showNetwork && (
+          <NetworkPanel
+            entries={network}
+            onClear={() => setNetwork([])}
+            onClose={() => setBottomTab(null)}
+          />
+        )}
       </div>
     </div>
   );
