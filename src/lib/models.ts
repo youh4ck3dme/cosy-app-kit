@@ -71,3 +71,27 @@ export function resolveModelForMode(
   if (id === DEFAULT_MODEL || id === "mistral-medium-latest") return BUILD_CODE_MODEL;
   return id;
 }
+
+/**
+ * P2 — resilience: ordered model candidates to try when the primary model is
+ * unavailable (404 unknown model), rate limited (429), or over quota (402).
+ * Keeps the user's pick first, then degrades to progressively cheaper models.
+ */
+export function getModelFallbackChain(
+  raw: string | null | undefined,
+  mode: "build" | "plan" = "build",
+): string[] {
+  const primary = resolveModelForMode(raw, mode);
+  const generic = [
+    mode === "build" ? BUILD_CODE_MODEL : DEFAULT_MODEL,
+    DEFAULT_MODEL,
+    "mistral-medium-latest",
+    SUGGESTION_MODEL,
+  ];
+  const chain: string[] = [primary];
+  for (const m of generic) {
+    if (chain.length >= 3) break;
+    if (!chain.includes(m) && KNOWN.has(m)) chain.push(m);
+  }
+  return chain;
+}
