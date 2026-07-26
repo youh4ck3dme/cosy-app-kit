@@ -215,7 +215,7 @@ export function Composer({
               name="composer"
               disabled={disabled && !streaming}
               placeholder="Ask Builder to design, code, or explain…"
-              className="max-h-[240px] min-h-[52px] bg-transparent px-4 pt-3 text-[15px] leading-relaxed placeholder:text-muted-foreground/70"
+              className="max-h-60 min-h-13 bg-transparent px-4 pt-3 text-[15px] leading-relaxed placeholder:text-muted-foreground/70"
               onChange={(e) => {
                 draftRef.current = e.currentTarget.value;
               }}
