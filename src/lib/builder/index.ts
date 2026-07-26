@@ -156,3 +156,31 @@ export {
   getNode,
   walkNodeIds,
 } from "./nodes/nodeGraph";
+
+/** Kernel Observatory Foundation (v0.4.6) — diagnostics / health / telemetry. */
+export type {
+  AuditEntry,
+  CommandTelemetryEvent,
+  InvariantSeverity,
+  InvariantViolationReport,
+  KernelHealthCommandsSummary,
+  KernelHealthInvariantsSummary,
+  KernelHealthPluginsSummary,
+  KernelHealthReport,
+  KernelHealthStatus,
+  PerformanceMetric,
+} from "./diagnostics";
+
+export {
+  AuditTrail,
+  CommandTelemetry,
+  getKernelHealth,
+  getPluginHealthSnapshot,
+  globalAuditTrail,
+  globalCommandTelemetry,
+  globalInvariantReporter,
+  globalPerformanceTracker,
+  InvariantReporter,
+  PerformanceTracker,
+  setPluginHealthSnapshot,
+} from "./diagnostics";

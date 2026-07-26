@@ -1,9 +1,9 @@
 # ADR-0005: Builder Runtime Foundation (v0.5.0)
 
-- **Status:** Accepted (decision locked; implementation not yet shipped)
+- **Status:** Accepted — slices A/B/C shipped on `main`
 - **Date:** 2026-07
-- **Related:** [RFC-0001](../rfc/RFC-0001-runtime-layer.md), [ADR-0001](./ADR-0001-builder-kernel.md), [ADR-0003](./ADR-0003-plugin-isolation.md)
-- **Evidence:** Architecture review approved; decision is binding. No Runtime code shipped yet — implementation remains **Planned** as roadmap **v0.5.0** (Slice A+).
+- **Related:** [RFC-0001](../rfc/RFC-0001-runtime-layer.md), [ADR-0001](./ADR-0001-builder-kernel.md), [ADR-0003](./ADR-0003-plugin-isolation.md), [ADR-0008](./ADR-0008-document-persistence-backends.md)
+- **Evidence:** Architecture review approved; decision binding. Implementation landed as Slice A ([#21](https://github.com/youh4ck3dme/cosy-app-kit/pull/21)), Slice B persistence ports ([#24](https://github.com/youh4ck3dme/cosy-app-kit/pull/24)), Slice C read-only Plugin SDK `documentSource` ([#25](https://github.com/youh4ck3dme/cosy-app-kit/pull/25)). Production persistence backends and full SDK↔registry bridge remain follow-ups ([ADR-0008](./ADR-0008-document-persistence-backends.md), [ADR-0009](./ADR-0009-plugin-sdk-registry-bridge.md)).
 
 ## Context
 
@@ -47,13 +47,13 @@ Canvas integration requires a separate future ADR and implementation milestone.
 
 ### Suggested implementation slices (non-binding order)
 
-| Slice | Intent |
-| --- | --- |
-| **A** | Session lifecycle + host facade over existing `bootstrapBuilderKernel` (create/dispose, readonly document, dispatch/undo/redo pass-through) |
-| **B** | Persistence **ports** only (load/save interfaces + in-memory or test double); no production schema migration |
-| **C** | Optional read-only Plugin SDK `documentSource` wiring behind an explicit flag/dev host — still no write permissions activated; no `canvasSource` |
+| Slice | Intent | Status |
+| --- | --- | --- |
+| **A** | Session lifecycle + host facade over existing `bootstrapBuilderKernel` (create/dispose, readonly document, dispatch/undo/redo pass-through) | Shipped — [#21](https://github.com/youh4ck3dme/cosy-app-kit/pull/21) |
+| **B** | Persistence **ports** only (load/save interfaces + in-memory or test double); no production schema migration | Shipped — [#24](https://github.com/youh4ck3dme/cosy-app-kit/pull/24) |
+| **C** | Optional read-only Plugin SDK `documentSource` wiring behind an explicit flag/dev host — still no write permissions activated; no `canvasSource` | Shipped — [#25](https://github.com/youh4ck3dme/cosy-app-kit/pull/25) |
 
-Each slice should land as its own PR with tests. Slice C must not silently become a full SDK↔kernel permission unification. No slice may implement Canvas/RPC contracts.
+Slice C must not silently become a full SDK↔kernel permission unification. No slice may implement Canvas/RPC contracts.
 
 ## Alternatives considered
 
@@ -69,12 +69,12 @@ Each slice should land as its own PR with tests. Slice C must not silently becom
 - Positive: RFC-0001 open questions stay open without blocking Slice A
 - Positive: Canvas / marketplace / write-bridge remain explicitly sequenced after Runtime foundations and their own ADRs
 - Negative: dual plugin registries remain until a dedicated bridge ADR/milestone
-- Negative: Accepted here means the **architecture decision** is locked — not that a `v0.5.0` Runtime tag has shipped
+- Negative: A/B/C are on `main`; a formal `v0.5.0` git tag remains optional and is not required to treat slices as shipped
 
-## Open questions (deferred, not blocking Slice A)
+## Open questions (deferred; Slice D+ / separate ADRs)
 
-1. Persistence target: Supabase vs IndexedDB vs both
-2. Whether any Plugin SDK host bridge shares the `v0.5.0` tag or a follow-up release
+1. Persistence target: Supabase vs IndexedDB vs both — see [ADR-0008](./ADR-0008-document-persistence-backends.md)
+2. Whether any Plugin SDK host bridge shares a Runtime tag or a follow-up release — see [ADR-0009](./ADR-0009-plugin-sdk-registry-bridge.md)
 3. How Runtime sessions map onto authenticated product users / multi-tab
 
 ## Notes

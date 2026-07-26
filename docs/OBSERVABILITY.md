@@ -2,19 +2,13 @@
 
 ## Status
 
-**Future milestone (v0.4.6 — Kernel Observatory).**
+**Shipped as library APIs (v0.4.6 — Kernel Observatory Foundation).**
 
-A diagnostics package may exist on disk under `src/lib/builder/diagnostics/` in some worktrees. As of the documentation inventory:
+Diagnostics live under `src/lib/builder/diagnostics/` and are exported from `src/lib/builder/index.ts`. See [ADR-0006](./adr/ADR-0006-kernel-observatory.md) and [release notes](./releases/v0.4.6-kernel-observatory.md).
 
-- It is **not** guaranteed to be committed on `main`.
-- It is **not** exported from `src/lib/builder/index.ts`.
-- There is **no** release tag `v0.4.6*`.
+Opt-in only: hosts attach telemetry; kernel dispatch semantics are unchanged. Tag `v0.4.6-kernel-observatory` may be cut after merge when operators need a pinned release.
 
-Do not document diagnostics APIs as shipped product surface until they are merged, exported, tested in CI, and tagged.
-
-## Intended scope (when shipped)
-
-Planned modules (from the Observatory milestone design):
+## Public modules
 
 | Module | Intent |
 | --- | --- |
@@ -24,14 +18,15 @@ Planned modules (from the Observatory milestone design):
 | `auditTrail` | Append-only bounded audit log |
 | `kernelHealth` | Aggregate health snapshot |
 
-Until merged, operators should rely on:
+Operators should also rely on:
 
-- Vitest unit suites
+- Vitest unit suites (`src/lib/builder/diagnostics/diagnostics.test.ts`)
 - CI (`typecheck`, `test:unit`, `build`)
 - Prod smoke workflow on `main`
 
 ## Related
 
+- [ADR-0006](./adr/ADR-0006-kernel-observatory.md)
 - [ROADMAP.md](./ROADMAP.md)
 - [TESTING.md](./TESTING.md)
 - [PERFORMANCE.md](./PERFORMANCE.md)
