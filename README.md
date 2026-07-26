@@ -74,7 +74,7 @@ Do not treat placeholders as product screenshots.
 ```bash
 bun install
 cp .env.example .env.local   # then fill secrets locally — never commit them
-bun run dev                  # typically http://localhost:8080
+bun run dev                  # http://127.0.0.1:8080 (not localhost — Lovable OAuth allowlist)
 ```
 
 Mistral product chat needs `MISTRAL_API_KEY` (server-only). Dual-model routing is already in code:
@@ -100,7 +100,7 @@ cp .env.example .env.local   # fill MISTRAL_API_KEY + Supabase
 bun run dev
 ```
 
-Open `http://localhost:8080` (use the URL Vite prints if different).
+Open `http://127.0.0.1:8080` (use the URL Vite prints if the port differs).
 
 ### Builder Kernel Playground (developer tooling)
 
@@ -114,7 +114,7 @@ bun run dev
 Then open:
 
 ```text
-http://localhost:8080/dev/builder-playground
+http://127.0.0.1:8080/dev/builder-playground
 ```
 
 Try: add Text node · Undo/Redo · validation · history · event viewer · JSON inspector.  
@@ -158,7 +158,7 @@ bun run format
 4. `bun run dev` → `/dev/builder-playground`
 5. Sign in and open chat to exercise Large (Plan) + Codestral (Build)
 6. `bun run verify`
-7. Smoke AI: `curl -s http://localhost:8080/api/ai-status` → `mistralKeyPresent: true`
+7. Smoke AI: `curl -s http://127.0.0.1:8080/api/ai-status` → `mistralKeyPresent: true`
 
 ## Quick start — libraries
 
