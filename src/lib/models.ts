@@ -40,7 +40,7 @@ Hard quality rules for HTML artifacts:
 - Semantic HTML; icon-only buttons need aria-label.
 - Avoid cliché “AI SaaS” looks: no default purple-on-dark (#6c5ce7 / indigo-600) unless the user asks for purple. Pick a distinctive palette (earth, ink, forest, coral, slate+gold, etc.) with CSS variables.
 - Avoid Inter / system-ui / Segoe as the only typography story — use a distinctive font stack or a well-known Google Font that fits the brand.
-- For dashboards/charts: use Chart.js (CDN) with real numeric datasets, not static SVG fake charts. Week/Month/Year controls should update chart data.
+- For dashboards/charts: prefer self-contained visuals that work offline in the sandboxed preview — Canvas 2D API, inline SVG, or Chart.js vendored as a local file in the artifact package (e.g. vendor/chart.umd.min.js with a relative script src). Do NOT use bare CDN URLs (cdn.jsdelivr.net, unpkg, etc.): URL-preview CSP blocks them (script-src self + unsafe-inline only) and Adblock often breaks jsDelivr. Use real numeric datasets; Week/Month/Year controls should update chart data.
 - focus-visible outlines on interactive controls.
 - If the request is not visual, just chat normally — no empty fences.`;
 
