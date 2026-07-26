@@ -49,6 +49,7 @@ describe("composeSystem M3", () => {
     const sys = composeSystem("plan", "Base", "");
     expect(sys).toMatch(/PLAN MODE/i);
     expect(sys).not.toMatch(/Prefer tools when iterating/i);
+    expect(sys).toMatch(/SHORT bullet/i);
   });
 
   it("polish prompt is actionable", () => {

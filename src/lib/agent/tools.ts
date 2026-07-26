@@ -14,6 +14,7 @@ import { analyzeProjectRuntime } from "@/lib/agent/project-runtime-gate";
 import { formatUnverified, validateProject } from "@/lib/agent/project-validate";
 import { fetchUrlText, webSearch } from "@/lib/agent/web";
 import { snapshotArtifactVersion } from "@/lib/agent/versions";
+import { normalizePlanStepsInput } from "@/lib/agent/plan-normalize";
 
 type Client = SupabaseClient<Database>;
 
@@ -281,20 +282,29 @@ export function buildTools({
 
   if (mode === "plan") {
     const plan_steps = tool({
-      description: "Return a structured implementation plan (Plan mode).",
+      description:
+        "Return a structured implementation plan (Plan mode). Prefer short step bullets (≤200 chars each, max 8). Put long narrative in the chat text, not in this tool.",
+      // Loose schema so long model output is accepted; normalizePlanStepsInput clips to product caps.
       inputSchema: z.object({
-        goal: z.string().min(1).max(400),
-        steps: z.array(z.string().min(1).max(300)).min(1).max(8),
-        risks: z.array(z.string().min(1).max(300)).max(6).default([]),
-        open_questions: z.array(z.string().min(1).max(300)).max(6).default([]),
+        goal: z.string().min(1).max(2000),
+        steps: z.array(z.string().min(1).max(2000)).min(1).max(20),
+        risks: z.array(z.string().max(2000)).max(20).optional().default([]),
+        open_questions: z.array(z.string().max(2000)).max(20).optional().default([]),
         persist: z
           .boolean()
           .optional()
           .default(false)
           .describe("If true, also store plan under thread_memory key last_plan"),
       }),
-      execute: async (plan) => {
+      execute: async (raw) => {
         if (!f.plan_steps) return { ok: false as const, error: "plan_steps is disabled" };
+        const plan = normalizePlanStepsInput(raw);
+        if (!plan) {
+          return {
+            ok: false as const,
+            error: "plan_steps requires a non-empty goal and at least one step",
+          };
+        }
         if (plan.persist && f.remember) {
           await upsertMemory(supabase, threadId, "last_plan", {
             goal: plan.goal,
