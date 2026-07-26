@@ -23,7 +23,8 @@ const getPublicArtifact = createServerFn({ method: "GET" })
       global: {
         fetch: (input, init) => {
           const h = new Headers(init?.headers);
-          if (key.startsWith("sb_") && h.get("Authorization") === `Bearer ${key}`) h.delete("Authorization");
+          if (key.startsWith("sb_") && h.get("Authorization") === `Bearer ${key}`)
+            h.delete("Authorization");
           h.set("apikey", key);
           return fetch(input, { ...init, headers: h });
         },
@@ -38,9 +39,13 @@ const getPublicArtifact = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     if (!row) return null;
     return row as {
-      id: string; title: string; kind: string; content: string;
+      id: string;
+      title: string;
+      kind: string;
+      content: string;
       files: Array<{ path: string; language: string; content: string }> | null;
-      entry_path: string | null; created_at: string;
+      entry_path: string | null;
+      created_at: string;
     };
   });
 
@@ -97,9 +102,7 @@ function PublicArtifactPage() {
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const reducedMotion = useReducedMotionSafe();
   const bridgeTokenRef = useRef(
-    typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `tok-${Date.now()}`,
+    typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `tok-${Date.now()}`,
   );
 
   const files = useMemo(() => {
@@ -137,7 +140,10 @@ function PublicArtifactPage() {
 
   const srcDoc = useMemo(() => {
     if (!isHtml || !entry || urlMode) return null;
-    return injectScriptIntoHtmlHead(entry.content, buildPreviewBridgeScript(bridgeTokenRef.current));
+    return injectScriptIntoHtmlHead(
+      entry.content,
+      buildPreviewBridgeScript(bridgeTokenRef.current),
+    );
   }, [entry, isHtml, urlMode]);
 
   if (!artifact || !entry) return null;

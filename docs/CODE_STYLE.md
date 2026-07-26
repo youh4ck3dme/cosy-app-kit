@@ -2,11 +2,11 @@
 
 ## Formatters and linters
 
-| Tool | Command |
-| --- | --- |
-| Prettier | `bun run format` (`.prettierrc`) |
-| ESLint | `bun run lint` |
-| Lint gate (CI-relevant scoped) | `bun run lint:gate` |
+| Tool                           | Command                          |
+| ------------------------------ | -------------------------------- |
+| Prettier                       | `bun run format` (`.prettierrc`) |
+| ESLint                         | `bun run lint`                   |
+| Lint gate (CI-relevant scoped) | `bun run lint:gate`              |
 
 `lint:gate` targets `src/lib/**/*.{ts,tsx}` and `src/hooks/**/*.{ts,tsx}` with `--max-warnings 0` and Prettier rule disabled for that gate.
 
@@ -29,11 +29,11 @@
 
 ## Naming
 
-| Area | Convention |
-| --- | --- |
-| Commands | `SCREAMING_SNAKE` type strings; `PascalCase` classes |
-| Files | Existing directory conventions (`*.command.ts`, `*.test.ts`) |
-| Docs | Uppercase engineering docs under `docs/`; product ops under `docs/product/` |
+| Area     | Convention                                                                  |
+| -------- | --------------------------------------------------------------------------- |
+| Commands | `SCREAMING_SNAKE` type strings; `PascalCase` classes                        |
+| Files    | Existing directory conventions (`*.command.ts`, `*.test.ts`)                |
+| Docs     | Uppercase engineering docs under `docs/`; product ops under `docs/product/` |
 
 ## What not to do
 

@@ -29,7 +29,12 @@ function ChatIndex() {
   const qc = useQueryClient();
   const list = useServerFn(listThreads);
   const create = useServerFn(createThread);
-  const { data, isLoading, isError, error: listError } = useQuery({
+  const {
+    data,
+    isLoading,
+    isError,
+    error: listError,
+  } = useQuery({
     queryKey: ["threads"],
     queryFn: () => list(),
   });

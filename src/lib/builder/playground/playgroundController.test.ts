@@ -23,17 +23,13 @@ describe("BuilderPlaygroundController", () => {
     expect(snap.canUndo).toBe(true);
     expect(snap.historyLog.some((e) => e.type === "ADD_NODE")).toBe(true);
     expect(
-      Object.values(snap.document.tree.nodes).some(
-        (n) => n.props.text === "Hello playground",
-      ),
+      Object.values(snap.document.tree.nodes).some((n) => n.props.text === "Hello playground"),
     ).toBe(true);
 
     expect(playground.undo().success).toBe(true);
     snap = playground.getSnapshot();
     expect(
-      Object.values(snap.document.tree.nodes).some(
-        (n) => n.props.text === "Hello playground",
-      ),
+      Object.values(snap.document.tree.nodes).some((n) => n.props.text === "Hello playground"),
     ).toBe(false);
     expect(snap.canRedo).toBe(true);
     playground.dispose();
@@ -54,9 +50,7 @@ describe("BuilderPlaygroundController", () => {
     const rootId = playground.getSnapshot().document.tree.rootId;
     const result = playground.updateNodeProp(rootId, "props.label", "Root label");
     expect(result.success).toBe(true);
-    expect(playground.getSnapshot().document.tree.nodes[rootId]?.props.label).toBe(
-      "Root label",
-    );
+    expect(playground.getSnapshot().document.tree.nodes[rootId]?.props.label).toBe("Root label");
     playground.dispose();
   });
 

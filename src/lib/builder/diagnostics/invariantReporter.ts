@@ -1,7 +1,4 @@
-import type {
-  InvariantSeverity,
-  InvariantViolationReport,
-} from "./diagnostics.types";
+import type { InvariantSeverity, InvariantViolationReport } from "./diagnostics.types";
 
 const DEFAULT_MAX_REPORTS = 200;
 
@@ -39,9 +36,7 @@ export class InvariantReporter {
       severity: input.severity ?? "error",
       timestamp: input.timestamp ?? Date.now(),
       ...(input.nodeId !== undefined ? { nodeId: input.nodeId } : {}),
-      ...(input.details !== undefined
-        ? { details: Object.freeze({ ...input.details }) }
-        : {}),
+      ...(input.details !== undefined ? { details: Object.freeze({ ...input.details }) } : {}),
     });
     this.reports.push(entry);
     while (this.reports.length > this.maxReports) {
@@ -73,9 +68,7 @@ export class InvariantReporter {
     return this.reports.map((report) =>
       Object.freeze({
         ...report,
-        ...(report.details !== undefined
-          ? { details: Object.freeze({ ...report.details }) }
-          : {}),
+        ...(report.details !== undefined ? { details: Object.freeze({ ...report.details }) } : {}),
       }),
     );
   }

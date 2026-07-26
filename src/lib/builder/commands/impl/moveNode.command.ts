@@ -1,8 +1,4 @@
-import type {
-  CommandResult,
-  ICommand,
-  SerializedCommand,
-} from "../command.interface";
+import type { CommandResult, ICommand, SerializedCommand } from "../command.interface";
 import type { BuilderDocument, NodeId } from "../../document/document.types";
 
 export interface MoveNodePayload {

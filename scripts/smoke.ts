@@ -93,7 +93,11 @@ try {
       const errors: string[] = [];
       p.on("pageerror", (e: Error) => errors.push(String(e)));
       await p.goto(`${BASE}/auth`, { waitUntil: "domcontentloaded", timeout: 30_000 });
-      const heading = await p.locator("h1, h2").first().textContent().catch(() => null);
+      const heading = await p
+        .locator("h1, h2")
+        .first()
+        .textContent()
+        .catch(() => null);
       check(Boolean(heading?.trim()), `${name}: page renders a heading`);
       check(errors.length === 0, `${name}: no page errors${errors[0] ? ` (${errors[0]})` : ""}`);
       await c.close();
@@ -101,9 +105,7 @@ try {
 
     await browser.close();
   } catch (e) {
-    console.log(
-      `⚠️  Browser smoke skipped: ${e instanceof Error ? e.message : e}`,
-    );
+    console.log(`⚠️  Browser smoke skipped: ${e instanceof Error ? e.message : e}`);
     console.log("   PWA static checks above still count.");
   }
 } finally {

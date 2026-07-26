@@ -20,13 +20,13 @@ Ship **Kernel Observatory Foundation** as library APIs only:
 
 ### Public surface (v0.4.6)
 
-| Export | Role |
-| --- | --- |
-| `CommandTelemetry` / `globalCommandTelemetry` | Bounded command outcome log |
-| `PerformanceTracker` / `globalPerformanceTracker` | Named timing metrics |
-| `InvariantReporter` / `globalInvariantReporter` | Structured invariant reports |
-| `AuditTrail` / `globalAuditTrail` | Append-only audit ring buffer |
-| `getKernelHealth` / plugin health snapshot helpers | Aggregated health report |
+| Export                                             | Role                          |
+| -------------------------------------------------- | ----------------------------- |
+| `CommandTelemetry` / `globalCommandTelemetry`      | Bounded command outcome log   |
+| `PerformanceTracker` / `globalPerformanceTracker`  | Named timing metrics          |
+| `InvariantReporter` / `globalInvariantReporter`    | Structured invariant reports  |
+| `AuditTrail` / `globalAuditTrail`                  | Append-only audit ring buffer |
+| `getKernelHealth` / plugin health snapshot helpers | Aggregated health report      |
 
 ## Consequences
 

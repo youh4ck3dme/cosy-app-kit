@@ -2,8 +2,7 @@
 export const ARTIFACT_RE = /```(?:html|markdown|md)(?:\s+[^\n`]*)?\s*\n[\s\S]*?```/gi;
 export const MULTI_FILE_RE = /```[^\n`]*\bpath=[^\n`]*\n[\s\S]*?```/gi;
 /** Open fence without a closing ``` — must not go through Streamdown (freezes on large HTML). */
-export const INCOMPLETE_ARTIFACT_FENCE_RE =
-  /```(html|markdown|md)(?:[^\n`]*)?\r?\n([\s\S]*)$/i;
+export const INCOMPLETE_ARTIFACT_FENCE_RE = /```(html|markdown|md)(?:[^\n`]*)?\r?\n([\s\S]*)$/i;
 const SPLIT_MARK = "\u0000ARTIFACT\u0000";
 
 export function splitAroundArtifacts(text: string): string[] {

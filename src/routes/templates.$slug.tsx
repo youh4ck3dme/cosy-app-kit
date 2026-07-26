@@ -5,10 +5,7 @@ import { toast } from "sonner";
 import { createThread } from "@/lib/threads.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { authSearch } from "@/integrations/lovable";
-import {
-  getTemplateBySlug,
-  TEMPLATE_PROMPT_STORAGE_KEY,
-} from "@/lib/templates.seed";
+import { getTemplateBySlug, TEMPLATE_PROMPT_STORAGE_KEY } from "@/lib/templates.seed";
 
 export const Route = createFileRoute("/templates/$slug")({
   loader: ({ params }) => {

@@ -3,9 +3,7 @@ import type { BuilderDocument, BuilderNode } from "./document.types";
 /** Thrown when a document/value cannot survive a structured-clone snapshot. */
 export class KernelCloneError extends Error {
   constructor(cause: unknown) {
-    super(
-      `Kernel snapshot failed: ${cause instanceof Error ? cause.message : String(cause)}`,
-    );
+    super(`Kernel snapshot failed: ${cause instanceof Error ? cause.message : String(cause)}`);
     this.name = "KernelCloneError";
   }
 }

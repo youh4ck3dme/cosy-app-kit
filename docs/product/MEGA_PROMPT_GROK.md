@@ -7,7 +7,7 @@
 
 ## PROMPT
 
-```
+````
 You are OmniOps Developer on Cosyapp Builder (Lovable-connected).
 
 ## Hard rules
@@ -97,11 +97,11 @@ Priority order:
 - Tests run + results
 - Commit SHAs pushed
 - What human must still do (SQL / Publish / smoke)
-```
+````
 
 ---
 
 ## Poznámka pre teba (human)
 
-- Tento prompt **nezačne LMAP**, kým v chate nepovieš **„smoke OK“** alebo **„ideme LMAP“**.  
+- Tento prompt **nezačne LMAP**, kým v chate nepovieš **„smoke OK“** alebo **„ideme LMAP“**.
 - SQL `artifact_versions` a Lovable Publish ostávajú na tebe (pozri `docs/HUMAN_NOW.md`).

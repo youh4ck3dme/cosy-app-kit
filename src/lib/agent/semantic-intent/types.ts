@@ -1,11 +1,5 @@
 /** Product intents for Instant Product Skeleton (MVP). */
-export const SEMANTIC_INTENTS = [
-  "booking",
-  "landing",
-  "dashboard",
-  "crud",
-  "waitlist",
-] as const;
+export const SEMANTIC_INTENTS = ["booking", "landing", "dashboard", "crud", "waitlist"] as const;
 
 export type SemanticIntent = (typeof SEMANTIC_INTENTS)[number];
 

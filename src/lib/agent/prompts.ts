@@ -208,8 +208,7 @@ export function formatClientContext(ctx?: ClientPreviewContext | null): string {
       ? ctx.previewMode.trim().slice(0, 32)
       : null;
   const active =
-    typeof ctx.activeArtifactId === "string" &&
-    /^[0-9a-f-]{36}$/i.test(ctx.activeArtifactId.trim())
+    typeof ctx.activeArtifactId === "string" && /^[0-9a-f-]{36}$/i.test(ctx.activeArtifactId.trim())
       ? ctx.activeArtifactId.trim()
       : null;
   if (w == null && !mode && !active) return "";

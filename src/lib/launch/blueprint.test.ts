@@ -22,7 +22,7 @@ describe("extractJsonText", () => {
   });
 
   it("strips markdown json fences", () => {
-    const raw = "```json\n{\"a\":1}\n```";
+    const raw = '```json\n{"a":1}\n```';
     expect(extractJsonText(raw)).toBe('{"a":1}');
   });
 

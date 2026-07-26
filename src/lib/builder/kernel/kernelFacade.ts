@@ -27,9 +27,7 @@ export interface BootstrappedKernel {
 }
 
 /** Wires registries, native node definitions, and a headless session. */
-export function bootstrapBuilderKernel(
-  options: KernelBootstrapOptions = {},
-): BootstrappedKernel {
+export function bootstrapBuilderKernel(options: KernelBootstrapOptions = {}): BootstrappedKernel {
   const eventBus = options.eventBus ?? new KernelEventBus();
   const nodeRegistry = options.nodeRegistry ?? new NodeRegistry();
   const commandRegistry = options.commandRegistry ?? globalCommandRegistry;

@@ -36,6 +36,8 @@ describe("generateSharedShell", () => {
     expect(css).toMatch(/\.site-nav\{[^}]*display:\s*none/);
     expect(css).toMatch(/\.site-nav\.is-open\{[^}]*display:\s*flex/);
     // Desktop shows toggle none / nav row
-    expect(css).toMatch(/@media \(min-width:\s*768px\)[\s\S]*\.site-nav-toggle\{[^}]*display:\s*none/);
+    expect(css).toMatch(
+      /@media \(min-width:\s*768px\)[\s\S]*\.site-nav-toggle\{[^}]*display:\s*none/,
+    );
   });
 });

@@ -31,7 +31,10 @@ describe("renderProductSkeleton", () => {
   });
 
   it("escapes brand HTML", () => {
-    const html = renderProductSkeleton({ brand: '<img src=x onerror=alert(1)>', intent: "landing" });
+    const html = renderProductSkeleton({
+      brand: "<img src=x onerror=alert(1)>",
+      intent: "landing",
+    });
     expect(html).not.toContain("<img src=x");
     expect(html).toContain("&lt;img");
   });

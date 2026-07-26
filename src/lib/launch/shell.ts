@@ -100,9 +100,7 @@ export function placeholderPageHtml(
   const slice = blueprint.pages[pageId];
   const title = escapeHtml(slice.title);
   const name = escapeHtml(blueprint.project.name);
-  const sections = slice.sections
-    .map((s) => `<li>${escapeHtml(s)}</li>`)
-    .join("\n");
+  const sections = slice.sections.map((s) => `<li>${escapeHtml(s)}</li>`).join("\n");
   return `<!DOCTYPE html>
 <html lang="${escapeHtml(blueprint.project.locale ?? "sk")}">
 <head>

@@ -1,14 +1,16 @@
 import { useEffect, useRef, RefObject } from "react";
 
 interface TiltOptions {
-  max?: number;      // max tilt rotation (degrees)
+  max?: number; // max tilt rotation (degrees)
   perspective?: number; // Transform perspective
-  scale?: number;    // 1 = 100%, 1.1 = 110%
-  speed?: number;    // Speed of the enter/exit transition
-  easing?: string;   // Easing on enter/exit
+  scale?: number; // 1 = 100%, 1.1 = 110%
+  speed?: number; // Speed of the enter/exit transition
+  easing?: string; // Easing on enter/exit
 }
 
-export function useTiltEffect<T extends HTMLElement>(options: TiltOptions = {}): RefObject<T | null> {
+export function useTiltEffect<T extends HTMLElement>(
+  options: TiltOptions = {},
+): RefObject<T | null> {
   const {
     max = 5,
     perspective = 1000,
@@ -40,12 +42,12 @@ export function useTiltEffect<T extends HTMLElement>(options: TiltOptions = {}):
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!isHovered) return;
-      
+
       // Calculate rotation based on cursor position relative to the element
       const rect = element.getBoundingClientRect();
       const x = e.clientX - rect.left; // x position within the element.
-      const y = e.clientY - rect.top;  // y position within the element.
-      
+      const y = e.clientY - rect.top; // y position within the element.
+
       const width = rect.width;
       const height = rect.height;
 
@@ -69,7 +71,7 @@ export function useTiltEffect<T extends HTMLElement>(options: TiltOptions = {}):
     const handleMouseLeave = () => {
       isHovered = false;
       if (rafId) cancelAnimationFrame(rafId);
-      
+
       // Add back transition for the smooth exit
       element.style.transition = `transform ${speed}ms ${easing}`;
       element.style.transform = `perspective(${perspective}px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)`;

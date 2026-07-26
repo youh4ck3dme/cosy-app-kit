@@ -1,9 +1,5 @@
 import { DEFAULT_MODEL, SUGGESTION_MODEL } from "@/lib/models";
-import {
-  LaunchBlueprintSchema,
-  normalizeBlueprintNav,
-  type LaunchBlueprint,
-} from "./schema";
+import { LaunchBlueprintSchema, normalizeBlueprintNav, type LaunchBlueprint } from "./schema";
 import { BLUEPRINT_SYSTEM, buildBlueprintUserPrompt } from "./prompts";
 
 export type GenerateTextFn = (args: {

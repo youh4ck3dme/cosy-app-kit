@@ -321,9 +321,7 @@ export const Route = createFileRoute("/api/chat")({
                   });
                 },
                 onStepFinish: ({ toolResults }) => {
-                  const parts = toolResultsToDataParts(
-                    (toolResults ?? []) as ToolResultLike[],
-                  );
+                  const parts = toolResultsToDataParts((toolResults ?? []) as ToolResultLike[]);
                   for (const part of parts) {
                     try {
                       writer.write(part as Parameters<typeof writer.write>[0]);
@@ -336,9 +334,7 @@ export const Route = createFileRoute("/api/chat")({
                   try {
                     const fromSteps = collectToolResultsFromSteps(steps);
                     const allTools: ToolResultLike[] =
-                      fromSteps.length > 0
-                        ? fromSteps
-                        : ((toolResults ?? []) as ToolResultLike[]);
+                      fromSteps.length > 0 ? fromSteps : ((toolResults ?? []) as ToolResultLike[]);
                     await persistAssistant(text, modelId, allTools);
                   } catch (finishErr) {
                     console.error("[api/chat] onFinish failed", finishErr);

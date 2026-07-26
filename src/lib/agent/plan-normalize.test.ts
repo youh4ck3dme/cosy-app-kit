@@ -16,7 +16,10 @@ describe("normalizePlanStepsInput", () => {
 
   it("clips overlong goal and steps instead of rejecting", () => {
     const longStep = "x".repeat(PLAN_STEP_MAX + 80);
-    const steps = Array.from({ length: PLAN_STEPS_MAX + 4 }, (_, i) => `Step ${i + 1}: ${longStep}`);
+    const steps = Array.from(
+      { length: PLAN_STEPS_MAX + 4 },
+      (_, i) => `Step ${i + 1}: ${longStep}`,
+    );
     const out = normalizePlanStepsInput({
       goal: "G".repeat(PLAN_GOAL_MAX + 50),
       steps,

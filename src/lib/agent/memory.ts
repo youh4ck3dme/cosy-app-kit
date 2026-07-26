@@ -32,10 +32,7 @@ export async function loadThreadMemory(
 export function formatMemoryBlock(rows: MemoryRow[]): string {
   if (!rows.length) return "";
   const lines = rows.map((r) => {
-    const summary =
-      typeof r.value === "string"
-        ? r.value
-        : JSON.stringify(r.value);
+    const summary = typeof r.value === "string" ? r.value : JSON.stringify(r.value);
     return `- ${r.key}: ${summary.slice(0, 400)}`;
   });
   return `## User preferences for this project\n${lines.join("\n")}`;

@@ -3,7 +3,12 @@
 1. Create a kernel session:
 
 ```ts
-import { BuilderKernel, createDefaultDocument, AddNodeCommand, createNodeFromDefaults } from "@/lib/builder";
+import {
+  BuilderKernel,
+  createDefaultDocument,
+  AddNodeCommand,
+  createNodeFromDefaults,
+} from "@/lib/builder";
 
 const kernel = new BuilderKernel(createDefaultDocument());
 const rootId = kernel.getDocument().tree.rootId;
@@ -15,7 +20,11 @@ const node = createNodeFromDefaults("container" /* type must exist in your regis
 3. Dispatch and assert:
 
 ```ts
-const result = kernel.dispatch(new AddNodeCommand({ /* payload per command class */ }));
+const result = kernel.dispatch(
+  new AddNodeCommand({
+    /* payload per command class */
+  }),
+);
 console.log(result.success, kernel.getDocument().metadata.version);
 ```
 

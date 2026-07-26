@@ -57,7 +57,7 @@ body{}
 
 describe("parseMeta", () => {
   it("parses lang and path", () => {
-    expect(parseMeta('html path=index.html')).toMatchObject({
+    expect(parseMeta("html path=index.html")).toMatchObject({
       lang: "html",
       path: "index.html",
     });
@@ -96,9 +96,7 @@ describe("memory format", () => {
   });
 
   it("stringifies object values", () => {
-    const block = formatMemoryBlock([
-      { id: "1", key: "plan", value: { a: 1 }, updated_at: "" },
-    ]);
+    const block = formatMemoryBlock([{ id: "1", key: "plan", value: { a: 1 }, updated_at: "" }]);
     expect(block).toContain("plan");
     expect(block).toContain('"a"');
   });

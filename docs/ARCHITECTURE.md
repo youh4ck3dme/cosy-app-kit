@@ -115,10 +115,10 @@ flowchart LR
 
 ## 5. Dual plugin systems
 
-| System | Path | Role today |
-| --- | --- | --- |
+| System         | Path                       | Role today                                                               |
+| -------------- | -------------------------- | ------------------------------------------------------------------------ |
 | Kernel plugins | `src/lib/builder/plugins/` | Register nodes/commands against kernel registries with permission checks |
-| Plugin SDK | `src/lib/plugin-sdk/` | Manifest + lifecycle + sealed context; no live kernel reference |
+| Plugin SDK     | `src/lib/plugin-sdk/`      | Manifest + lifecycle + sealed context; no live kernel reference          |
 
 ```mermaid
 flowchart LR
@@ -142,26 +142,26 @@ Permission vocabularies differ. Do not assume interchangeability. See [PLUGIN_SD
 
 ## 6. Security boundaries (summary)
 
-| Boundary | Enforcement |
-| --- | --- |
-| Document mutation | Commands only; failed execute rolls back to snapshot |
-| Invariants | Post-command `validateDocument` |
-| External document access | Cloned / frozen getters |
-| Kernel plugins | Permission-gated facade; core commands non-overwriteable |
-| Plugin SDK | Frozen manifests; sealed context; read gating |
-| Product AI | Mistral-only policy |
-| Secrets | Env / Lovable secrets; not committed |
+| Boundary                 | Enforcement                                              |
+| ------------------------ | -------------------------------------------------------- |
+| Document mutation        | Commands only; failed execute rolls back to snapshot     |
+| Invariants               | Post-command `validateDocument`                          |
+| External document access | Cloned / frozen getters                                  |
+| Kernel plugins           | Permission-gated facade; core commands non-overwriteable |
+| Plugin SDK               | Frozen manifests; sealed context; read gating            |
+| Product AI               | Mistral-only policy                                      |
+| Secrets                  | Env / Lovable secrets; not committed                     |
 
 Details: [SECURITY.md](./SECURITY.md).
 
 ## 7. State management
 
-| State | Owner |
-| --- | --- |
-| `BuilderDocument` | `BuilderKernel` (private field) |
-| Undo / redo stacks | `HistoryManager` (default capacity 100) |
-| Selection / UI | `BuilderUiState` (outside document history) |
-| Product chat/artifacts | Supabase-backed application state |
+| State                  | Owner                                       |
+| ---------------------- | ------------------------------------------- |
+| `BuilderDocument`      | `BuilderKernel` (private field)             |
+| Undo / redo stacks     | `HistoryManager` (default capacity 100)     |
+| Selection / UI         | `BuilderUiState` (outside document history) |
+| Product chat/artifacts | Supabase-backed application state           |
 
 No CRDT layer. **Not yet implemented.**
 

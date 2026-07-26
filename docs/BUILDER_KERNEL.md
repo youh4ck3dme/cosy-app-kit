@@ -21,15 +21,15 @@ Does **not** own product chat UI, artifact iframe preview, or a design Canvas ed
 
 Key methods (see `kernel/builderKernel.ts`):
 
-| Method | Behavior |
-| --- | --- |
-| `getDocument()` | Deep clone — callers cannot alias kernel memory |
-| `getReadonlyDocument()` | Deep clone then deep-freeze |
-| `loadDocument(input)` | Zod-parse + replace document; clears history |
-| `dispatch(command)` | Snapshot → execute → validate → history push |
-| `undo()` / `redo()` | Exception-safe; restore on throw |
-| `transaction(fn)` | Batches via `TransactionContext`; nesting unsupported |
-| `getHistory()` | Read-only `HistoryView` |
+| Method                  | Behavior                                              |
+| ----------------------- | ----------------------------------------------------- |
+| `getDocument()`         | Deep clone — callers cannot alias kernel memory       |
+| `getReadonlyDocument()` | Deep clone then deep-freeze                           |
+| `loadDocument(input)`   | Zod-parse + replace document; clears history          |
+| `dispatch(command)`     | Snapshot → execute → validate → history push          |
+| `undo()` / `redo()`     | Exception-safe; restore on throw                      |
+| `transaction(fn)`       | Batches via `TransactionContext`; nesting unsupported |
+| `getHistory()`          | Read-only `HistoryView`                               |
 
 ## Session bootstrap
 
@@ -45,32 +45,32 @@ Registers native node definitions by default (`registerNativeNodes !== false`).
 
 ## Module map
 
-| Area | Path |
-| --- | --- |
-| Document types | `document/document.types.ts` |
-| Zod schemas | `document/documentValidator.ts` |
-| Invariants | `document/documentInvariants.ts` |
-| Commands | `commands/` |
-| History | `history/historyManager.ts` |
-| Events | `kernel/eventBus.ts` |
-| Node registry | `registry/` |
-| Kernel plugins | `plugins/` |
-| IR | `imports/ir/` |
+| Area             | Path                                 |
+| ---------------- | ------------------------------------ |
+| Document types   | `document/document.types.ts`         |
+| Zod schemas      | `document/documentValidator.ts`      |
+| Invariants       | `document/documentInvariants.ts`     |
+| Commands         | `commands/`                          |
+| History          | `history/historyManager.ts`          |
+| Events           | `kernel/eventBus.ts`                 |
+| Node registry    | `registry/`                          |
+| Kernel plugins   | `plugins/`                           |
+| IR               | `imports/ir/`                        |
 | Canvas RPC types | `renderer/canvas/canvasRpc.types.ts` |
 
 ## What is shipped vs not
 
-| Capability | Status |
-| --- | --- |
-| Command architecture | Implemented |
-| Undo/redo with exception safety | Implemented (v0.4.5.1) |
-| Document invariants | Implemented |
-| Kernel plugin isolation defaults | Implemented |
-| Hardening regression tests | Implemented |
-| Design Canvas consumer | Not yet implemented |
-| Product route integration | Not yet implemented |
-| Persistence | Not yet implemented |
-| Diagnostics export | Future milestone (see [OBSERVABILITY.md](./OBSERVABILITY.md)) |
+| Capability                       | Status                                                        |
+| -------------------------------- | ------------------------------------------------------------- |
+| Command architecture             | Implemented                                                   |
+| Undo/redo with exception safety  | Implemented (v0.4.5.1)                                        |
+| Document invariants              | Implemented                                                   |
+| Kernel plugin isolation defaults | Implemented                                                   |
+| Hardening regression tests       | Implemented                                                   |
+| Design Canvas consumer           | Not yet implemented                                           |
+| Product route integration        | Not yet implemented                                           |
+| Persistence                      | Not yet implemented                                           |
+| Diagnostics export               | Future milestone (see [OBSERVABILITY.md](./OBSERVABILITY.md)) |
 
 ## Tests
 

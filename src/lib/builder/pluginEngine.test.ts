@@ -41,9 +41,7 @@ describe("pluginEngine", () => {
 
     expect(session.nodeRegistry.get("Card")?.displayName).toBe("Card");
     expect(session.nodeRegistry.get("Container")).toBeDefined();
-    expect(events).toEqual([
-      { pluginId: "example.card", name: "Card Plugin", version: "1.0.0" },
-    ]);
+    expect(events).toEqual([{ pluginId: "example.card", name: "Card Plugin", version: "1.0.0" }]);
   });
 
   it("exposes renderer ids without React component types", () => {

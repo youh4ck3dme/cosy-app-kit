@@ -10,15 +10,15 @@ Source: `src/lib/builder/document/`
 
 Defined in `document.types.ts`:
 
-| Type | Role |
-| --- | --- |
-| `BuilderDocument` | Root document |
-| `BuilderNode` | Node with `id`, `type`, `parentId`, `children`, `props`, layout/style/interaction |
-| `NodeTree` | `{ rootId, nodes: Record<NodeId, BuilderNode> }` |
-| `DocumentMetadata` | id, timestamps, version, schemaVersion |
-| `LayoutSystem` / `StyleSystem` / `InteractionSystem` | Presentational systems |
-| `ResponsiveOverrides` | Per breakpoint partials |
-| `SourceImport` | `"vision" \| "html" \| "figma" \| "prompt" \| "manual"` (field exists; adapters for vision/html/figma are **Not yet implemented**) |
+| Type                                                 | Role                                                                                                                               |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `BuilderDocument`                                    | Root document                                                                                                                      |
+| `BuilderNode`                                        | Node with `id`, `type`, `parentId`, `children`, `props`, layout/style/interaction                                                  |
+| `NodeTree`                                           | `{ rootId, nodes: Record<NodeId, BuilderNode> }`                                                                                   |
+| `DocumentMetadata`                                   | id, timestamps, version, schemaVersion                                                                                             |
+| `LayoutSystem` / `StyleSystem` / `InteractionSystem` | Presentational systems                                                                                                             |
+| `ResponsiveOverrides`                                | Per breakpoint partials                                                                                                            |
+| `SourceImport`                                       | `"vision" \| "html" \| "figma" \| "prompt" \| "manual"` (field exists; adapters for vision/html/figma are **Not yet implemented**) |
 
 ## Validation layers
 
@@ -29,12 +29,12 @@ Always treat Zod success as insufficient alone for graph integrity. See [INVARIA
 
 ## Cloning and sealing
 
-| Helper | Behavior |
-| --- | --- |
-| `cloneDocument` | Deep clone |
-| `deepFreeze` | Recursive freeze |
-| Kernel `getDocument` | Returns clone |
-| Kernel `getReadonlyDocument` | Clone + freeze |
+| Helper                       | Behavior         |
+| ---------------------------- | ---------------- |
+| `cloneDocument`              | Deep clone       |
+| `deepFreeze`                 | Recursive freeze |
+| Kernel `getDocument`         | Returns clone    |
+| Kernel `getReadonlyDocument` | Clone + freeze   |
 
 ## Factories
 

@@ -80,9 +80,9 @@ describe("BuilderRuntime (ADR-0005 Slice A)", () => {
     const node = createNodeFromDefaults("Text", "after dispose", rootId, {
       props: { text: "nope" },
     });
-    expect(() =>
-      runtime.dispatch(new AddNodeCommand({ parentId: rootId, node })),
-    ).toThrow(/disposed/i);
+    expect(() => runtime.dispatch(new AddNodeCommand({ parentId: rootId, node }))).toThrow(
+      /disposed/i,
+    );
   });
 
   it("does not return BootstrappedKernel-shaped handles from the factory", () => {

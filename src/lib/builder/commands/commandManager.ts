@@ -4,10 +4,7 @@ import { AddNodeCommand, type AddNodePayload } from "./impl/addNode.command";
 import { BatchCommand, type BatchPayload } from "./impl/batch.command";
 import { MoveNodeCommand, type MoveNodePayload } from "./impl/moveNode.command";
 import { RemoveNodeCommand, type RemoveNodePayload } from "./impl/removeNode.command";
-import {
-  UpdatePropertyCommand,
-  type UpdatePropertyPayload,
-} from "./impl/updateProperty.command";
+import { UpdatePropertyCommand, type UpdatePropertyPayload } from "./impl/updateProperty.command";
 
 export class CommandRegistry {
   private factories = new Map<string, CommandFactory>();
@@ -47,18 +44,14 @@ export function createDefaultCommandRegistry(): CommandRegistry {
     RemoveNodeCommand.fromSerialized(serialized as SerializedCommand<RemoveNodePayload>),
   );
   registry.register("UPDATE_PROPERTY", (serialized) =>
-    UpdatePropertyCommand.fromSerialized(
-      serialized as SerializedCommand<UpdatePropertyPayload>,
-    ),
+    UpdatePropertyCommand.fromSerialized(serialized as SerializedCommand<UpdatePropertyPayload>),
   );
   registry.register("MOVE_NODE", (serialized) =>
     MoveNodeCommand.fromSerialized(serialized as SerializedCommand<MoveNodePayload>),
   );
   registry.register("BATCH", (serialized) => {
     const payload = serialized.payload as BatchPayload;
-    const nested = (payload.commands ?? []).map((cmd) =>
-      registry.create(cmd as SerializedCommand),
-    );
+    const nested = (payload.commands ?? []).map((cmd) => registry.create(cmd as SerializedCommand));
     return new BatchCommand(nested, serialized.id, serialized.timestamp);
   });
 

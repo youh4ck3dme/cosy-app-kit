@@ -40,9 +40,12 @@ describe("runLaunchPipeline", () => {
       return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>${id}</title></head><body><h1>${id}</h1><a href="index.html">Home</a></body></html>`;
     };
 
-    const result = await runLaunchPipeline("Mini web pre FieldOps SK s Home About Contact Pricing", {
-      generateText,
-    });
+    const result = await runLaunchPipeline(
+      "Mini web pre FieldOps SK s Home About Contact Pricing",
+      {
+        generateText,
+      },
+    );
 
     expect(result.assembled.files.length).toBe(5);
     expect(result.assembled.files.filter((f) => f.path.endsWith(".html"))).toHaveLength(4);
@@ -65,9 +68,12 @@ describe("runLaunchPipeline", () => {
       return `<!DOCTYPE html><html><head><title>ok</title></head><body>ok</body></html>`;
     };
 
-    const result = await runLaunchPipeline("brief for site with four pages home about contact pricing", {
-      generateText,
-    });
+    const result = await runLaunchPipeline(
+      "brief for site with four pages home about contact pricing",
+      {
+        generateText,
+      },
+    );
     expect(result.pageFallbacks.length).toBe(1);
     expect(result.assembled.files.some((f) => f.content.includes("fallback"))).toBe(true);
   });

@@ -15,14 +15,10 @@ describe("Kernel Observatory Foundation (v0.4.6)", () => {
     const telemetry = new CommandTelemetry({ maxEvents: 50 });
     const fixedNow = 1_700_000_000_000;
 
-    const ok = telemetry.track(
-      "ADD_NODE",
-      () => ({ success: true as const }),
-      {
-        now: () => fixedNow,
-        isSuccess: (r) => r.success,
-      },
-    );
+    const ok = telemetry.track("ADD_NODE", () => ({ success: true as const }), {
+      now: () => fixedNow,
+      isSuccess: (r) => r.success,
+    });
     expect(ok.success).toBe(true);
 
     const fail = telemetry.track(

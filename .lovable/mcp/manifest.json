@@ -5,9 +5,7 @@
   "auth": {
     "type": "oauth",
     "issuer": "https://hyffmlempcfmgtnqllrz.supabase.co/auth/v1",
-    "accepted_audiences": [
-      "authenticated"
-    ]
+    "accepted_audiences": ["authenticated"]
   },
   "mcp": {
     "server": {
@@ -59,9 +57,7 @@
               "description": "Thread UUID."
             }
           },
-          "required": [
-            "thread_id"
-          ]
+          "required": ["thread_id"]
         },
         "outputSchema": null
       },
@@ -93,9 +89,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "title"
-          ]
+          "required": ["title"]
         },
         "outputSchema": null
       },
@@ -148,9 +142,7 @@
               "description": "Artifact UUID."
             }
           },
-          "required": [
-            "artifact_id"
-          ]
+          "required": ["artifact_id"]
         },
         "outputSchema": null
       }

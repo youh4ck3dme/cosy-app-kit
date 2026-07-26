@@ -19,11 +19,11 @@ Important: use Vitest scripts, not bare `bun test` (breaks `vi` mocks; noted in 
 
 ### Notable suites
 
-| Area | Path pattern |
-| --- | --- |
-| Builder Kernel | `src/lib/builder/**/*.test.ts` |
-| Plugin SDK | `src/lib/plugin-sdk/plugin-sdk.test.ts` |
-| Broader `src/lib` | various `*.test.ts` |
+| Area              | Path pattern                            |
+| ----------------- | --------------------------------------- |
+| Builder Kernel    | `src/lib/builder/**/*.test.ts`          |
+| Plugin SDK        | `src/lib/plugin-sdk/plugin-sdk.test.ts` |
+| Broader `src/lib` | various `*.test.ts`                     |
 
 ## End-to-end (Playwright)
 

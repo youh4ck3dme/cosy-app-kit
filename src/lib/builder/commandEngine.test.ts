@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import { AddNodeCommand } from "@/lib/builder/commands/impl/addNode.command";
 import { RemoveNodeCommand } from "@/lib/builder/commands/impl/removeNode.command";
 import { UpdatePropertyCommand } from "@/lib/builder/commands/impl/updateProperty.command";
-import { createDefaultDocument, createNodeFromDefaults } from "@/lib/builder/document/documentFactory";
+import {
+  createDefaultDocument,
+  createNodeFromDefaults,
+} from "@/lib/builder/document/documentFactory";
 import { BuilderKernel } from "@/lib/builder/kernel/builderKernel";
 
 describe("commandEngine", () => {

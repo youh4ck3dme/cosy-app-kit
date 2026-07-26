@@ -10,13 +10,13 @@ Isolated foundation for plugin manifests, permissions, and lifecycle. Holds **no
 
 ## Components
 
-| Module | Responsibility |
-| --- | --- |
-| `plugin.types.ts` | Manifest, permissions, lifecycle types, `PluginContext` |
-| `pluginManifest.ts` | Zod validation + `freezePluginManifest` |
-| `pluginPermissions.ts` | Enum validation / membership |
-| `pluginLifecycle.ts` | FSM transitions + hooks |
-| `pluginRegistry.ts` | `PluginSdkRegistry` |
+| Module                 | Responsibility                                          |
+| ---------------------- | ------------------------------------------------------- |
+| `plugin.types.ts`      | Manifest, permissions, lifecycle types, `PluginContext` |
+| `pluginManifest.ts`    | Zod validation + `freezePluginManifest`                 |
+| `pluginPermissions.ts` | Enum validation / membership                            |
+| `pluginLifecycle.ts`   | FSM transitions + hooks                                 |
+| `pluginRegistry.ts`    | `PluginSdkRegistry`                                     |
 
 ## Permissions (SDK vocabulary)
 
@@ -68,11 +68,11 @@ Sources are optional host-supplied read accessors — never a live kernel refere
 
 ## Relation to kernel plugins
 
-| | Kernel `PluginRegistry` | Plugin SDK |
-| --- | --- | --- |
-| Wire-up | `bootstrapBuilderKernel` | Standalone |
+|             | Kernel `PluginRegistry`        | Plugin SDK               |
+| ----------- | ------------------------------ | ------------------------ |
+| Wire-up     | `bootstrapBuilderKernel`       | Standalone               |
 | Permissions | nodes/commands/events oriented | document/canvas oriented |
-| Bridge | — | **Not yet implemented** |
+| Bridge      | —                              | **Not yet implemented**  |
 
 ## Example
 

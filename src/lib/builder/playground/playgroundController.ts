@@ -3,24 +3,15 @@
  * Wraps existing kernel APIs; does not change kernel architecture.
  */
 import type { BuilderDocument } from "../document/document.types";
-import {
-  createDefaultDocument,
-  createNodeFromDefaults,
-} from "../document/documentFactory";
-import {
-  validateDocument,
-  type DocumentValidationResult,
-} from "../document/documentInvariants";
+import { createDefaultDocument, createNodeFromDefaults } from "../document/documentFactory";
+import { validateDocument, type DocumentValidationResult } from "../document/documentInvariants";
 import { AddNodeCommand } from "../commands/impl/addNode.command";
 import { RemoveNodeCommand } from "../commands/impl/removeNode.command";
 import { UpdatePropertyCommand } from "../commands/impl/updateProperty.command";
 import type { HistoryEventLogEntry } from "../history/historyManager";
 import type { KernelEvent, KernelEventType } from "../kernel/eventBus";
 import type { KernelDispatchResult } from "../kernel/builderKernel";
-import {
-  bootstrapBuilderKernel,
-  type BootstrappedKernel,
-} from "../kernel/kernelFacade";
+import { bootstrapBuilderKernel, type BootstrappedKernel } from "../kernel/kernelFacade";
 
 const ALL_EVENT_TYPES: KernelEventType[] = [
   "NODE_CREATED",
@@ -122,23 +113,17 @@ export class BuilderPlaygroundController {
     const node = createNodeFromDefaults("Text", name, rootId, {
       props: { text },
     });
-    return this.apply(
-      this.session.kernel.dispatch(new AddNodeCommand({ parentId: rootId, node })),
-    );
+    return this.apply(this.session.kernel.dispatch(new AddNodeCommand({ parentId: rootId, node })));
   }
 
   updateNodeProp(nodeId: string, path: string, value: unknown): KernelDispatchResult {
     return this.apply(
-      this.session.kernel.dispatch(
-        new UpdatePropertyCommand({ nodeId, path, value }),
-      ),
+      this.session.kernel.dispatch(new UpdatePropertyCommand({ nodeId, path, value })),
     );
   }
 
   removeNode(nodeId: string): KernelDispatchResult {
-    return this.apply(
-      this.session.kernel.dispatch(new RemoveNodeCommand({ nodeId })),
-    );
+    return this.apply(this.session.kernel.dispatch(new RemoveNodeCommand({ nodeId })));
   }
 
   undo(): KernelDispatchResult {
@@ -155,9 +140,7 @@ export class BuilderPlaygroundController {
   }
 
   resetDocument(): void {
-    this.session.kernel.loadDocument(
-      createDefaultDocument({ title: "Playground Document" }),
-    );
+    this.session.kernel.loadDocument(createDefaultDocument({ title: "Playground Document" }));
     this.lastResult = null;
     this.events = [];
     this.emit();

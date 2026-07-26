@@ -9,7 +9,8 @@ export const Route = createFileRoute("/templates")({
       { title: "Templates · Builder" },
       {
         name: "description",
-        content: "Browse static Builder templates — landing pages, dashboards, docs, and app UI seeds.",
+        content:
+          "Browse static Builder templates — landing pages, dashboards, docs, and app UI seeds.",
       },
     ],
   }),
@@ -48,7 +49,8 @@ function TemplatesIndexPage() {
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-8">
         <h1 className="text-3xl font-semibold tracking-tight">Templates</h1>
         <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-          Static seeds you can drop into a new thread. Use template fills the composer — it does not auto-send.
+          Static seeds you can drop into a new thread. Use template fills the composer — it does not
+          auto-send.
         </p>
 
         <div className="mt-6 flex flex-wrap gap-2" role="tablist" aria-label="Categories">
