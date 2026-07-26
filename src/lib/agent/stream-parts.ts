@@ -24,10 +24,19 @@ export type PlanData = {
   open_questions?: string[];
 };
 
+export type IntentDetectedData = {
+  intent: string;
+  confidence: number;
+  brand: string;
+  artifactId: string;
+  title: string;
+};
+
 export type BuilderDataPart =
   | { type: "data-artifact-created"; data: ArtifactCreatedData; transient?: boolean }
   | { type: "data-memory-saved"; data: MemorySavedData; transient?: boolean }
-  | { type: "data-plan"; data: PlanData; transient?: boolean };
+  | { type: "data-plan"; data: PlanData; transient?: boolean }
+  | { type: "data-intent-detected"; data: IntentDetectedData; transient?: boolean };
 
 function asRecord(v: unknown): Record<string, unknown> | null {
   if (!v || typeof v !== "object") return null;

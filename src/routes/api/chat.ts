@@ -32,6 +32,10 @@ import {
 } from "@/lib/agent/finish";
 import { toolResultsToDataParts } from "@/lib/agent/stream-parts";
 import { snapshotArtifactVersion } from "@/lib/agent/versions";
+import {
+  formatSkeletonSystemAppendix,
+  seedInstantProductSkeleton,
+} from "@/lib/agent/semantic-intent";
 
 type Mode = "build" | "plan";
 type ChatBody = {
@@ -131,14 +135,44 @@ export const Route = createFileRoute("/api/chat")({
 
           const memoryRows = await loadThreadMemory(supabase, thread.id);
           const memoryBlock = formatMemoryBlock(memoryRows);
-          const clientBlock = formatClientContext(body.clientContext);
-          const system = composeSystem(
+          let clientBlock = formatClientContext(body.clientContext);
+          let system = composeSystem(
             mode,
             thread.system_prompt || DEFAULT_SYSTEM_PROMPT,
             memoryBlock,
             clientBlock,
           );
           const temperature = Number(thread.temperature ?? 0.7);
+
+          // Instant Product Skeleton: seed canvas BEFORE Codestral when thread is empty.
+          // Fail-open — never block the Mistral stream.
+          let skeletonSeed: Awaited<ReturnType<typeof seedInstantProductSkeleton>> = null;
+          if (mode === "build" && lastUser && toolFlags.create_artifact !== false) {
+            skeletonSeed = await seedInstantProductSkeleton({
+              supabase,
+              threadId: thread.id,
+              userPrompt: messageText(lastUser),
+              enabled: true,
+            });
+            if (skeletonSeed) {
+              system = `${system}${formatSkeletonSystemAppendix(skeletonSeed)}`;
+              // Prefer tools targeting the seeded artifact even if client had no focus yet.
+              if (!body.clientContext?.activeArtifactId) {
+                clientBlock = formatClientContext({
+                  ...body.clientContext,
+                  activeArtifactId: skeletonSeed.artifactId,
+                });
+                // Rebuild system with active artifact hint + skeleton appendix.
+                system =
+                  composeSystem(
+                    mode,
+                    thread.system_prompt || DEFAULT_SYSTEM_PROMPT,
+                    memoryBlock,
+                    clientBlock,
+                  ) + formatSkeletonSystemAppendix(skeletonSeed);
+              }
+            }
+          }
 
           const trimmed = trimMessages(body.messages as UIMessage[]);
           let modelMessages;
@@ -156,7 +190,8 @@ export const Route = createFileRoute("/api/chat")({
             threadId: thread.id,
             supabase,
             flags: toolFlags,
-            activeArtifactId: body.clientContext?.activeArtifactId,
+            activeArtifactId:
+              body.clientContext?.activeArtifactId ?? skeletonSeed?.artifactId ?? undefined,
           });
 
           const persistAssistant = async (
@@ -188,7 +223,8 @@ export const Route = createFileRoute("/api/chat")({
             }
 
             // Fence fallback only when tools did not create an artifact (G-P1-1).
-            const createdViaTool = toolCreatedArtifact(toolResults);
+            // Skeleton seed already placed an artifact — skip fence to avoid duplicates.
+            const createdViaTool = toolCreatedArtifact(toolResults) || Boolean(skeletonSeed);
             if (
               shouldFenceArtifacts({
                 mode,
@@ -242,6 +278,34 @@ export const Route = createFileRoute("/api/chat")({
           const uiStream = createUIMessageStream({
             originalMessages,
             execute: async ({ writer }) => {
+              // Emit skeleton parts first so canvas paints before Codestral tokens.
+              if (skeletonSeed) {
+                try {
+                  writer.write({
+                    type: "data-intent-detected",
+                    data: {
+                      intent: skeletonSeed.intent,
+                      confidence: skeletonSeed.confidence,
+                      brand: skeletonSeed.brand,
+                      artifactId: skeletonSeed.artifactId,
+                      title: skeletonSeed.title,
+                    },
+                    transient: true,
+                  } as Parameters<typeof writer.write>[0]);
+                  writer.write({
+                    type: "data-artifact-created",
+                    data: {
+                      artifactId: skeletonSeed.artifactId,
+                      title: skeletonSeed.title,
+                      kind: skeletonSeed.kind,
+                    },
+                    transient: true,
+                  } as Parameters<typeof writer.write>[0]);
+                } catch (e) {
+                  console.warn("[api/chat] skeleton data part write failed", e);
+                }
+              }
+
               const result = streamText({
                 model: provider(modelId),
                 system,
