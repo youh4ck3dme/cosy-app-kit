@@ -16,6 +16,11 @@ dist-ssr
 .nitro
 *.local
 
+# Local secret notes — never commit real keys (*.local does NOT match *.local.md)
+*.local.md
+secrets/**/*.local.md
+secrets/**/*.local.*
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
