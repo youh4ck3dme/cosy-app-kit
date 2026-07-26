@@ -666,6 +666,13 @@ export function Canvas({
           t.tagName === "TEXTAREA" ||
           t.isContentEditable ||
           t.closest(".monaco-editor"));
+      // P3 — Cmd/Ctrl+S saves live edits, even from inside the code editor.
+      if ((e.metaKey || e.ctrlKey) && (e.key === "s" || e.key === "S")) {
+        if (!artifact || !isDirty || saving) return;
+        e.preventDefault();
+        void handleSaveEdits();
+        return;
+      }
       if (e.key === "Escape" && fullscreen) {
         e.preventDefault();
         setFullscreen(false);
@@ -679,7 +686,9 @@ export function Canvas({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [fullscreen, hasLivePreview, view]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleSaveEdits is stable per render
+  }, [fullscreen, hasLivePreview, view, artifact, isDirty, saving]);
+
 
   const handleShare = async () => {
     if (!artifact) return;
