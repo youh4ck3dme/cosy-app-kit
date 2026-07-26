@@ -17,6 +17,7 @@ export function CommunityGallery({
 
   return (
     <section
+      data-testid="landing-gallery"
       className="relative z-10 mx-auto max-w-4xl px-4 py-16 sm:px-10"
       aria-labelledby="made-heading"
     >

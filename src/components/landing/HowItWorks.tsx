@@ -22,6 +22,7 @@ const STEPS: Array<{ icon: LucideIcon; title: string; body: string }> = [
 export function HowItWorks() {
   return (
     <section
+      data-testid="landing-how-it-works"
       className="relative z-10 mx-auto max-w-4xl px-4 py-16 sm:px-10"
       aria-labelledby="how-heading"
     >

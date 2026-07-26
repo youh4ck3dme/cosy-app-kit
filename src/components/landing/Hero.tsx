@@ -3,7 +3,10 @@ import { Monitor, Smartphone, Tablet, MessageSquare } from "lucide-react";
 
 export function Hero() {
   return (
-    <section className="relative z-10 mx-auto max-w-4xl px-4 pb-16 pt-16 text-center sm:px-10 sm:pt-24">
+    <section
+      data-testid="landing-hero"
+      className="relative z-10 mx-auto max-w-4xl px-4 pb-16 pt-16 text-center sm:px-10 sm:pt-24"
+    >
       <h1 className="animate-in-fade font-mono text-4xl font-bold tracking-tighter sm:text-6xl">
         <span className="text-gradient-accent">&gt;_ Build</span>
         <br />
