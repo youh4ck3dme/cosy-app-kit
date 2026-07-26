@@ -153,6 +153,8 @@ export function needsUrlPreview(files: ProjectFsFile[]): boolean {
 
 export function buildPreviewCsp(opts: { networkDisabled?: boolean }): string {
   const connect = opts.networkDisabled ? "'none'" : "'self'";
+  // Intentionally no https: CDN hosts in script-src — preview/ZIP must stay offline-safe.
+  // Product prompts must not recommend bare jsDelivr Chart.js (see src/lib/models.ts).
   return [
     "default-src 'none'",
     "base-uri 'none'",
