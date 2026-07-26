@@ -107,7 +107,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Builder is a dark, focused AI studio. Chat with your agent, watch it ship live artifacts to a real preview canvas.",
       },
       { property: "og:type", content: "website" },
-      { name: "theme-color", content: "#0e0f14" },
+      { name: "theme-color", content: "#000000" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Builder — AI-first app studio" },
       {

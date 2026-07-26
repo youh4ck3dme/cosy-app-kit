@@ -60,6 +60,9 @@
 }
 
 :root {
+  /* Fluid typography and spacing foundation */
+  --spacing-base: clamp(8px, 1.5vw, 16px);
+  --font-base: clamp(1rem, 2vw + 1rem, 2rem);
   --radius: 0.75rem;
   color-scheme: light;
 
@@ -117,9 +120,9 @@
 .dark {
   color-scheme: dark;
 
-  /* Deep, cool near-black base with subtle blue undertone */
-  --background: oklch(0.13 0.008 265);
-  --foreground: oklch(0.975 0.004 260);
+  /* AMOLED Pure Black Optimization */
+  --background: oklch(0 0 0);
+  --foreground: oklch(0.98 0 0);
 
   --panel: oklch(0.16 0.009 265);
   --surface: oklch(0.185 0.010 265);
@@ -233,6 +236,11 @@
 }
 
 @layer utilities {
+  .hardware-accelerated {
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
   .bg-grid-pattern {
     background-size: 40px 40px;
     background-image:
