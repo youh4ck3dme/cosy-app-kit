@@ -136,8 +136,10 @@ export {
 
 export {
   createBuilderRuntime,
+  InMemoryRuntimePersistence,
   type BuilderRuntime,
   type BuilderRuntimeOptions,
+  type RuntimePersistence,
 } from "./runtime";
 
 export {
