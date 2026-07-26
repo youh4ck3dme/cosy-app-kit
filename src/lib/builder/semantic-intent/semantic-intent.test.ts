@@ -51,6 +51,8 @@ describe("SemanticIntentEngine", () => {
     expect(result.intent).toBe("StaticIntent");
     expect(result.code).not.toContain("useState");
     expect(result.code).toContain('<p className="text-2xl font-bold">Hello World</p>');
-    expect(result.code).toContain('<p className="text-gray-700">This is a static block of text.</p>');
+    expect(result.code).toContain(
+      '<p className="text-gray-700">This is a static block of text.</p>',
+    );
   });
 });

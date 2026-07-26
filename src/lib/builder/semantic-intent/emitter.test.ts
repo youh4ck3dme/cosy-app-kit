@@ -23,8 +23,8 @@ describe("CodeEmitter (Unit Tests)", () => {
     expect(result.code).toContain("import React, { useState } from 'react'");
     expect(result.code).toContain("const [formData, setFormData] = useState");
     expect(result.code).toContain("email: ''");
-    expect(result.code).toContain('value={formData.email}');
-    expect(result.code).toContain('onChange={handleChange}');
+    expect(result.code).toContain("value={formData.email}");
+    expect(result.code).toContain("onChange={handleChange}");
   });
 
   it("should emit valid static React code for StaticIntent", () => {

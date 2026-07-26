@@ -23,7 +23,7 @@ describe("StateInjector (Unit Tests)", () => {
 
   it("should NOT inject state logic for StaticIntent", () => {
     const nodes: RawNode[] = [
-      { id: "1", type: "input", name: "username" }, 
+      { id: "1", type: "input", name: "username" },
       { id: "2", type: "text" },
     ];
 

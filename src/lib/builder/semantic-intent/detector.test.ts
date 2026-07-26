@@ -19,9 +19,7 @@ describe("Detector (Unit Tests)", () => {
   });
 
   it("should detect NavigationIntent when navigation buttons are present", () => {
-    const nodes: RawNode[] = [
-      { id: "1", type: "button", action: "navigate" },
-    ];
+    const nodes: RawNode[] = [{ id: "1", type: "button", action: "navigate" }];
     expect(detector.detectIntent(nodes)).toBe("NavigationIntent");
   });
 

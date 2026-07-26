@@ -5,7 +5,7 @@ export class StateInjector {
     if (intent === "FormIntent") {
       return this.injectFormState(nodes);
     }
-    
+
     return nodes.map((node) => ({
       ...node,
       isInteractive: false,
