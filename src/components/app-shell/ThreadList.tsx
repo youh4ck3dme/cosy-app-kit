@@ -97,34 +97,53 @@ export function ThreadList({
               {g.items.map((t) => {
                 const active = t.id === activeThreadId;
                 const optimistic = t.id.startsWith("optimistic-");
+                const rowClass = cn(
+                  "flex items-center gap-2 rounded-lg px-2 py-2 pr-8 text-sm transition-all",
+                  active
+                    ? "bg-surface-2 text-foreground"
+                    : "text-muted-foreground hover:bg-surface-1 hover:text-foreground",
+                  optimistic && "opacity-70 pointer-events-none cursor-wait",
+                );
                 return (
                   <div key={t.id} className="group relative">
-                    <Link
-                      to="/chat/$threadId"
-                      params={{ threadId: t.id }}
-                      onClick={onNavigate}
-                      className={cn(
-                        "flex items-center gap-2 rounded-lg px-2 py-2 pr-8 text-sm transition-all",
-                        active
-                          ? "bg-surface-2 text-foreground"
-                          : "text-muted-foreground hover:bg-surface-1 hover:text-foreground",
-                        optimistic && "opacity-70",
-                      )}
-                    >
-                      {active && (
-                        <span
-                          aria-hidden
-                          className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r bg-accent-primary"
-                        />
-                      )}
-                      <MessageSquare
-                        className={cn(
-                          "h-3.5 w-3.5 shrink-0",
-                          active ? "text-accent-primary" : "text-muted-foreground/70",
+                    {optimistic ? (
+                      <div className={rowClass} aria-busy="true" aria-disabled="true">
+                        {active && (
+                          <span
+                            aria-hidden
+                            className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r bg-accent-primary"
+                          />
                         )}
-                      />
-                      <span className="min-w-0 flex-1 truncate">{t.title}</span>
-                    </Link>
+                        <MessageSquare
+                          className={cn(
+                            "h-3.5 w-3.5 shrink-0",
+                            active ? "text-accent-primary" : "text-muted-foreground/70",
+                          )}
+                        />
+                        <span className="min-w-0 flex-1 truncate">{t.title}</span>
+                      </div>
+                    ) : (
+                      <Link
+                        to="/chat/$threadId"
+                        params={{ threadId: t.id }}
+                        onClick={onNavigate}
+                        className={rowClass}
+                      >
+                        {active && (
+                          <span
+                            aria-hidden
+                            className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r bg-accent-primary"
+                          />
+                        )}
+                        <MessageSquare
+                          className={cn(
+                            "h-3.5 w-3.5 shrink-0",
+                            active ? "text-accent-primary" : "text-muted-foreground/70",
+                          )}
+                        />
+                        <span className="min-w-0 flex-1 truncate">{t.title}</span>
+                      </Link>
+                    )}
                     {!optimistic && (
                       <button
                         type="button"

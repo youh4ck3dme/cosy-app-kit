@@ -33,6 +33,11 @@ export function useCreateThread(onNavigate?: () => void) {
       toast.error((e as Error).message);
     },
     onSuccess: ({ id }) => {
+      // Guard: never navigate to optimistic placeholders (ChatIndex race / bad payload).
+      if (!id || id.startsWith("optimistic-") || !/^[0-9a-f-]{36}$/i.test(id)) {
+        toast.error("Could not open new chat — invalid thread id");
+        return;
+      }
       haptic();
       onNavigate?.();
       navigate({ to: "/chat/$threadId", params: { threadId: id } });

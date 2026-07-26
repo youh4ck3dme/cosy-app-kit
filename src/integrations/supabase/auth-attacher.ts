@@ -6,6 +6,9 @@ import { supabase } from "./client";
 // the browser never attaches the bearer token to serverFn RPCs.
 export const attachSupabaseAuth = createMiddleware({ type: "function" }).client(
   async ({ next }) => {
+    // getUser() validates/refreshes with the auth server; getSession() alone can
+    // return a stale local access_token and cause "Unauthorized: Invalid token".
+    await supabase.auth.getUser();
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token;
     return next({

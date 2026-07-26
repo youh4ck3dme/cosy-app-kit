@@ -68,6 +68,9 @@ function AuthPage() {
   const [bridging, setBridging] = useState(true);
   // Avoid isLocalHost() (window) on any pre-effect paint of the form copy.
   const [localHint, setLocalHint] = useState(false);
+  // ssr:false ClientOnly renders null on the server — first client paint must match
+  // (returning AuthPendingShell here caused hydration mismatch under Lazy/MatchInner).
+  const [mounted, setMounted] = useState(false);
 
   const goTo = (path: string) => {
     if (path.startsWith("http")) {
@@ -84,6 +87,7 @@ function AuthPage() {
   // OAuth: stage from local → published OAuth → bounce tokens back to local.
   useEffect(() => {
     let cancelled = false;
+    setMounted(true);
     setLocalHint(isLocalHost());
 
     (async () => {
@@ -144,6 +148,25 @@ function AuthPage() {
       }
 
       // ── 3) Already signed in (cookie session on this origin) ──
+      // Drop cross-project / rotated-JWKS sessions (e.g. hyff env + magq OAuth kid).
+      {
+        const { data: userData, error: userErr } = await supabase.auth.getUser();
+        if (userErr) {
+          const msg = (userErr.message || "").toLowerCase();
+          if (
+            msg.includes("jwt") ||
+            msg.includes("kid") ||
+            msg.includes("unverifiable") ||
+            msg.includes("invalid")
+          ) {
+            await supabase.auth.signOut({ scope: "local" });
+          }
+        } else if (!userData.user) {
+          /* no session */
+        }
+      }
+      if (cancelled) return;
+
       const { data } = await supabase.auth.getSession();
       if (cancelled) return;
 
@@ -229,6 +252,12 @@ function AuthPage() {
       setLoading(false);
     }
   };
+
+  if (!mounted) {
+    // Match ssr:false ClientOnly server HTML (empty MatchInner) — pendingComponent
+    // covers Suspense; do not paint AuthPendingShell here on the first client frame.
+    return null;
+  }
 
   if (bridging) {
     return <AuthPendingShell />;

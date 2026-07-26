@@ -104,9 +104,17 @@ function ChatPage() {
   const truncateMessages = useServerFn(truncateThreadMessagesAfter);
   useAppViewportLock(true);
 
+  const isOptimisticId = threadId.startsWith("optimistic-");
+
+  useEffect(() => {
+    if (!isOptimisticId) return;
+    navigate("/chat");
+  }, [isOptimisticId, navigate]);
+
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["thread", threadId],
     queryFn: () => load({ data: { threadId } }),
+    enabled: !isOptimisticId,
   });
 
   const initialMessages: UIMessage[] = useMemo(() => {
@@ -407,6 +415,17 @@ function ChatPage() {
     { allowInInput: true },
   );
 
+  if (isOptimisticId) {
+    return (
+      <div className="flex h-dvh flex-col items-center justify-center gap-3 px-4 text-center">
+        <p className="text-sm text-muted-foreground">Opening chat…</p>
+        <Link to="/chat" className="rounded-md border border-border px-4 py-2 text-sm">
+          All chats
+        </Link>
+      </div>
+    );
+  }
+
   if (isError) {
     const msg =
       error instanceof Error
@@ -473,7 +492,7 @@ function ChatPage() {
           id="chat-main"
           className={cn(
             // Fluid chat column: more canvas room on tablets, cap on wide desktops
-            "flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-r border-border md:w-[min(38vw,380px)] lg:w-[min(36vw,460px)] xl:w-[520px] md:flex",
+            "flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-r border-border md:w-[min(38vw,380px)] lg:w-[min(36vw,460px)] xl:w-130 md:flex",
             view === "chat" ? "flex" : "hidden md:flex",
           )}
         >
