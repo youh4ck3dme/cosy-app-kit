@@ -188,6 +188,11 @@ export function Canvas({
   const [sharing, setSharing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [edits, setEdits] = useState<Record<string, string>>({});
+  /** P3 — files created locally in the canvas, persisted on Save. */
+  const [addedFiles, setAddedFiles] = useState<ArtifactFile[]>([]);
+  /** P3 — files removed locally in the canvas, persisted on Save. */
+  const [removedPaths, setRemovedPaths] = useState<string[]>([]);
+
   const [undoStack, setUndoStack] = useState<Record<string, string>[]>([]);
   const [diffMode, setDiffMode] = useState<"local" | "model">("local");
   /** Width of the scrollable canvas host (for fluid + fit scale). */
