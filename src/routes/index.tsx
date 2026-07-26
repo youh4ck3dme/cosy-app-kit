@@ -44,7 +44,8 @@ export const Route = createFileRoute("/")({
 });
 
 function LandingPage() {
-  const made = Route.useLoaderData();
+  const made = Route.useLoaderData() as Array<{ id: string; title: string; kind: string }>;
+
 
   return (
     <div className="min-h-screen bg-background text-foreground">
