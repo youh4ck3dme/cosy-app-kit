@@ -38,7 +38,7 @@ export function formatMemoryBlock(rows: MemoryRow[]): string {
         : JSON.stringify(r.value);
     return `- ${r.key}: ${summary.slice(0, 400)}`;
   });
-  return `## User preferences for this project\n${lines.join("\n")}`;
+  return `## User preferences for this thread\n${lines.join("\n")}`;
 }
 
 export async function upsertMemory(

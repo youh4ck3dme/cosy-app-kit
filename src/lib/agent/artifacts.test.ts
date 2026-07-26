@@ -89,6 +89,7 @@ describe("memory format", () => {
     ]);
     expect(block).toContain("tone");
     expect(block).toContain("calm");
+    expect(block).toMatch(/this thread/i);
   });
 
   it("empty rows → empty string", () => {
