@@ -6,6 +6,7 @@ import { SemanticIntentEngine } from "@/lib/builder/semantic-intent";
 import type { EngineResult } from "@/lib/builder/semantic-intent/types";
 
 import { ZipExporterEngine } from "@/lib/builder/export/zipExporter";
+import { LiveCanvasPreview } from "@/components/builder/LiveCanvasPreview";
 import { haptic } from "@/lib/haptics";
 import type { RawNode } from "@/lib/builder/semantic-intent/types";
 
@@ -130,28 +131,35 @@ function BuilderWorkspacePage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <h3 className="text-sm font-medium text-foreground">React Source Code:</h3>
-                <div className="relative group rounded-xl overflow-hidden border border-border-subtle bg-[#0a0a0a]">
-                  <div className="flex items-center justify-between px-4 py-2 border-b border-border/10 bg-white/5">
-                    <span className="text-xs font-mono text-muted-foreground">
-                      GeneratedForm.tsx
-                    </span>
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={handleExportZip}
-                        className="text-xs px-2.5 py-1 rounded-md bg-accent-primary/20 hover:bg-accent-primary/30 text-accent-primary border border-accent-primary/30 font-medium transition-all flex items-center gap-1.5"
-                      >
-                        Export Project (.zip)
-                      </button>
-                      <button className="text-xs text-accent-primary hover:text-accent-glow transition-colors">
-                        Copy
-                      </button>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium text-foreground">React Source Code:</h3>
+                  <div className="relative group rounded-xl overflow-hidden border border-border-subtle bg-[#0a0a0a]">
+                    <div className="flex items-center justify-between px-4 py-2 border-b border-border/10 bg-white/5">
+                      <span className="text-xs font-mono text-muted-foreground">
+                        GeneratedForm.tsx
+                      </span>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={handleExportZip}
+                          className="text-xs px-2.5 py-1 rounded-md bg-accent-primary/20 hover:bg-accent-primary/30 text-accent-primary border border-accent-primary/30 font-medium transition-all flex items-center gap-1.5"
+                        >
+                          Export Project (.zip)
+                        </button>
+                        <button className="text-xs text-accent-primary hover:text-accent-glow transition-colors">
+                          Copy
+                        </button>
+                      </div>
                     </div>
+                    <pre className="p-4 text-xs font-mono leading-relaxed text-foreground overflow-x-auto max-h-125">
+                      <code>{engineResult.code}</code>
+                    </pre>
                   </div>
-                  <pre className="p-4 text-xs font-mono leading-relaxed text-foreground overflow-x-auto">
-                    <code>{engineResult.code}</code>
-                  </pre>
+                </div>
+
+                <div className="space-y-2 h-140">
+                  <h3 className="text-sm font-medium text-foreground">Live Interactive Canvas:</h3>
+                  <LiveCanvasPreview code={engineResult.code} css={engineResult.css} />
                 </div>
               </div>
             </div>

@@ -15,7 +15,7 @@ export interface RawNode {
   action?: ActionType;
   children?: RawNode[];
   className?: string;
-  meta?: Record<string, any>;
+  meta?: Record<string, string | number | boolean | null>;
 }
 
 export interface SmartNode extends RawNode {
@@ -46,8 +46,8 @@ export const RawNodeSchema: z.ZodType<RawNode> = z.lazy(
       action: z.enum(["submit", "cancel", "navigate"]).optional(),
       className: z.string().optional(),
       children: z.array(RawNodeSchema).optional(),
-      meta: z.record(z.string(), z.any()).optional(),
-    }) as any,
+      meta: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
+    }) as z.ZodType<RawNode>,
 );
 
 export class ASTAutoHealer {
@@ -56,7 +56,9 @@ export class ASTAutoHealer {
    */
   public static sanitizeAndHeal(data: unknown): RawNode[] {
     if (!Array.isArray(data)) {
-      console.warn("[ASTHealer] Expected array of nodes, received invalid payload. Healing to empty root.");
+      console.warn(
+        "[ASTHealer] Expected array of nodes, received invalid payload. Healing to empty root.",
+      );
       return [];
     }
 
@@ -72,7 +74,7 @@ export class ASTAutoHealer {
         className: "p-4 border border-red-500/50 bg-red-500/10 rounded",
         text: "Auto-Healed Corrupted Component",
         children: [],
-        meta: { healingApplied: true, originalError: parsed.error.issues },
+        meta: { healingApplied: true, originalError: JSON.stringify(parsed.error.issues) },
       };
     });
   }
