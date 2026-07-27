@@ -1,98 +1,101 @@
 import type { RawNode } from "../semantic-intent/types";
 
 /**
- * Mock Vision API Model
- *
- * In a real-world scenario, this function would send the Base64 image to an AI Vision model
- * (like GPT-4o, Claude 3.5 Sonnet, or Mistral Pixtral) to parse the layout and return a structured AST.
- *
- * For now, this mock simulates processing time and returns a hardcoded login form layout (RawNode),
- * which our Semantic Intent Engine will then enhance into a smart React component.
+ * Static AST fixture for **unit tests only** — not used in production.
+ * Production vision always goes through Mistral Pixtral (`parseVisionImage`).
+ * Do not wire this into server handlers or UI fallbacks.
  */
-export async function parseImageToRawNode(imageBase64: string): Promise<RawNode> {
-  // Simulate network latency & model thinking time (1.5s - 3s)
-  const processingDelay = Math.random() * 1500 + 1500;
-  await new Promise((resolve) => setTimeout(resolve, processingDelay));
+export async function parseImageToRawNode(_imageBase64: string): Promise<RawNode> {
+  await new Promise((resolve) => setTimeout(resolve, 1));
 
   return {
     id: "root-container",
     type: "box",
     className:
-      "flex flex-col gap-6 p-8 bg-surface rounded-2xl shadow-xl w-full max-w-sm border border-border-subtle",
+      "min-h-screen w-full flex items-center justify-center bg-background p-4 sm:p-8",
     children: [
       {
-        id: "header-container",
+        id: "card-box",
         type: "box",
-        className: "text-center",
+        className: "w-full max-w-md flex flex-col gap-6 p-8 rounded-2xl border bg-card shadow-sm",
         children: [
           {
-            id: "title",
-            type: "text",
-            className: "text-2xl font-semibold tracking-tight text-foreground",
-            text: "Welcome back",
-          },
-          {
-            id: "subtitle",
-            type: "text",
-            className: "text-sm text-muted-foreground mt-2",
-            text: "Enter your credentials to continue",
-          },
-        ],
-      },
-      {
-        id: "form-container",
-        type: "box",
-        className: "flex flex-col gap-4",
-        children: [
-          {
-            id: "email-group",
+            id: "header-box",
             type: "box",
-            className: "flex flex-col gap-2",
+            className: "text-center",
             children: [
               {
-                id: "email-label",
+                id: "title-text",
                 type: "text",
-                className: "text-sm font-medium text-foreground",
-                text: "Email address",
+                className: "text-2xl font-semibold tracking-tight text-foreground",
+                text: "Welcome back",
               },
               {
-                id: "email",
-                type: "input",
-                inputType: "email",
-                name: "email",
-                className:
-                  "flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors",
+                id: "subtitle-text",
+                type: "text",
+                className: "text-sm text-muted-foreground mt-2",
+                text: "Enter your credentials to access your account",
               },
             ],
           },
           {
-            id: "password-group",
+            id: "form-box",
             type: "box",
-            className: "flex flex-col gap-2",
+            className: "flex flex-col gap-4",
             children: [
               {
-                id: "password-label",
-                type: "text",
-                className: "text-sm font-medium text-foreground",
-                text: "Password",
+                id: "email-field",
+                type: "box",
+                className: "flex flex-col gap-2",
+                children: [
+                  {
+                    id: "email-label",
+                    type: "text",
+                    className: "text-sm font-medium text-foreground",
+                    text: "Email",
+                  },
+                  {
+                    id: "email-input",
+                    type: "input",
+                    inputType: "email",
+                    name: "email",
+                    label: "Email",
+                    className:
+                      "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
+                  },
+                ],
               },
               {
-                id: "password",
-                type: "input",
-                inputType: "password",
-                name: "password",
+                id: "password-field",
+                type: "box",
+                className: "flex flex-col gap-2",
+                children: [
+                  {
+                    id: "password-label",
+                    type: "text",
+                    className: "text-sm font-medium text-foreground",
+                    text: "Password",
+                  },
+                  {
+                    id: "password-input",
+                    type: "input",
+                    inputType: "password",
+                    name: "password",
+                    label: "Password",
+                    className:
+                      "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
+                  },
+                ],
+              },
+              {
+                id: "submit-button",
+                type: "button",
+                action: "submit",
+                text: "Sign In",
                 className:
-                  "flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-colors",
+                  "inline-flex items-center justify-center rounded-md text-sm font-medium bg-primary text-primary-foreground h-10 px-4 py-2 w-full",
               },
             ],
-          },
-          {
-            id: "submit-button",
-            type: "button",
-            action: "submit",
-            className:
-              "inline-flex items-center justify-center rounded-lg text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full mt-2",
-            text: "Sign in",
           },
         ],
       },

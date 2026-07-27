@@ -1,8 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { generateObject } from "ai";
 import { z } from "zod";
-import { createMistralProvider } from "@/lib/ai-gateway.server";
-import { parseImageToRawNode as parseMockImage } from "./mockVisionModel";
+import { createMistralProvider, formatAiGatewayError, mistralKeyRotator } from "@/lib/ai-gateway.server";
 import type { RawNode } from "../semantic-intent/types";
 
 // Recursive Zod schema for RawNode
@@ -24,15 +23,17 @@ export const rawNodeSchema: z.ZodType<RawNode> = z.lazy(() =>
   }),
 );
 
-import { mistralKeyRotator } from "../ai/MistralKeyRotator";
-
+/**
+ * Vision → RawNode AST via **Mistral Pixtral only**.
+ * No mock / local AI fallback — missing key or API failure throws.
+ */
 export const parseVisionImage = createServerFn({ method: "POST" })
   .validator((data: { imageBase64: string }) => data)
-  .handler(async ({ data }): Promise<{ node: RawNode; source: "mistral" | "mock" }> => {
+  .handler(async ({ data }): Promise<{ node: RawNode; source: "mistral" }> => {
     if (mistralKeyRotator.keyCount === 0) {
-      console.warn("[VisionModel] No Mistral API keys available. Falling back to mock model.");
-      const mockNode = await parseMockImage(data.imageBase64);
-      return { node: mockNode, source: "mock" };
+      throw new Error(
+        "Missing MISTRAL_API_KEY. Vision parsing requires Mistral Pixtral — no local/mock AI. Set MISTRAL_API_KEY (or MISTRAL_API_KEYS) in server env / Lovable Cloud Secrets (console.mistral.ai).",
+      );
     }
 
     try {
@@ -63,11 +64,11 @@ export const parseVisionImage = createServerFn({ method: "POST" })
 
       return { node: rawNode, source: "mistral" };
     } catch (err) {
-      console.error(
-        "[VisionModel] Mistral Vision API generation failed, using mock fallback:",
-        err,
-      );
-      const fallbackNode = await parseMockImage(data.imageBase64);
-      return { node: fallbackNode, source: "mock" };
+      console.error("[VisionModel] Mistral Vision API generation failed:", err);
+      const msg = formatAiGatewayError(err);
+      if (msg.includes("Missing MISTRAL_API_KEY") || (err instanceof Error && err.message.includes("Missing MISTRAL"))) {
+        throw err instanceof Error ? err : new Error(msg);
+      }
+      throw new Error(`Mistral Vision failed: ${msg}`);
     }
   });

@@ -2,6 +2,7 @@ import type { SandboxRPCMessage } from "../semantic-intent/types";
 
 export class CanvasSandboxManager {
   private iframe: HTMLIFrameElement | null = null;
+  private renderDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private renderTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
@@ -23,6 +24,7 @@ export class CanvasSandboxManager {
           <script src="https://unpkg.com/react@18/umd/react.production.min.js"><\/script>
           <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"><\/script>
           <script src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script>
+          <script src="https://unpkg.com/lucide-react@0.460.0/dist/umd/lucide-react.min.js"><\/script>
           <script src="https://cdn.tailwindcss.com"><\/script>
           <style>
             body { margin: 0; padding: 0; background: transparent; font-family: sans-serif; overflow-x: hidden; }
@@ -42,9 +44,31 @@ export class CanvasSandboxManager {
         <body>
           <div id="root"></div>
           <script>
-            let currentRoot = null;
-            let selectedEl = null;
-            let selectionBound = false;
+            // Module Resolver Bridge for CommonJS/ESM imports in Babel-transpiled code
+            window.process = { env: { NODE_ENV: 'production' } };
+
+            var moduleRegistry = {
+              'react': typeof React !== 'undefined' ? React : {},
+              'react-dom': typeof ReactDOM !== 'undefined' ? ReactDOM : {},
+              'react/jsx-runtime': typeof React !== 'undefined' ? {
+                jsx: React.createElement,
+                jsxs: React.createElement,
+                Fragment: React.Fragment
+              } : {},
+              'lucide-react': window['lucide-react'] || window.LucideReact || {}
+            };
+
+            window.customRequire = function(moduleName) {
+              if (moduleRegistry[moduleName]) {
+                return moduleRegistry[moduleName];
+              }
+              console.warn('[SandboxResolver] Module not explicitly mapped, returning empty proxy:', moduleName);
+              return new Proxy({}, { get: function() { return function() { return null; }; } });
+            };
+
+            var currentRoot = null;
+            var selectedEl = null;
+            var selectionBound = false;
 
             function findNodeEl(target) {
               if (!target || !target.closest) return null;
@@ -103,8 +127,15 @@ export class CanvasSandboxManager {
 
                   const exports = {};
                   const module = { exports };
-                  const renderFn = new Function('React', 'ReactDOM', 'module', 'exports', transformed);
-                  renderFn(React, ReactDOM, module, exports);
+                  const renderFn = new Function(
+                    'React',
+                    'ReactDOM',
+                    'require',
+                    'module',
+                    'exports',
+                    transformed
+                  );
+                  renderFn(React, ReactDOM, window.customRequire, module, exports);
 
                   const Component = module.exports.default || module.exports;
                   const rootEl = document.getElementById('root');
@@ -131,34 +162,47 @@ export class CanvasSandboxManager {
       </html>
     `;
 
+    // srcdoc is more reliable than document.write across jsdom/happy-dom
+    this.iframe.srcdoc = sandboxHTML;
     this.container.appendChild(this.iframe);
-    if (this.iframe.contentWindow) {
-      this.iframe.contentWindow.document.open();
-      this.iframe.contentWindow.document.write(sandboxHTML);
-      this.iframe.contentWindow.document.close();
-    }
 
     if (typeof window !== "undefined") {
       window.addEventListener("message", this.handleHostMessage);
     }
   }
 
+  /**
+   * Debounced render (100ms) to prevent Babel lockup on high-frequency AST edits.
+   */
   public render(code: string, css?: string, timeoutMs: number = 3000): void {
     if (!this.iframe) return;
 
-    if (this.renderTimeoutTimer) clearTimeout(this.renderTimeoutTimer);
-
-    // Execution Timeout Boundary against infinite loops
-    this.renderTimeoutTimer = setTimeout(() => {
-      this.onMessage?.({ type: "EXECUTION_TIMEOUT", timeoutMs });
-    }, timeoutMs);
-
-    if (this.iframe.contentWindow) {
-      this.iframe.contentWindow.postMessage({ type: "RENDER_CODE", code, css }, "*");
+    if (this.renderDebounceTimer) {
+      clearTimeout(this.renderDebounceTimer);
     }
+
+    this.renderDebounceTimer = setTimeout(() => {
+      if (this.renderTimeoutTimer) clearTimeout(this.renderTimeoutTimer);
+
+      // Execution Timeout Boundary against infinite loops
+      this.renderTimeoutTimer = setTimeout(() => {
+        this.onMessage?.({ type: "EXECUTION_TIMEOUT", timeoutMs });
+      }, timeoutMs);
+
+      const win = this.iframe?.contentWindow;
+      if (win) {
+        win.postMessage({ type: "RENDER_CODE", code, css }, "*");
+      }
+    }, 100);
   }
 
   public destroy(): void {
+    this.unmount();
+  }
+
+  /** Alias used by hardening tests / callers expecting unmount(). */
+  public unmount(): void {
+    if (this.renderDebounceTimer) clearTimeout(this.renderDebounceTimer);
     if (this.renderTimeoutTimer) clearTimeout(this.renderTimeoutTimer);
     if (typeof window !== "undefined") {
       window.removeEventListener("message", this.handleHostMessage);

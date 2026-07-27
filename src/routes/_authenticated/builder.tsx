@@ -23,14 +23,13 @@ function BuilderWorkspacePage() {
   const [engineResult, setEngineResult] = React.useState<EngineResult | null>(null);
   const [currentAST, setCurrentAST] = React.useState<RawNode[] | null>(null);
   const [imagePreview, setImagePreview] = React.useState<string | null>(null);
-  const [sourceUsed, setSourceUsed] = React.useState<"mistral" | "mock">("mock");
+  const [sourceUsed, setSourceUsed] = React.useState<"mistral" | null>(null);
   const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(null);
   const [scopedPrompt, setScopedPrompt] = React.useState("");
   const [isScopedEditing, setIsScopedEditing] = React.useState(false);
-  const [scopedEditSource, setScopedEditSource] = React.useState<
-    "mistral" | "heuristic" | null
-  >(null);
+  const [scopedEditSource, setScopedEditSource] = React.useState<"mistral" | null>(null);
   const [scopedEditError, setScopedEditError] = React.useState<string | null>(null);
+  const [visionError, setVisionError] = React.useState<string | null>(null);
 
   const regenerateFromAST = React.useCallback((ast: RawNode[], componentName = "GeneratedForm") => {
     const engine = new SemanticIntentEngine();
@@ -61,14 +60,19 @@ function BuilderWorkspacePage() {
       setScopedPrompt("");
       setScopedEditSource(null);
       setScopedEditError(null);
+      setVisionError(null);
+      setSourceUsed(null);
+      setEngineResult(null);
+      setCurrentAST(null);
 
       try {
+        // Mistral Pixtral only — no mock/local AI
         const res = await parseVisionImage({ data: { imageBase64: base64 } });
-        const { node: rawNodeTree, source } = res as {
+        const { node: rawNodeTree } = res as {
           node: RawNode;
-          source: "mistral" | "mock";
+          source: "mistral";
         };
-        setSourceUsed(source);
+        setSourceUsed("mistral");
 
         // Store responsive-healed AST for subsequent scoped edits
         const spatial = new AISpatialContextEngine();
@@ -77,6 +81,11 @@ function BuilderWorkspacePage() {
         regenerateFromAST(ast);
       } catch (error) {
         console.error("Failed to process image:", error);
+        setVisionError(
+          error instanceof Error
+            ? error.message
+            : "Mistral Vision failed. Set MISTRAL_API_KEY.",
+        );
       } finally {
         setIsProcessing(false);
       }
@@ -102,7 +111,9 @@ function BuilderWorkspacePage() {
         fullAST: currentAST,
         targetNodeId: selectedNodeId,
         userPrompt: scopedPrompt.trim(),
+        source: "mistral",
         editNode: async (scoped, userPrompt) => {
+          // Mistral only — no local / heuristic AI
           const res = await applyScopedNodeEdit({
             data: {
               targetNode: scoped.targetNode,
@@ -125,7 +136,12 @@ function BuilderWorkspacePage() {
       setScopedPrompt("");
     } catch (error) {
       console.error("Scoped edit failed:", error);
-      setScopedEditError(error instanceof Error ? error.message : "Scoped edit failed");
+      setScopedEditSource(null);
+      setScopedEditError(
+        error instanceof Error
+          ? error.message
+          : "Mistral scoped edit failed. Check MISTRAL_API_KEY.",
+      );
     } finally {
       setIsScopedEditing(false);
     }
@@ -170,6 +186,8 @@ function BuilderWorkspacePage() {
                     setSelectedNodeId(null);
                     setScopedPrompt("");
                     setScopedEditSource(null);
+                    setVisionError(null);
+                    setSourceUsed(null);
                   }}
                   className="absolute top-4 right-4 bg-background/80 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-medium border border-border hover:bg-surface transition-colors opacity-0 group-hover:opacity-100"
                 >
@@ -177,6 +195,11 @@ function BuilderWorkspacePage() {
                 </button>
               )}
             </div>
+          )}
+          {visionError && (
+            <p className="mt-4 max-w-xl mx-auto text-xs font-mono text-rose-400 text-center">
+              {visionError}
+            </p>
           )}
         </div>
 
@@ -254,12 +277,8 @@ function BuilderWorkspacePage() {
                   <span className="px-2.5 py-1 rounded-md bg-accent-primary/10 border border-accent-primary/20 text-accent-primary text-xs font-medium">
                     {engineResult.intent}
                   </span>
-                  <span
-                    className={`px-2.5 py-1 rounded-md border text-xs font-medium ${sourceUsed === "mistral" ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-amber-500/10 border-amber-500/20 text-amber-400"}`}
-                  >
-                    {sourceUsed === "mistral"
-                      ? "Mistral Pixtral Vision"
-                      : "Simulated Mock (Offline)"}
+                  <span className="px-2.5 py-1 rounded-md border text-xs font-medium bg-emerald-500/10 border-emerald-500/20 text-emerald-400">
+                    {sourceUsed === "mistral" ? "Mistral Pixtral Vision" : "Mistral API"}
                   </span>
                   <span className="text-xs text-muted-foreground">Confidence: 98%</span>
                 </div>

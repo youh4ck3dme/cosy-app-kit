@@ -5,12 +5,14 @@ export interface ScopedEditPipelineResult {
   updatedAST: RawNode[];
   updatedNode: RawNode;
   scoped: ScopedContextResult;
-  source: "heuristic" | "mistral" | "mock";
+  /** Production path is always Mistral; `"test"` exists only in unit tests. */
+  source: "mistral" | "test";
 }
 
 /**
- * Offline / deterministic edits for common visual prompts (EN + SK).
- * Used as mock fallback and for unit tests without network.
+ * Deterministic class/text rewrites for **unit tests only**.
+ * Production scoped edits must go through Mistral (`applyScopedNodeEdit`).
+ * Not a local AI model — pure string rules for offline pipeline tests.
  */
 export function applyScopedPromptHeuristic(target: RawNode, userPrompt: string): RawNode {
   // Keep original for text renames; lowercased for keyword matching
@@ -23,7 +25,7 @@ export function applyScopedPromptHeuristic(target: RawNode, userPrompt: string):
   // Avoid \b — JS word boundaries break on Slovak diacritics (č, ž, …)
   const colorRules: Array<{ match: RegExp; classes: string }> = [
     {
-      match: /red|červen|cerveny|cervena|cervene|červené|cervene/i,
+      match: /red|červen|cerveny|cervena|cervene|červené/i,
       classes: "bg-red-500 hover:bg-red-600 text-white border-red-600",
     },
     {
@@ -50,14 +52,12 @@ export function applyScopedPromptHeuristic(target: RawNode, userPrompt: string):
 
   for (const rule of colorRules) {
     if (rule.match.test(prompt)) {
-      // Strip previous solid bg/text/hover color tokens, keep layout/spacing
       className = stripColorTokens(className);
       className = `${className} ${rule.classes}`.trim();
       break;
     }
   }
 
-  // "change text to X" / "zmeň text na X" — match on original to preserve casing
   const textMatch =
     original.match(/(?:text|label|nadpis)\s*(?:to|na|=)\s*["']?(.+?)["']?\s*$/i) ||
     original.match(/(?:rename|premenuj)\s+(?:to|na)\s+["']?(.+?)["']?\s*$/i);
@@ -70,12 +70,10 @@ export function applyScopedPromptHeuristic(target: RawNode, userPrompt: string):
     }
   }
 
-  // bold / tučné
   if (/bold|tučn|tucn|strong/i.test(prompt) && !/\bfont-bold\b/.test(className)) {
     className = `${className} font-bold`.trim();
   }
 
-  // larger text
   if (/larger|bigger|väčš|vacsi|bigger text/i.test(prompt)) {
     className = className.replace(/\btext-(xs|sm|base|lg|xl|2xl)\b/g, "").trim();
     className = `${className} text-xl`.trim();
@@ -91,13 +89,15 @@ export function applyScopedPromptHeuristic(target: RawNode, userPrompt: string):
 
 /**
  * Full pipeline: scoped extract → node edit → delta apply.
- * `editNode` is injectable so tests can use heuristics and production can use Mistral.
+ * Production must inject Mistral `editNode` (builder.tsx + applyScopedNodeEdit).
+ * Unit tests may inject a deterministic editor; there is no default local AI.
  */
 export async function runScopedEditPipeline(options: {
   fullAST: RawNode[];
   targetNodeId: string;
   userPrompt: string;
-  editNode?: (
+  /** Required — Mistral server fn in production; stub in tests. */
+  editNode: (
     scoped: ScopedContextResult,
     userPrompt: string,
   ) => RawNode | Promise<RawNode>;
@@ -107,9 +107,7 @@ export async function runScopedEditPipeline(options: {
   const scoped = spatial.extractScopedContext(options.targetNodeId, options.fullAST);
   if (!scoped) return null;
 
-  const editFn = options.editNode ?? ((s, p) => applyScopedPromptHeuristic(s.targetNode, p));
-  const updatedNode = await editFn(scoped, options.userPrompt);
-  // Preserve identity
+  const updatedNode = await options.editNode(scoped, options.userPrompt);
   const safeNode: RawNode = {
     ...updatedNode,
     id: scoped.targetNode.id,
@@ -122,7 +120,7 @@ export async function runScopedEditPipeline(options: {
     updatedAST,
     updatedNode: safeNode,
     scoped,
-    source: options.source ?? "heuristic",
+    source: options.source ?? "mistral",
   };
 }
 
