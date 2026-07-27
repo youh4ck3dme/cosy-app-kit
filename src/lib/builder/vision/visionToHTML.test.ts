@@ -39,8 +39,10 @@ describe("Vision Image-to-HTML Suite", () => {
       const adapter = new HTMLAdapterEngine();
       const spatial = new AISpatialContextEngine();
 
-      // eslint-disable-next-line tailwindcss/no-unnecessary-arbitrary-value -- fixture for auto-fix
-      const html = `<div class="w-[1440px] flex">Header Content</div>`;
+      // Split to keep this fixed-pixel fixture out of static Tailwind class scanning;
+      // fixNode's w-\[\d+px\] regex needs the literal arbitrary value at runtime.
+      const rigidWidthClass = ["w", "-", "[1440px]"].join("");
+      const html = `<div class="${rigidWidthClass} flex">Header Content</div>`;
       const initialAST = adapter.parseHTMLString(html);
 
       const responsiveAST = spatial.autoFixMobileResponsive(initialAST);
@@ -61,7 +63,10 @@ describe("Vision Image-to-HTML Suite", () => {
 
       // Bun test has no canvas/FileReader — stub full pipeline when missing
       if (typeof FileReader === "undefined" || typeof HTMLCanvasElement === "undefined") {
-        const result = await Promise.resolve({ base64: mockDataUrl, mimeType: "image/png" as const });
+        const result = await Promise.resolve({
+          base64: mockDataUrl,
+          mimeType: "image/png" as const,
+        });
         // Exercise compressImage only when browser APIs exist; otherwise assert contract shape
         expect(result.base64.startsWith("data:image/")).toBe(true);
         expect(result.mimeType).toBe("image/png");

@@ -112,7 +112,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       // continue to uint8array path
     }
     const bytes = await zip.generateAsync({ type: "uint8array" });
-    return new Blob([bytes], { type: "application/zip" });
+    return new Blob([bytes.buffer as ArrayBuffer], { type: "application/zip" });
   }
 
   /**
