@@ -9,7 +9,7 @@ describe("CosyLogo", () => {
     expect(html).toContain("COSY");
     expect(html).toContain(".AI");
     expect(html).toContain("Visual Code Engine");
-    expect(html).toContain("viewBox=\"0 0 64 64\"");
+    expect(html).toContain('viewBox="0 0 64 64"');
   });
 
   it("can hide wordmark for favicon-style mark only", () => {
@@ -21,9 +21,7 @@ describe("CosyLogo", () => {
 
   it("supports monogram and mono variants", () => {
     const mono = renderToStaticMarkup(<CosyLogo variant="mono" showWordmark={false} />);
-    const monogram = renderToStaticMarkup(
-      <CosyLogo variant="monogram" showWordmark={false} />,
-    );
+    const monogram = renderToStaticMarkup(<CosyLogo variant="monogram" showWordmark={false} />);
     expect(mono).toContain("#09090B");
     expect(monogram).toContain("cosy_mono_grad");
   });

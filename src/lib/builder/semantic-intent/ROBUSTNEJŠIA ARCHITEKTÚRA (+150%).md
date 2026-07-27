@@ -45,22 +45,21 @@ export class ASTAutoHealer {
   return [];
   }
 
-
-    return data.map((item) => {
-      const parsed = RawNodeSchema.safeParse(item);
-      if (parsed.success) {
-        return parsed.data;
-      }
-      console.warn("[ASTHealer] Corrupted node detected and auto-healed:", parsed.error.format());
-      return {
-        id: `healed_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
-        type: "box",
-        className: "p-4 border border-red-500/50 bg-red-500/10 rounded",
-        text: "Auto-Healed Corrupted Component",
-        children: [],
-        meta: { healingApplied: true, originalError: parsed.error.issues },
-      };
-    });
+  return data.map((item) => {
+  const parsed = RawNodeSchema.safeParse(item);
+  if (parsed.success) {
+  return parsed.data;
+  }
+  console.warn("[ASTHealer] Corrupted node detected and auto-healed:", parsed.error.format());
+  return {
+  id: `healed_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
+  type: "box",
+  className: "p-4 border border-red-500/50 bg-red-500/10 rounded",
+  text: "Auto-Healed Corrupted Component",
+  children: [],
+  meta: { healingApplied: true, originalError: parsed.error.issues },
+  };
+  });
 
 }
 }
@@ -789,16 +788,15 @@ export class HTMLAdapterEngine {
   return [];
   }
 
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlString, "text/html");
+  const nodes: RawNode[] = [];
 
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(htmlString, "text/html");
-    const nodes: RawNode[] = [];
+  Array.from(doc.body.children).forEach((child) => {
+  nodes.push(this.traverseDOM(child as HTMLElement));
+  });
 
-    Array.from(doc.body.children).forEach((child) => {
-      nodes.push(this.traverseDOM(child as HTMLElement));
-    });
-
-    return ASTAutoHealer.sanitizeAndHeal(nodes);
+  return ASTAutoHealer.sanitizeAndHeal(nodes);
 
 }
 

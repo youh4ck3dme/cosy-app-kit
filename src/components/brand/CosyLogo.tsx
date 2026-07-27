@@ -82,7 +82,14 @@ function MonogramMark({ size }: { size: number }) {
       <circle cx="46" cy="46" r="3.5" fill="#38BDF8" />
       <circle cx="18" cy="32" r="3" fill="#FFFFFF" />
       <defs>
-        <linearGradient id="cosy_mono_grad" x1="18" y1="18" x2="46" y2="46" gradientUnits="userSpaceOnUse">
+        <linearGradient
+          id="cosy_mono_grad"
+          x1="18"
+          y1="18"
+          x2="46"
+          y2="46"
+          gradientUnits="userSpaceOnUse"
+        >
           <stop stopColor="#6366F1" />
           <stop offset="1" stopColor="#38BDF8" />
         </linearGradient>
@@ -137,9 +144,7 @@ export const CosyLogo: React.FC<CosyLogoProps> = ({
       )}
       aria-hidden={decorative || undefined}
       role={decorative ? undefined : "img"}
-      aria-label={
-        decorative ? undefined : showWordmark ? "COSY.AI Visual Code Engine" : "COSY.AI"
-      }
+      aria-label={decorative ? undefined : showWordmark ? "COSY.AI Visual Code Engine" : "COSY.AI"}
     >
       <Mark variant={variant} size={size} />
 

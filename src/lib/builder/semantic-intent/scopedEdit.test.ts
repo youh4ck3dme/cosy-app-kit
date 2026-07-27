@@ -1,9 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { RawNode } from "./types";
-import {
-  applyScopedPromptHeuristic,
-  runScopedEditPipeline,
-} from "./scopedEdit";
+import { applyScopedPromptHeuristic, runScopedEditPipeline } from "./scopedEdit";
 import { AISpatialContextEngine } from "./spatialEngine";
 
 describe("Scoped edit pipeline (Canvas Select → Delta)", () => {

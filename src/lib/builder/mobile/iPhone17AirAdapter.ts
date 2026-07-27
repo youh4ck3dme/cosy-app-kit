@@ -27,10 +27,7 @@ export class IPhone17AirAdapter {
     }
 
     // 2. GPU acceleration for 120Hz ProMotion smoothness
-    if (
-      node.type === "box" &&
-      (classes.includes("transition") || classes.includes("animate"))
-    ) {
+    if (node.type === "box" && (classes.includes("transition") || classes.includes("animate"))) {
       if (!classes.includes("transform-gpu")) {
         classes += " transform-gpu will-change-transform";
       }
@@ -43,8 +40,7 @@ export class IPhone17AirAdapter {
       classes.includes("h-[100dvh]")
     ) {
       if (!classes.includes("safe-area") && !classes.includes("safe-area-inset")) {
-        classes +=
-          " pt-[env(safe-area-inset-top,20px)] pb-[env(safe-area-inset-bottom,20px)]";
+        classes += " pt-[env(safe-area-inset-top,20px)] pb-[env(safe-area-inset-bottom,20px)]";
       }
     }
 

@@ -22,13 +22,7 @@ import { toast } from "sonner";
 import { Loader2, RotateCcw, Trash2 } from "lucide-react";
 
 /** Suggested keys aligned with the `remember` tool (brand, stack, tone). */
-const MEMORY_KEY_SUGGESTIONS = [
-  "brand",
-  "stack",
-  "tone",
-  "colors",
-  "do_not",
-] as const;
+const MEMORY_KEY_SUGGESTIONS = ["brand", "stack", "tone", "colors", "do_not"] as const;
 
 const MEMORY_ENTRY_SOFT_LIMIT = 20;
 const MEMORY_KEY_MAX = 120;
@@ -235,9 +229,9 @@ export function AgentSettingsPanel({ threadId }: { threadId?: string }) {
             </span>
           </div>
           <p className="mb-3 text-xs text-muted-foreground">
-            Short preferences for <span className="text-foreground/80">this chat only</span> — injected
-            into every reply. Saves immediately (not via Save agent settings). Keep values brief; long
-            briefs belong in System prompt.
+            Short preferences for <span className="text-foreground/80">this chat only</span> —
+            injected into every reply. Saves immediately (not via Save agent settings). Keep values
+            brief; long briefs belong in System prompt.
           </p>
           {memory.length === 0 ? (
             <p className="mb-3 text-xs text-muted-foreground">
@@ -259,7 +253,9 @@ export function AgentSettingsPanel({ threadId }: { threadId?: string }) {
                       title="Edit in the form below"
                       onClick={() => {
                         setMemKey(row.key);
-                        setMemVal(typeof row.value === "string" ? row.value : JSON.stringify(row.value));
+                        setMemVal(
+                          typeof row.value === "string" ? row.value : JSON.stringify(row.value),
+                        );
                       }}
                     >
                       <div className="font-mono text-[11px] text-muted-foreground">{row.key}</div>

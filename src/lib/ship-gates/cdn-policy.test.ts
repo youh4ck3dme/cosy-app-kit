@@ -26,14 +26,12 @@ describe("ship-gates / CDN policy", () => {
   });
 
   it("findUnapprovedCdnMentions allows ban-context mentions", () => {
-    const ok =
-      "Do NOT use bare CDN URLs (cdn.jsdelivr.net, unpkg.com): CSP blocks them.";
+    const ok = "Do NOT use bare CDN URLs (cdn.jsdelivr.net, unpkg.com): CSP blocks them.";
     expect(findUnapprovedCdnMentions(ok)).toEqual([]);
   });
 
   it("findUnapprovedCdnMentions flags bare recommendations", () => {
-    const bad =
-      'Use Chart.js from https://cdn.jsdelivr.net/npm/chart.js for dashboards.';
+    const bad = "Use Chart.js from https://cdn.jsdelivr.net/npm/chart.js for dashboards.";
     const hits = findUnapprovedCdnMentions(bad);
     expect(hits.length).toBeGreaterThan(0);
     expect(hits[0]?.host).toMatch(/cdn\.jsdelivr\.net/i);

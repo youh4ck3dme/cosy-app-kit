@@ -6,8 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CanvasSandboxManager } from "./canvasSandbox";
 
 async function ensureDom(): Promise<void> {
-  const hasDoc =
-    typeof document !== "undefined" && typeof document.createElement === "function";
+  const hasDoc = typeof document !== "undefined" && typeof document.createElement === "function";
   if (hasDoc && typeof MutationObserver !== "undefined") {
     return;
   }
@@ -104,9 +103,9 @@ describe("CanvasSandboxManager Unit Tests", () => {
       );
     } catch {
       // Bun/happy-dom MessageEvent edge case
-      (sandbox as unknown as { handleHostMessage: (e: MessageEvent) => void }).handleHostMessage?.(
-        { data: { type: "NODE_SELECTED", nodeId: "cta_btn" } } as MessageEvent,
-      );
+      (sandbox as unknown as { handleHostMessage: (e: MessageEvent) => void }).handleHostMessage?.({
+        data: { type: "NODE_SELECTED", nodeId: "cta_btn" },
+      } as MessageEvent);
     }
 
     // If dispatch path didn't fire, synthesize via private method

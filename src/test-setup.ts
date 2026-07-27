@@ -34,15 +34,17 @@ const globals = globalThis as unknown as Record<string, unknown>;
 if (typeof vi === "undefined") {
   const noop = () => {};
   const viMock: ViMock = {
-    fn: () => ({
-      mockImplementation: noop,
-      mockReturnValue: noop,
-      mockResolvedValue: noop,
-    }) as unknown,
+    fn: () =>
+      ({
+        mockImplementation: noop,
+        mockReturnValue: noop,
+        mockResolvedValue: noop,
+      }) as unknown,
     clearAllMocks: noop,
-    spyOn: (obj: unknown, method: string) => ({
-      mockReturnValue: noop,
-    }) as unknown,
+    spyOn: (obj: unknown, method: string) =>
+      ({
+        mockReturnValue: noop,
+      }) as unknown,
     stubGlobal: (name: string, value: unknown) => {
       if (!__originalGlobals.has(name)) {
         __originalGlobals.set(name, globals[name]);
@@ -59,9 +61,11 @@ if (typeof vi === "undefined") {
   (globalThis as unknown as Record<string, unknown>)["vi"] = viMock;
 } else if (!(vi as unknown as { stubGlobal?: unknown }).stubGlobal) {
   // Polyfill stubGlobal / unstubAllGlobals for Bun's native test runner when "vi" exists.
-  (vi as unknown as {
-    stubGlobal?: (name: string, value: unknown) => void;
-  }).stubGlobal = (name: string, value: unknown) => {
+  (
+    vi as unknown as {
+      stubGlobal?: (name: string, value: unknown) => void;
+    }
+  ).stubGlobal = (name: string, value: unknown) => {
     if (!__originalGlobals.has(name)) {
       __originalGlobals.set(name, globals[name]);
     }

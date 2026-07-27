@@ -1,7 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { generateObject } from "ai";
 import { z } from "zod";
-import { createMistralProvider, formatAiGatewayError, mistralKeyRotator } from "@/lib/ai-gateway.server";
+import {
+  createMistralProvider,
+  formatAiGatewayError,
+  mistralKeyRotator,
+} from "@/lib/ai-gateway.server";
 import type { RawNode } from "../semantic-intent/types";
 
 // Recursive Zod schema for RawNode
@@ -66,7 +70,10 @@ export const parseVisionImage = createServerFn({ method: "POST" })
     } catch (err) {
       console.error("[VisionModel] Mistral Vision API generation failed:", err);
       const msg = formatAiGatewayError(err);
-      if (msg.includes("Missing MISTRAL_API_KEY") || (err instanceof Error && err.message.includes("Missing MISTRAL"))) {
+      if (
+        msg.includes("Missing MISTRAL_API_KEY") ||
+        (err instanceof Error && err.message.includes("Missing MISTRAL"))
+      ) {
         throw err instanceof Error ? err : new Error(msg);
       }
       throw new Error(`Mistral Vision failed: ${msg}`);

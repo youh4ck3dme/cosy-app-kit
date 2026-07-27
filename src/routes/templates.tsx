@@ -48,11 +48,7 @@ function TemplatesIndexPage() {
             <Link to="/chat" className="hover:text-foreground">
               Open chat
             </Link>
-            <Link
-              to="/auth"
-              search={{ next: "" }}
-              className="hover:text-foreground"
-            >
+            <Link to="/auth" search={{ next: "" }} className="hover:text-foreground">
               Sign in
             </Link>
           </nav>

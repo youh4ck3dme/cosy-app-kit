@@ -5,13 +5,15 @@ import { SHELL_REV } from "./deploy-rev";
 
 const PUBLIC = join(__dirname, "../../public");
 
-describe("PWA assets (Claude S1 port)", () => {
-  it("manifest parses and icons exist", () => {
+describe("PWA assets & App Store Readiness", () => {
+  it("manifest parses and icons & App Store fields exist", () => {
     const manifest = JSON.parse(readFileSync(join(PUBLIC, "manifest.webmanifest"), "utf8"));
     expect(manifest.name).toBeTruthy();
     expect(manifest.display).toBe("standalone");
     expect(manifest.start_url).toBe("/chat");
-    expect(manifest.id).toBe("/");
+    expect(manifest.id).toBeTruthy();
+    expect(manifest.categories).toContain("developer");
+    expect(manifest.shortcuts.length).toBeGreaterThanOrEqual(2);
     expect(manifest.icons.length).toBeGreaterThanOrEqual(3);
     for (const icon of manifest.icons as { src: string }[]) {
       expect(existsSync(join(PUBLIC, icon.src))).toBe(true);

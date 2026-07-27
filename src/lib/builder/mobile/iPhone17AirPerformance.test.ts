@@ -48,9 +48,7 @@ describe("iPhone 17 Air Specific Hardware & UX Suite", () => {
         id: "root",
         type: "box",
         className: "min-h-screen",
-        children: [
-          { id: "cta", type: "button", text: "Go", className: "px-2" },
-        ],
+        children: [{ id: "cta", type: "button", text: "Go", className: "px-2" }],
       },
     ];
     const result = adapter.optimizeForIPhone17Air(inputAST);
@@ -87,9 +85,7 @@ describe("iPhone 17 Air Specific Hardware & UX Suite", () => {
   });
 
   it("7. Idempotent: second optimize does not duplicate safe-area / GPU tokens", () => {
-    const inputAST: RawNode[] = [
-      { id: "root", type: "box", className: "h-screen transition-all" },
-    ];
+    const inputAST: RawNode[] = [{ id: "root", type: "box", className: "h-screen transition-all" }];
     const once = adapter.optimizeForIPhone17Air(inputAST);
     const twice = adapter.optimizeForIPhone17Air(once);
     expect(twice[0].className).toBe(once[0].className);

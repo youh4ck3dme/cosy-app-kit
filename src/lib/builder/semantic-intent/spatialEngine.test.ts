@@ -115,9 +115,7 @@ describe("Unit: AISpatialContextEngine", () => {
   });
 
   it("7. adds break-words to text nodes without overflow protection", () => {
-    const nodes: RawNode[] = [
-      { id: "t1", type: "text", text: "Long copy", className: "text-sm" },
-    ];
+    const nodes: RawNode[] = [{ id: "t1", type: "text", text: "Long copy", className: "text-sm" }];
 
     const fixed = spatialEngine.autoFixMobileResponsive(nodes);
     expect(fixed[0].className).toContain("break-words");

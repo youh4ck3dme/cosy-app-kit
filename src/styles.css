@@ -10,7 +10,8 @@
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, Menlo, monospace;
   /* COSY.AI brand type stack */
-  --font-brand: "Inter Variable", Inter, -apple-system, "SF Pro Display", ui-sans-serif, system-ui, sans-serif;
+  --font-brand:
+    "Inter Variable", Inter, -apple-system, "SF Pro Display", ui-sans-serif, system-ui, sans-serif;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

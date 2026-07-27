@@ -50,16 +50,15 @@ cp e2e/e2e:authenticated.md.example e2e/e2e:authenticated.md   # then edit
 6. Wait for CI job **Install · test · typecheck · build** (includes ship-gates).
 
 7. After production deploy / Lovable publish:
-
    - `GET /api/ai-status` → `ok: true`, provider mistral
    - Open `/chat`
 
 ## Lanes
 
-| Lane | Agent | Job |
-| --- | --- | --- |
-| Ship | Cursor | Wire, fix, `bun run ship`, PR |
-| Shape | Claude | ADR, copy, design direction |
+| Lane  | Agent  | Job                           |
+| ----- | ------ | ----------------------------- |
+| Ship  | Cursor | Wire, fix, `bun run ship`, PR |
+| Shape | Claude | ADR, copy, design direction   |
 
 One agent = one branch. Do not share a branch across Cursor and Claude.
 

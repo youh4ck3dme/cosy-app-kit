@@ -97,10 +97,7 @@ export async function runScopedEditPipeline(options: {
   targetNodeId: string;
   userPrompt: string;
   /** Required — Mistral server fn in production; stub in tests. */
-  editNode: (
-    scoped: ScopedContextResult,
-    userPrompt: string,
-  ) => RawNode | Promise<RawNode>;
+  editNode: (scoped: ScopedContextResult, userPrompt: string) => RawNode | Promise<RawNode>;
   source?: ScopedEditPipelineResult["source"];
 }): Promise<ScopedEditPipelineResult | null> {
   const spatial = new AISpatialContextEngine();
@@ -131,7 +128,11 @@ function stripColorTokens(className: string): string {
       if (!token) return false;
       if (/^bg-/.test(token)) return false;
       if (/^hover:bg-/.test(token)) return false;
-      if (/^text-(white|black|gray|slate|red|blue|emerald|purple|indigo|rose|amber|green)-/.test(token))
+      if (
+        /^text-(white|black|gray|slate|red|blue|emerald|purple|indigo|rose|amber|green)-/.test(
+          token,
+        )
+      )
         return false;
       if (/^border-(red|blue|emerald|purple|gray|slate|black)-/.test(token)) return false;
       return true;

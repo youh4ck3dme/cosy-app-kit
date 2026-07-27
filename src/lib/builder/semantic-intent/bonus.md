@@ -38,46 +38,45 @@ export class AISpatialContextEngine {
       let foundNode: RawNode | null = null;
       const path: string[] = [];
 
+  const search = (nodes: RawNode[], currentPath: string[]): boolean => {
+  for (const node of nodes) {
+  if (node.id === targetNodeId) {
+  foundNode = node;
+  path.push(...currentPath, node.id);
+  return true;
+  }
+  if (node.children && node.children.length > 0) {
+  if (search(node.children, [...currentPath, node.id])) {
+  return true;
+  }
+  }
+  }
+  return false;
+  };
 
-    const search = (nodes: RawNode[], currentPath: string[]): boolean => {
-      for (const node of nodes) {
-        if (node.id === targetNodeId) {
-          foundNode = node;
-          path.push(...currentPath, node.id);
-          return true;
-        }
-        if (node.children && node.children.length > 0) {
-          if (search(node.children, [...currentPath, node.id])) {
-            return true;
-          }
-        }
-      }
-      return false;
-    };
+  search(fullAST, []);
 
-    search(fullAST, []);
+  if (!foundNode) {
+  console.warn(`[SpatialEngine] Node s ID ${targetNodeId} sa nenašiel v AST.`);
+  return null;
+  }
 
-    if (!foundNode) {
-      console.warn(`[SpatialEngine] Node s ID ${targetNodeId} sa nenašiel v AST.`);
-      return null;
-    }
+  // Vytvorenie minimálneho JSON pre LLM Prompt
+  const minimalPromptContext = JSON.stringify({
+  target: {
+  id: (foundNode as RawNode).id,
+  type: (foundNode as RawNode).type,
+  text: (foundNode as RawNode).text,
+  currentClasses: (foundNode as RawNode).className,
+  },
+  ancestorPath: path.join(" > "),
+  });
 
-    // Vytvorenie minimálneho JSON pre LLM Prompt
-    const minimalPromptContext = JSON.stringify({
-      target: {
-        id: (foundNode as RawNode).id,
-        type: (foundNode as RawNode).type,
-        text: (foundNode as RawNode).text,
-        currentClasses: (foundNode as RawNode).className,
-      },
-      ancestorPath: path.join(" > "),
-    });
-
-    return {
-      targetNode: foundNode,
-      parentPath: path,
-      minimalPromptContext,
-    };
+  return {
+  targetNode: foundNode,
+  parentPath: path,
+  minimalPromptContext,
+  };
 
 }
 
@@ -118,8 +117,7 @@ export class AISpatialContextEngine {
 
   });
 
-
-    return ASTAutoHealer.sanitizeAndHeal(fixedNodes);
+  return ASTAutoHealer.sanitizeAndHeal(fixedNodes);
 
 }
 

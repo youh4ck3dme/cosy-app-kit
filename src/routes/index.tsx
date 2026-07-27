@@ -89,11 +89,7 @@ function LandingPage() {
             <Link to="/templates" className="hover:text-foreground">
               Templates
             </Link>
-            <Link
-              to="/auth"
-              search={{ next: "/builder" }}
-              className="hover:text-foreground"
-            >
+            <Link to="/auth" search={{ next: "/builder" }} className="hover:text-foreground">
               Sign in
             </Link>
           </nav>

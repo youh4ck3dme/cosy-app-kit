@@ -8,6 +8,7 @@ export type PwaRuntimeStatus = {
   serviceWorker: boolean;
   installable: boolean;
   ios: boolean;
+  pushSupported: boolean;
 };
 
 const WARM_PATHS = [
@@ -20,6 +21,7 @@ const WARM_PATHS = [
 
 let deferredInstall: InstallPromptEvent | null = null;
 let warmStarted = false;
+let isAppInstalled = false;
 
 /**
  * Vercel Deployment Protection on `*.vercel.app` previews redirects static
@@ -51,27 +53,72 @@ export function isIosSafari(): boolean {
   return iOS && webkit && notChrome;
 }
 
+export function isPushNotificationSupported(): boolean {
+  return typeof window !== "undefined" && "Notification" in window && "serviceWorker" in navigator;
+}
+
 export function getPwaRuntimeStatus(): PwaRuntimeStatus {
   return {
     standalone: isStandaloneDisplay(),
     serviceWorker: typeof navigator !== "undefined" && "serviceWorker" in navigator,
     installable: Boolean(deferredInstall),
     ios: isIosSafari(),
+    pushSupported: isPushNotificationSupported(),
   };
 }
 
-/** Listen for Chromium install prompt; call once near app root. */
+/** Listen for Chromium install prompt and appinstalled events; call once near app root. */
 export function bindInstallPromptCapture() {
   if (typeof window === "undefined") return () => undefined;
+
   const onPrompt = (e: Event) => {
     e.preventDefault();
     deferredInstall = e as InstallPromptEvent;
     window.dispatchEvent(new CustomEvent("builder:pwa-installable"));
   };
+
+  const onAppInstalled = () => {
+    isAppInstalled = true;
+    deferredInstall = null;
+    console.info("[PWA] App successfully installed to device home screen/app launcher");
+    window.dispatchEvent(new CustomEvent("builder:pwa-installed"));
+  };
+
   window.addEventListener("beforeinstallprompt", onPrompt);
+  window.addEventListener("appinstalled", onAppInstalled);
+
+  // Setup Web Launch Queue for handling deep linked files / URLs
+  setupLaunchQueueConsumer();
+
   return () => {
     window.removeEventListener("beforeinstallprompt", onPrompt);
+    window.removeEventListener("appinstalled", onAppInstalled);
   };
+}
+
+/** Handle deep links and file launches via PWA Launch Queue API */
+export function setupLaunchQueueConsumer(onLaunch?: (targetUrl: string) => void) {
+  if (typeof window === "undefined") return;
+
+  if (
+    "launchQueue" in window &&
+    (
+      window as unknown as {
+        launchQueue: { setConsumer: (cb: (params: { targetURL?: string }) => void) => void };
+      }
+    ).launchQueue
+  ) {
+    (
+      window as unknown as {
+        launchQueue: { setConsumer: (cb: (params: { targetURL?: string }) => void) => void };
+      }
+    ).launchQueue.setConsumer((launchParams) => {
+      if (launchParams.targetURL) {
+        console.info("[PWA LaunchQueue] Handled launch target URL:", launchParams.targetURL);
+        if (onLaunch) onLaunch(launchParams.targetURL);
+      }
+    });
+  }
 }
 
 export async function promptInstallApp(): Promise<"accepted" | "dismissed" | "unavailable"> {
@@ -80,7 +127,17 @@ export async function promptInstallApp(): Promise<"accepted" | "dismissed" | "un
   deferredInstall = null;
   await prompt.prompt();
   const { outcome } = await prompt.userChoice;
+  if (outcome === "accepted") {
+    isAppInstalled = true;
+  }
   return outcome;
+}
+
+/** Opt-in Push Notification Permission Requester */
+export async function requestPushNotificationPermission(): Promise<NotificationPermission> {
+  if (!isPushNotificationSupported()) return "denied";
+  if (Notification.permission === "granted") return "granted";
+  return await Notification.requestPermission();
 }
 
 /** Best-effort warm cache for icons/manifest (prod SW picks these up). */
@@ -101,4 +158,5 @@ export async function warmPwaAssets(): Promise<void> {
 export function resetPwaBoosterForTests() {
   deferredInstall = null;
   warmStarted = false;
+  isAppInstalled = false;
 }

@@ -29,11 +29,7 @@ const rawNodeUpdateSchema = z.object({
  */
 export const applyScopedNodeEdit = createServerFn({ method: "POST" })
   .validator(
-    (data: {
-      targetNode: RawNode;
-      minimalPromptContext: string;
-      userPrompt: string;
-    }) => data,
+    (data: { targetNode: RawNode; minimalPromptContext: string; userPrompt: string }) => data,
   )
   .handler(async ({ data }): Promise<{ node: RawNode; source: "mistral" }> => {
     if (mistralKeyRotator.keyCount === 0) {
