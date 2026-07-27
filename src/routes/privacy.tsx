@@ -1,8 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ShieldCheck, ArrowLeft, Lock, HardDrive, UserCheck } from "lucide-react";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const Route = createFileRoute("/privacy" as any)({
+export const Route = createFileRoute("/privacy")({
   component: PrivacyPolicyPage,
 });
 

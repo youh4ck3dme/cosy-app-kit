@@ -1,8 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { HelpCircle, ArrowLeft, Mail, MessageSquare, Smartphone, Globe } from "lucide-react";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const Route = createFileRoute("/support" as any)({
+export const Route = createFileRoute("/support")({
   component: SupportPage,
 });
 
@@ -57,7 +56,7 @@ export function SupportPage() {
               Learn how to install COSY.AI on iOS/Android or wrap with Capacitor.
             </p>
             <Link
-              to={"/privacy" as unknown as "/"}
+              to="/privacy"
               className="inline-block text-sm text-emerald-400 hover:underline"
             >
               View App Store Policies →

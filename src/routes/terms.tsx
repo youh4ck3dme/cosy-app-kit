@@ -1,8 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { FileText, ArrowLeft, CheckCircle2, Code2 } from "lucide-react";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const Route = createFileRoute("/terms" as any)({
+export const Route = createFileRoute("/terms")({
   component: TermsOfServicePage,
 });
 
