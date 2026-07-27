@@ -43,6 +43,9 @@ jobs:
       - name: Ship gates (CDN + wow testids)
         run: bun run test:ship-gates
 
+      - name: Lint gate
+        run: bun run lint:gate
+
       - name: Typecheck
         run: bun run typecheck
 
