@@ -102,8 +102,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       );
     }
 
-    const zipBuffer = await zip.generateAsync({ type: "uint8array" });
-    return new Blob([zipBuffer.buffer as ArrayBuffer], { type: "application/zip" });
+    const zipBlob = await zip.generateAsync({ type: "blob" });
+    return zipBlob;
   }
 
   /**

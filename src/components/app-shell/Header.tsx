@@ -1,5 +1,16 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Settings, Menu, X, ChevronDown, LogOut, Rocket, Sun, Moon, Monitor } from "lucide-react";
+import {
+  Settings,
+  Menu,
+  X,
+  ChevronDown,
+  LogOut,
+  Rocket,
+  Sun,
+  Moon,
+  Monitor,
+  Hexagon,
+} from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { authSearch } from "@/integrations/lovable";
@@ -7,29 +18,45 @@ import { AVAILABLE_MODELS, resolveKnownModelId } from "@/lib/models";
 import { useTheme, type Theme } from "@/lib/theme";
 import { AppDialog } from "./AppDialog";
 import { ThreadList } from "./ThreadList";
-import { Logo } from "./Logo";
+import { CosyLogo } from "@/components/brand/CosyLogo";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-const THEME_CYCLE: Record<Theme, Theme> = { system: "light", light: "dark", dark: "system" };
+/** Cycle: system → light → dark → cosy (COSY AI brand) → system */
+const THEME_CYCLE: Record<Theme, Theme> = {
+  system: "light",
+  light: "dark",
+  dark: "cosy",
+  cosy: "system",
+};
 const THEME_META: Record<Theme, { Icon: typeof Sun; label: string }> = {
   light: { Icon: Sun, label: "Theme: light" },
   dark: { Icon: Moon, label: "Theme: dark" },
+  cosy: { Icon: Hexagon, label: "Theme: COSY AI" },
   system: { Icon: Monitor, label: "Theme: system" },
 };
 
 function ThemeToggle({ className }: { className?: string }) {
   const { theme, setTheme } = useTheme();
   const { Icon, label } = THEME_META[theme];
+  const next = THEME_CYCLE[theme];
   return (
     <button
       type="button"
-      onClick={() => setTheme(THEME_CYCLE[theme])}
-      className={className}
-      aria-label={`${label} — switch to ${THEME_CYCLE[theme]}`}
-      title={label}
+      onClick={() => setTheme(next)}
+      className={cn(
+        className,
+        theme === "cosy" && "text-accent-primary hover:text-accent-glow",
+      )}
+      aria-label={`${label} — switch to ${THEME_META[next].label}`}
+      title={`${label} (next: ${THEME_META[next].label})`}
     >
       <Icon className="h-4 w-4" />
+      {theme === "cosy" && (
+        <span className="ml-1 hidden text-[10px] font-semibold tracking-wider uppercase sm:inline">
+          COSY
+        </span>
+      )}
     </button>
   );
 }
@@ -67,11 +94,13 @@ export function Header({
       <header className="z-40 min-w-0 flex-none border-b border-border-subtle glass-strong pt-[env(safe-area-inset-top)]">
         <div className="flex h-14 min-w-0 items-center justify-between gap-2 px-2 sm:px-4">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <Link to="/chat" className="group flex shrink-0 items-center gap-2.5">
-              <Logo size={30} />
-              <span className="hidden font-mono text-[13px] font-semibold tracking-tight sm:inline">
-                Builder
-              </span>
+            <Link to="/chat" className="group flex shrink-0 items-center gap-2">
+              <CosyLogo
+                size={30}
+                showWordmark
+                showSubtitle={false}
+                className="max-sm:[&>div]:hidden"
+              />
             </Link>
             <div className="hidden h-5 w-px shrink-0 bg-border-subtle sm:block" />
             {/* Always visible — mobile must reach Preview after artifact without opening the menu */}
@@ -188,8 +217,7 @@ export function Header({
               <X className="h-5 w-5" />
             </button>
             <div className="flex items-center gap-2">
-              <Logo size={26} />
-              <span className="font-mono text-sm font-semibold">Builder</span>
+              <CosyLogo size={26} showWordmark showSubtitle={false} />
             </div>
             <div className="w-9" />
           </div>

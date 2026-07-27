@@ -1,6 +1,10 @@
-import logoUrl from "@/assets/logo.png";
+import { CosyLogo } from "@/components/brand/CosyLogo";
 import { cn } from "@/lib/utils";
 
+/**
+ * Back-compat logo slot used across the app shell.
+ * Renders the COSY.AI Spatial AST mark (icon-only by default).
+ */
 export function Logo({
   className,
   size = 28,
@@ -12,29 +16,13 @@ export function Logo({
   decorative?: boolean;
 }) {
   return (
-    <span
-      className={cn(
-        "relative inline-flex shrink-0 items-center justify-center rounded-lg bg-surface-2 ring-1 ring-border-subtle",
-        className,
-      )}
-      style={{ width: size, height: size }}
-      aria-hidden={decorative || undefined}
-    >
-      <span
-        aria-hidden
-        className="absolute inset-0 rounded-lg opacity-70"
-        style={{
-          background:
-            "radial-gradient(circle at 30% 20%, color-mix(in oklab, var(--color-accent-primary) 45%, transparent), transparent 65%)",
-        }}
-      />
-      <img
-        src={logoUrl}
-        alt={decorative ? "" : "Builder"}
-        width={size}
-        height={size}
-        className="relative h-[70%] w-[70%] object-contain"
-      />
-    </span>
+    <CosyLogo
+      size={size}
+      showWordmark={false}
+      showSubtitle={false}
+      variant="spatial"
+      decorative={decorative}
+      className={cn(className)}
+    />
   );
 }

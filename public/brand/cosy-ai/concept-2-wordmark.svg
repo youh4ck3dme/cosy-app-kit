@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 160" fill="none" role="img" aria-label="COSY AI wordmark">
+  <!-- Concept 2: Premium wordmark + integrated geometric symbol -->
+  <rect width="640" height="160" fill="#0A0A0C"/>
+  <!-- Integrated mark -->
+  <g transform="translate(36,40)">
+    <rect x="0" y="0" width="80" height="80" rx="12" stroke="#FFFFFF" stroke-width="3.25"/>
+    <rect x="14" y="14" width="52" height="52" rx="7" stroke="#FFFFFF" stroke-width="1.75" opacity="0.5"/>
+    <circle cx="28" cy="32" r="3.5" fill="#FFFFFF"/>
+    <circle cx="52" cy="32" r="3.5" fill="#FFFFFF"/>
+    <circle cx="40" cy="52" r="3.5" fill="#FFFFFF"/>
+    <path d="M28 32H52M28 32L40 52M52 32L40 52" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="40" cy="52" r="1.75" fill="#2563EB"/>
+  </g>
+  <!-- Wordmark: geometric sans, optical spacing -->
+  <text
+    x="148"
+    y="98"
+    fill="#FFFFFF"
+    font-family="ui-sans-serif, system-ui, -apple-system, 'Inter', 'SF Pro Display', 'Segoe UI', sans-serif"
+    font-size="56"
+    font-weight="560"
+    letter-spacing="-1.2"
+  >COSY</text>
+  <text
+    x="318"
+    y="98"
+    fill="#A1A1AA"
+    font-family="ui-sans-serif, system-ui, -apple-system, 'Inter', 'SF Pro Display', 'Segoe UI', sans-serif"
+    font-size="56"
+    font-weight="450"
+    letter-spacing="0.5"
+  >AI</text>
+  <!-- Hairline precision rule under AI -->
+  <rect x="320" y="112" width="62" height="2" rx="1" fill="#2563EB" opacity="0.9"/>
+  <text
+    x="148"
+    y="132"
+    fill="#71717A"
+    font-family="ui-sans-serif, system-ui, -apple-system, 'Inter', 'SF Pro Text', 'Segoe UI', sans-serif"
+    font-size="13"
+    font-weight="500"
+    letter-spacing="3.2"
+  >APP KIT · VISUAL CODE ENGINE</text>
+</svg>

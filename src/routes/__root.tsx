@@ -92,28 +92,28 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-      { name: "apple-mobile-web-app-title", content: "Builder" },
-      { title: "Builder — AI-first app studio" },
+      { name: "apple-mobile-web-app-title", content: "COSY.AI" },
+      { title: "COSY.AI — Visual Code Engine" },
       {
         name: "description",
         content:
-          "Builder is a dark, focused AI studio. Chat with your agent, watch it ship live artifacts to a real preview canvas.",
+          "Enterprise visual web construction engine. Figma, screenshots & ideas → production React/Tailwind with live canvas and spatial AI edits.",
       },
-      { name: "author", content: "Builder" },
-      { property: "og:title", content: "Builder — AI-first app studio" },
+      { name: "author", content: "COSY.AI" },
+      { property: "og:title", content: "COSY.AI — Visual Code Engine" },
       {
         property: "og:description",
         content:
-          "Builder is a dark, focused AI studio. Chat with your agent, watch it ship live artifacts to a real preview canvas.",
+          "Enterprise visual web construction engine. Figma, screenshots & ideas → production React/Tailwind with live canvas and spatial AI edits.",
       },
       { property: "og:type", content: "website" },
-      { name: "theme-color", content: "#000000" },
+      { name: "theme-color", content: "#0A0A0C" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Builder — AI-first app studio" },
+      { name: "twitter:title", content: "COSY.AI — Visual Code Engine" },
       {
         name: "twitter:description",
         content:
-          "Builder is a dark, focused AI studio. Chat with your agent, watch it ship live artifacts to a real preview canvas.",
+          "Enterprise visual web construction engine. Figma, screenshots & ideas → production React/Tailwind with live canvas and spatial AI edits.",
       },
     ],
     scripts: [
@@ -122,6 +122,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "icon", href: "/brand/cosy-ai/favicon.svg", type: "image/svg+xml" },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
       { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
@@ -180,7 +182,11 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
-      <ClientToaster theme={resolved} position="top-center" richColors />
+      <ClientToaster
+        theme={resolved === "light" ? "light" : "dark"}
+        position="top-center"
+        richColors
+      />
     </QueryClientProvider>
   );
 }

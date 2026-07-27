@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { HTMLAdapterEngine } from "../semantic-intent/HTMLAdapterEngine";
 import { AISpatialContextEngine } from "../semantic-intent/spatialEngine";
-import { compressImageToBase64 } from "@/components/builder/canvas/ImageDropZoneCanvas";
+import { compressImageToBase64 } from "@/lib/builder/vision/compressImage";
 
 describe("Vision Image-to-HTML Suite", () => {
   beforeEach(() => {

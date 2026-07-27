@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Monitor, Smartphone, Tablet, MessageSquare } from "lucide-react";
+import { CosyLogo } from "@/components/brand/CosyLogo";
 
 export function Hero() {
   return (
@@ -7,17 +8,20 @@ export function Hero() {
       data-testid="landing-hero"
       className="relative z-10 mx-auto max-w-4xl px-4 pb-16 pt-16 text-center sm:px-10 sm:pt-24"
     >
-      <h1 className="animate-in-fade font-mono text-4xl font-bold tracking-tighter sm:text-6xl">
-        <span className="text-gradient-accent">&gt;_ Build</span>
+      <div className="animate-in-fade mb-8 flex justify-center">
+        <CosyLogo size={48} showWordmark showSubtitle />
+      </div>
+      <h1 className="animate-in-fade font-brand text-4xl font-extrabold tracking-tighter sm:text-6xl">
+        <span className="text-gradient-accent">Visual code</span>
         <br />
-        anything.
+        at light speed.
       </h1>
       <p
         className="animate-in-fade mx-auto mt-5 max-w-lg text-sm text-muted-foreground sm:text-base"
         style={{ animationDelay: "0.05s" }}
       >
-        Chat with Mistral, watch it land on a live canvas — desktop, tablet, mobile — then share
-        what you shipped.
+        Enterprise visual web engine — Figma, screenshots & ideas → production React/Tailwind.
+        Live canvas, spatial AI edits, Mistral-powered.
       </p>
       <div
         className="animate-in-fade mt-8 flex flex-wrap items-center justify-center gap-3"
@@ -27,7 +31,7 @@ export function Hero() {
           to="/chat"
           className="min-h-11 rounded-full bg-primary px-5 text-sm font-semibold leading-11 text-primary-foreground"
         >
-          Open Builder
+          Open COSY.AI
         </Link>
         <Link
           to="/templates"
@@ -45,8 +49,8 @@ export function Hero() {
       >
         <div className="flex items-center gap-1.5 border-b border-border-subtle pb-2.5">
           <span className="h-2 w-2 rounded-full bg-destructive/70" />
-          <span className="h-2 w-2 rounded-full bg-accent-glow/70" />
-          <span className="h-2 w-2 rounded-full bg-accent-primary/50" />
+          <span className="h-2 w-2 rounded-full bg-brand-cyan/70" />
+          <span className="h-2 w-2 rounded-full bg-brand-indigo/60" />
           <span className="ml-2 font-mono text-[10px] text-muted-foreground">preview.html</span>
         </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_1.3fr]">
@@ -78,19 +82,10 @@ export function Hero() {
                   className={
                     i === 1
                       ? "rounded-md border border-accent-primary/40 bg-surface-2 p-1.5"
-                      : "rounded-md border border-border-subtle bg-surface-2 p-1.5"
+                      : "rounded-md border border-border-subtle bg-surface-1/50 p-1.5"
                   }
                 >
-                  <div className="truncate font-mono text-[7px] uppercase tracking-wider text-muted-foreground/70">
-                    {tier}
-                  </div>
-                  <div className="mt-1 text-[10px] font-semibold text-foreground">
-                    ${(i + 1) * 9}
-                  </div>
-                  <div className="mt-1.5 space-y-0.5">
-                    <div className="h-1 w-full rounded-full bg-surface-3" />
-                    <div className="h-1 w-3/4 rounded-full bg-surface-3" />
-                  </div>
+                  <div className="font-mono text-[10px] font-medium">{tier}</div>
                 </div>
               ))}
             </div>

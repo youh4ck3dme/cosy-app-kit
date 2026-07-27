@@ -40,7 +40,7 @@ export const Route = createFileRoute("/auth")({
     meta: [
       { title: "Sign in — Builder" },
       { name: "robots", content: "noindex" },
-      { name: "description", content: "Sign in to Builder — AI-first app studio." },
+      { name: "description", content: "Sign in to COSY.AI — Visual Code Engine." },
     ],
   }),
   validateSearch: (s: Record<string, unknown>) => ({
