@@ -31,7 +31,6 @@ describe("Vision Image-to-HTML Suite", () => {
       const adapter = new HTMLAdapterEngine();
       const spatial = new AISpatialContextEngine();
 
-      // eslint-disable-next-line tailwindcss/no-unnecessary-arbitrary-value -- test fixture: must be arbitrary to trigger autoFixMobileResponsive
       const html = `<div class="w-[1440px] flex">Header Content</div>`;
       const initialAST = adapter.parseHTMLString(html);
 

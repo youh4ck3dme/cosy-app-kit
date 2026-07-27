@@ -3,7 +3,6 @@ import { Upload, Sparkles, Loader2 } from "lucide-react";
 import type { RawNode } from "@/lib/builder/semantic-intent/types";
 import { convertVisionImageToHTML } from "@/lib/builder/vision/visionToHTML.server";
 import { compressImageToBase64 } from "@/lib/builder/vision/compressImage";
-export { compressImageToBase64 };
 
 interface ImageDropZoneCanvasProps {
   children?: React.ReactNode;
