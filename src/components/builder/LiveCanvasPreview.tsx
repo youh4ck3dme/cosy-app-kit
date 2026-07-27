@@ -1,6 +1,7 @@
 import React from "react";
 import { CanvasSandboxManager } from "@/lib/builder/sandbox/canvasSandbox";
 import type { SandboxRPCMessage } from "@/lib/builder/semantic-intent/types";
+import { IPHONE_17_AIR } from "@/lib/builder/devices/iphone17Air";
 
 interface LiveCanvasPreviewProps {
   code: string;
@@ -100,8 +101,8 @@ export const LiveCanvasPreview: React.FC<LiveCanvasPreviewProps> = ({
               Error
             </span>
           )}
-          <span className="text-xs font-mono text-slate-500">
-            {isMobileViewport ? "412 × 915" : "Responsive"}
+          <span className="text-xs font-mono text-slate-500" title="iPhone 17 Air CSS viewport">
+            {isMobileViewport ? IPHONE_17_AIR.frameLabel : "Responsive"}
           </span>
         </div>
       </div>
@@ -113,12 +114,21 @@ export const LiveCanvasPreview: React.FC<LiveCanvasPreviewProps> = ({
         </div>
       )}
 
-      {/* Viewport Frame */}
+      {/* Viewport Frame — default mobile chrome = iPhone 17 Air 420×912 */}
       <div className="flex-1 overflow-auto flex items-center justify-center p-4">
         <div
           className={`transition-all duration-300 relative bg-slate-900 rounded-xl overflow-hidden shadow-xl border border-slate-800 ${
-            isMobileViewport ? "w-103 h-180 max-h-full" : "w-full h-full"
+            isMobileViewport ? "max-h-full" : "w-full h-full"
           }`}
+          style={
+            isMobileViewport
+              ? {
+                  width: IPHONE_17_AIR.viewport.width,
+                  height: IPHONE_17_AIR.viewport.height,
+                  maxHeight: "100%",
+                }
+              : undefined
+          }
         >
           <div ref={containerRef} className="w-full h-full" />
         </div>
