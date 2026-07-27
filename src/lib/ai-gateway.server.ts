@@ -25,7 +25,7 @@ export { mistralKeyRotator };
  */
 export function createMistralProvider(apiKey?: string) {
   // If a specific key is passed, use it; otherwise use mistralKeyRotator to rotate among MISTRAL_API_KEYS
-  const activeKey = (apiKey && apiKey.trim()) ? apiKey.trim() : mistralKeyRotator.getNextKey();
+  const activeKey = apiKey && apiKey.trim() ? apiKey.trim() : mistralKeyRotator.getNextKey();
   return createMistral({
     apiKey: activeKey,
   });
