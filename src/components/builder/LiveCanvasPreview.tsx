@@ -1,7 +1,8 @@
 import React from "react";
 import { CanvasSandboxManager } from "@/lib/builder/sandbox/canvasSandbox";
-import type { SandboxRPCMessage } from "@/lib/builder/semantic-intent/types";
+import type { SandboxRPCMessage, RawNode } from "@/lib/builder/semantic-intent/types";
 import { IPHONE_17_AIR } from "@/lib/builder/devices/iphone17Air";
+import { ImageDropZoneCanvas } from "./canvas/ImageDropZoneCanvas";
 
 interface LiveCanvasPreviewProps {
   code: string;
@@ -9,6 +10,7 @@ interface LiveCanvasPreviewProps {
   isMobileViewport?: boolean;
   selectedNodeId?: string | null;
   onNodeSelected?: (nodeId: string) => void;
+  onASTNodesImported?: (nodes: RawNode[]) => void;
 }
 
 export const LiveCanvasPreview: React.FC<LiveCanvasPreviewProps> = ({
@@ -17,6 +19,7 @@ export const LiveCanvasPreview: React.FC<LiveCanvasPreviewProps> = ({
   isMobileViewport = true,
   selectedNodeId = null,
   onNodeSelected,
+  onASTNodesImported,
 }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const managerRef = React.useRef<CanvasSandboxManager | null>(null);
@@ -116,22 +119,24 @@ export const LiveCanvasPreview: React.FC<LiveCanvasPreviewProps> = ({
 
       {/* Viewport Frame — default mobile chrome = iPhone 17 Air 420×912 */}
       <div className="flex-1 overflow-auto flex items-center justify-center p-4">
-        <div
-          className={`transition-all duration-300 relative bg-slate-900 rounded-xl overflow-hidden shadow-xl border border-slate-800 ${
-            isMobileViewport ? "max-h-full" : "w-full h-full"
-          }`}
-          style={
-            isMobileViewport
-              ? {
-                  width: IPHONE_17_AIR.viewport.width,
-                  height: IPHONE_17_AIR.viewport.height,
-                  maxHeight: "100%",
-                }
-              : undefined
-          }
-        >
-          <div ref={containerRef} className="w-full h-full" />
-        </div>
+        <ImageDropZoneCanvas onASTNodesImported={onASTNodesImported}>
+          <div
+            className={`transition-all duration-300 relative bg-slate-900 rounded-xl overflow-hidden shadow-xl border border-slate-800 ${
+              isMobileViewport ? "max-h-full" : "w-full h-full"
+            }`}
+            style={
+              isMobileViewport
+                ? {
+                    width: IPHONE_17_AIR.viewport.width,
+                    height: IPHONE_17_AIR.viewport.height,
+                    maxHeight: "100%",
+                  }
+                : undefined
+            }
+          >
+            <div ref={containerRef} className="w-full h-full" />
+          </div>
+        </ImageDropZoneCanvas>
       </div>
     </div>
   );

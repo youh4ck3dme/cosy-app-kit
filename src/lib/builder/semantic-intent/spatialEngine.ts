@@ -69,7 +69,19 @@ export class AISpatialContextEngine {
    * Transforms fixed Figma/vision px widths and rigid flex rows into responsive Tailwind.
    */
   public autoFixMobileResponsive(nodes: RawNode[]): RawNode[] {
-    const fixedNodes = nodes.map((node) => this.fixNode(node));
+    const fixedNodes = nodes.map((node, index) => {
+      const fixed = this.fixNode(node);
+      if (index === 0 && (fixed.type === "box" || fixed.type === "button")) {
+        const classes = fixed.className || "";
+        if (!/\bmin-h-/.test(classes) && !/\bh-/.test(classes)) {
+          return {
+            ...fixed,
+            className: `${classes} min-h-[100dvh]`.trim(),
+          };
+        }
+      }
+      return fixed;
+    });
     return ASTAutoHealer.sanitizeAndHeal(fixedNodes);
   }
 
@@ -106,9 +118,7 @@ export class AISpatialContextEngine {
 
     // B. Missing wrap / mobile column for horizontal flex rows
     if (/\bflex-row\b/.test(updatedClasses) && !/\bflex-wrap\b/.test(updatedClasses)) {
-      updatedClasses = updatedClasses
-        .replace(/\bflex-row\b/g, "")
-        .replace(/\bflex\b/g, "");
+      updatedClasses = updatedClasses.replace(/\bflex-row\b/g, "").replace(/\bflex\b/g, "");
       updatedClasses = `${updatedClasses} flex flex-col md:flex-row flex-wrap`;
     }
 
@@ -130,10 +140,7 @@ export class AISpatialContextEngine {
 }
 
 function normalizeClasses(className: string): string {
-  const tokens = className
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
+  const tokens = className.trim().split(/\s+/).filter(Boolean);
 
   const seen = new Set<string>();
   const unique: string[] = [];

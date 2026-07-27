@@ -12,6 +12,7 @@ import { FigmaAdapterEngine } from "../semantic-intent/FigmaAdapterEngine";
 import { SemanticIntentEngine } from "../semantic-intent";
 import type { RawNode, FigmaNode } from "../semantic-intent/types";
 import { CRDTMultiplayerEngine } from "../multiplayer/crdtEngine";
+import { IPhone17AirAdapter } from "../mobile/iPhone17AirAdapter";
 
 /**
  * Special QA suite: iPhone 17 Air (420×912 @3x).
@@ -221,5 +222,24 @@ describe("iPhone 17 Air — Canvas / multiplayer contracts", () => {
     // Rough UI budget: title + 3 fields + button ≈ 6×56px rows
     const minFormBudget = 6 * 56;
     expect(iPhone17AirSafeContentHeight()).toBeGreaterThan(minFormBudget);
+  });
+
+  it("IPhone17AirAdapter + spatial pipeline: desktop shell becomes Air-safe", () => {
+    const spatial = new AISpatialContextEngine();
+    const air = new IPhone17AirAdapter();
+    const desktop: RawNode[] = [
+      {
+        id: "root",
+        type: "box",
+        className: "min-h-screen w-[1440px] flex-row transition-all",
+        children: [{ id: "cta", type: "button", text: "Buy", className: "bg-blue-600" }],
+      },
+    ];
+    const fixed = air.optimizeForIPhone17Air(spatial.autoFixMobileResponsive(desktop));
+    expect(hasRigidWidthOverflowForIPhone17Air(fixed[0].className || "")).toBe(false);
+    expect(fixed[0].className).toContain("min-h-[100dvh]");
+    expect(fixed[0].className).toContain("pt-[env(safe-area-inset-top,20px)]");
+    expect(fixed[0].className).toContain("transform-gpu");
+    expect(fixed[0].children?.[0].className).toContain("min-h-[44px]");
   });
 });

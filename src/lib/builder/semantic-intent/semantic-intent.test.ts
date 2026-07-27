@@ -33,6 +33,9 @@ describe("SemanticIntentEngine", () => {
     expect(result.code).toContain("email: ''");
     expect(result.code).toContain("password: ''");
     expect(result.code).toContain("<form onSubmit={handleSubmit}");
+    // iPhone 17 Air: Apple HIG 44×44pt touch targets on inputs + submit
+    expect(result.code).toContain("min-h-[44px]");
+    expect(result.code).toContain("min-w-[44px]");
   });
 
   it("detects StaticIntent for basic nodes without interaction", () => {

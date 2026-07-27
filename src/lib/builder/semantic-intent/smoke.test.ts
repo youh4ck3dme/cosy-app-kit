@@ -78,6 +78,11 @@ describe("Smoke Test: Heavy Layout Prompt & Code Generation", () => {
     expect(result.code).toContain("email: ''");
     expect(result.code).toContain("securityToken: ''");
     expect(result.code).toContain("query: ''");
+    // iPhone 17 Air pass: 44pt touch targets on inputs/buttons (emitted in FormIntent JSX)
+    expect(result.code).toContain("min-h-[44px]");
+    expect(result.code).toContain("min-w-[44px]");
+    // data-node-id selection hooks for canvas
+    expect(result.code).toContain("data-node-id=");
     expect(result.code).toContain("const handleChange =");
     expect(result.code).toContain("const handleSubmit =");
     expect(result.code).toContain("<form");
