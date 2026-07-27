@@ -21,13 +21,15 @@ function BuilderWorkspacePage() {
 
     try {
       // 1. Process Image through Mistral Pixtral Vision API (Server Function) -> returns RawNode AST
-      const { node: rawNodeTree, source } = await parseVisionImage({ data: { imageBase64: base64 } });
+      const { node: rawNodeTree, source } = await parseVisionImage({
+        data: { imageBase64: base64 },
+      });
       setSourceUsed(source);
-      
+
       // 2. Pass AST through Semantic Intent Engine to detect interactivity and generate Smart Code
       const engine = new SemanticIntentEngine();
       const result = engine.generateCode("GeneratedForm", [rawNodeTree]);
-      
+
       setEngineResult(result);
     } catch (error) {
       console.error("Failed to process image:", error);
@@ -38,13 +40,13 @@ function BuilderWorkspacePage() {
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-background text-foreground flex flex-col md:flex-row overflow-hidden">
-      
       {/* LEFT PANEL - Uploader & Vision Context */}
       <div className="w-full md:w-1/2 p-6 border-r border-border-subtle flex flex-col relative z-10">
         <div className="mb-8">
           <h1 className="text-2xl font-bold tracking-tight mb-2">Vision Builder Workspace</h1>
           <p className="text-muted-foreground text-sm">
-            Upload a design screenshot. Our Semantic Intent Engine will analyze the layout and turn it into a smart React component.
+            Upload a design screenshot. Our Semantic Intent Engine will analyze the layout and turn
+            it into a smart React component.
           </p>
         </div>
 
@@ -53,7 +55,11 @@ function BuilderWorkspacePage() {
             <VisionUploader onImageProcess={handleImageProcess} isProcessing={isProcessing} />
           ) : (
             <div className="relative w-full max-w-xl mx-auto rounded-xl overflow-hidden border border-border-subtle group">
-              <img src={imagePreview} alt="Uploaded design" className="w-full h-auto object-cover opacity-80" />
+              <img
+                src={imagePreview}
+                alt="Uploaded design"
+                className="w-full h-auto object-cover opacity-80"
+              />
               {isProcessing && (
                 <div className="absolute inset-0 bg-background/50 backdrop-blur-sm flex items-center justify-center flex-col gap-4">
                   <div className="w-12 h-12 rounded-full border-2 border-accent-primary border-t-transparent animate-spin" />
@@ -63,7 +69,7 @@ function BuilderWorkspacePage() {
                 </div>
               )}
               {!isProcessing && (
-                <button 
+                <button
                   onClick={() => {
                     setImagePreview(null);
                     setEngineResult(null);
@@ -81,21 +87,26 @@ function BuilderWorkspacePage() {
       {/* RIGHT PANEL - Engine Output (Smart Code) */}
       <div className="w-full md:w-1/2 flex flex-col bg-surface relative z-10">
         <div className="border-b border-border-subtle p-4 bg-background/50 backdrop-blur-sm">
-          <h2 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">Generated Smart Component</h2>
+          <h2 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">
+            Generated Smart Component
+          </h2>
         </div>
-        
+
         <div className="flex-1 overflow-auto p-6">
           {engineResult ? (
             <div className="space-y-6 animate-in-fade">
-              
               <div className="space-y-2">
                 <h3 className="text-sm font-medium text-foreground">Detected Intent & Model:</h3>
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-1 rounded-md bg-accent-primary/10 border border-accent-primary/20 text-accent-primary text-xs font-medium">
                     {engineResult.intent}
                   </span>
-                  <span className={`px-2.5 py-1 rounded-md border text-xs font-medium ${sourceUsed === "mistral" ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-amber-500/10 border-amber-500/20 text-amber-400"}`}>
-                    {sourceUsed === "mistral" ? "Mistral Pixtral Vision" : "Simulated Mock (Offline)"}
+                  <span
+                    className={`px-2.5 py-1 rounded-md border text-xs font-medium ${sourceUsed === "mistral" ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-amber-500/10 border-amber-500/20 text-amber-400"}`}
+                  >
+                    {sourceUsed === "mistral"
+                      ? "Mistral Pixtral Vision"
+                      : "Simulated Mock (Offline)"}
                   </span>
                   <span className="text-xs text-muted-foreground">Confidence: 98%</span>
                 </div>
@@ -105,15 +116,18 @@ function BuilderWorkspacePage() {
                 <h3 className="text-sm font-medium text-foreground">React Source Code:</h3>
                 <div className="relative group rounded-xl overflow-hidden border border-border-subtle bg-[#0a0a0a]">
                   <div className="flex items-center justify-between px-4 py-2 border-b border-border/10 bg-white/5">
-                    <span className="text-xs font-mono text-muted-foreground">GeneratedForm.tsx</span>
-                    <button className="text-xs text-accent-primary hover:text-accent-glow transition-colors">Copy</button>
+                    <span className="text-xs font-mono text-muted-foreground">
+                      GeneratedForm.tsx
+                    </span>
+                    <button className="text-xs text-accent-primary hover:text-accent-glow transition-colors">
+                      Copy
+                    </button>
                   </div>
                   <pre className="p-4 text-xs font-mono leading-relaxed text-foreground overflow-x-auto">
                     <code>{engineResult.code}</code>
                   </pre>
                 </div>
               </div>
-
             </div>
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground/50 space-y-4">
@@ -125,7 +139,6 @@ function BuilderWorkspacePage() {
           )}
         </div>
       </div>
-
     </div>
   );
 }
