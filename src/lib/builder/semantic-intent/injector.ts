@@ -6,14 +6,14 @@ export class StateInjector {
       return this.injectFormState(nodes);
     }
 
-    return nodes.map((node) => ({
+    return this.mapRecursive(nodes, (node) => ({
       ...node,
       isInteractive: false,
     }));
   }
 
   private injectFormState(nodes: RawNode[]): SmartNode[] {
-    return nodes.map((node) => {
+    return this.mapRecursive(nodes, (node) => {
       const smartNode: SmartNode = { ...node, isInteractive: true };
 
       if (node.type === "input" && node.name) {
@@ -26,4 +26,15 @@ export class StateInjector {
       return smartNode;
     });
   }
+
+  private mapRecursive(nodes: RawNode[], fn: (node: RawNode) => SmartNode): SmartNode[] {
+    return nodes.map((node) => {
+      const processed = fn(node);
+      if (node.children && node.children.length > 0) {
+        processed.children = this.mapRecursive(node.children, fn);
+      }
+      return processed;
+    });
+  }
 }
+
