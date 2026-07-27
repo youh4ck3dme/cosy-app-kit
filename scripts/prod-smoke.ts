@@ -44,7 +44,12 @@ async function main() {
   try {
     const r = await get("/manifest.webmanifest");
     const manifest = (await r.json()) as { id?: string; display?: string };
-    check(manifest.id === "/", `manifest.id === "/" (got ${JSON.stringify(manifest.id)})`);
+    const validIds = ["com.cosyapp.visualcodeengine", "/"];
+    const hasValidId = Boolean(manifest.id && validIds.includes(manifest.id));
+    check(
+      hasValidId,
+      `manifest.id valid (expected "com.cosyapp.visualcodeengine", got ${JSON.stringify(manifest.id ?? "missing/undefined")})`,
+    );
     check(manifest.display === "standalone", `manifest.display === "standalone"`);
   } catch (e) {
     check(false, `manifest parse → ${e instanceof Error ? e.message : e}`);

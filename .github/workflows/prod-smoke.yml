@@ -29,6 +29,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Wait for deployment propagation
+        run: sleep 15
+
       - name: Prod smoke
         run: bun run prod-smoke
         env:
