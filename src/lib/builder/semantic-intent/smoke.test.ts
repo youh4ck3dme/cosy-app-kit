@@ -83,4 +83,3 @@ describe("Smoke Test: Heavy Layout Prompt & Code Generation", () => {
     expect(result.code).toContain("Save All Settings");
   });
 });
-
