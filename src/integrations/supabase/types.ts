@@ -93,6 +93,7 @@ export type Database = {
           entry_path: string | null;
           files: Json;
           id: string;
+          is_instant_seed?: boolean;
           is_public: boolean;
           kind: string;
           message_id: string | null;
@@ -105,6 +106,7 @@ export type Database = {
           entry_path?: string | null;
           files?: Json;
           id?: string;
+          is_instant_seed?: boolean;
           is_public?: boolean;
           kind: string;
           message_id?: string | null;
@@ -117,6 +119,7 @@ export type Database = {
           entry_path?: string | null;
           files?: Json;
           id?: string;
+          is_instant_seed?: boolean;
           is_public?: boolean;
           kind?: string;
           message_id?: string | null;
