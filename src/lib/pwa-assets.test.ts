@@ -2,12 +2,16 @@ import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { SHELL_REV } from "./deploy-rev";
+import { PWA_MANIFEST } from "./pwa-manifest";
 
 const PUBLIC = join(__dirname, "../../public");
 
 describe("PWA assets & App Store Readiness", () => {
   it("manifest parses and icons & App Store fields exist", () => {
-    const manifest = JSON.parse(readFileSync(join(PUBLIC, "manifest.webmanifest"), "utf8"));
+    // Source of truth is PWA_MANIFEST (fed into vite-plugin-pwa, which generates
+    // manifest.webmanifest at build time) — not a static public/manifest.webmanifest,
+    // which vite-plugin-pwa would silently shadow with its own generated file.
+    const manifest = PWA_MANIFEST;
     expect(manifest.name).toBeTruthy();
     expect(manifest.display).toBe("standalone");
     expect(manifest.start_url).toBe("/chat");
