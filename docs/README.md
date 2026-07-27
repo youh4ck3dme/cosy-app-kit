@@ -29,19 +29,20 @@ Engineering documentation for this repository. Claims are limited to what exists
 
 ## Engineering practice
 
-| Document                               | Purpose                           |
-| -------------------------------------- | --------------------------------- |
-| [CONTRIBUTING.md](./CONTRIBUTING.md)   | Contribution workflow             |
-| [CODE_STYLE.md](./CODE_STYLE.md)       | Lint, format, TypeScript          |
-| [TESTING.md](./TESTING.md)             | Unit, e2e, verify gates           |
-| [PERFORMANCE.md](./PERFORMANCE.md)     | Complexity and goals              |
-| [SECURITY.md](./SECURITY.md)           | Threat model and boundaries       |
-| [DEVOPS.md](./DEVOPS.md)               | Branches, CI, release, ops        |
-| [FAQ.md](./FAQ.md)                     | Common questions                  |
-| [LICENSE_GUIDE.md](./LICENSE_GUIDE.md) | Licensing status                  |
-| [adr/](./adr/)                         | Architecture Decision Records     |
-| [rfc/](./rfc/)                         | Draft proposals (not shipped)     |
-| [runbooks/](./runbooks/)               | Build, release, rollback, tagging |
+| Document                                             | Purpose                                                |
+| ---------------------------------------------------- | ------------------------------------------------------ |
+| [CONTRIBUTING.md](./CONTRIBUTING.md)                 | Contribution workflow                                  |
+| [CODE_STYLE.md](./CODE_STYLE.md)                     | Lint, format, TypeScript                               |
+| [TESTING.md](./TESTING.md)                           | Unit, e2e, verify gates                                |
+| [PERFORMANCE.md](./PERFORMANCE.md)                   | Kernel complexity and goals                            |
+| [PERFORMANCE_CONTRACT.md](./PERFORMANCE_CONTRACT.md) | Product Builder budgets + dual-brain boundaries (v0.1) |
+| [SECURITY.md](./SECURITY.md)                         | Threat model and boundaries                            |
+| [DEVOPS.md](./DEVOPS.md)                             | Branches, CI, release, ops                             |
+| [FAQ.md](./FAQ.md)                                   | Common questions                                       |
+| [LICENSE_GUIDE.md](./LICENSE_GUIDE.md)               | Licensing status                                       |
+| [adr/](./adr/)                                       | Architecture Decision Records                          |
+| [rfc/](./rfc/)                                       | Draft proposals (not shipped)                          |
+| [runbooks/](./runbooks/)                             | Build, release, rollback, tagging                      |
 
 ## Diagrams, API notes, examples
 

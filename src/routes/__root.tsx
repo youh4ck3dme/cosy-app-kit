@@ -15,6 +15,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { registerServiceWorker } from "../lib/register-sw";
 import { bindInstallPromptCapture, warmPwaAssets } from "../lib/pwa-booster";
 import { getAppPreferences, syncSpeedModeDom } from "../lib/app-preferences";
+import { scheduleIdle } from "../lib/performance-contract";
 import { THEME_BOOTSTRAP_SCRIPT, useTheme } from "../lib/theme";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -156,13 +157,22 @@ function RootComponent() {
   const router = useRouter();
   const { resolved } = useTheme();
 
-  // PWA: prod-only service worker (ported from Claude PR #3 — never caches /api or Supabase)
+  // PWA: prod-only service worker (ported from Claude PR #3 — never caches /api or Supabase).
+  // Warm assets after idle so they do not contend with chat/canvas first paint.
   useEffect(() => {
     registerServiceWorker();
     const unbind = bindInstallPromptCapture();
     syncSpeedModeDom(getAppPreferences().speedMode);
-    if (getAppPreferences().pwaBooster) void warmPwaAssets();
-    return unbind;
+    const cancelWarm =
+      getAppPreferences().pwaBooster
+        ? scheduleIdle(() => {
+            void warmPwaAssets();
+          })
+        : () => undefined;
+    return () => {
+      cancelWarm();
+      unbind();
+    };
   }, []);
 
   useEffect(() => {
