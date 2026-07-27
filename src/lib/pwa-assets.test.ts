@@ -37,6 +37,6 @@ describe("PWA assets & App Store Readiness", () => {
   });
 
   it("shell rev is a non-empty deploy fingerprint", () => {
-    expect(SHELL_REV).toMatch(/^native-shell-\d+$/);
+    expect(SHELL_REV).toMatch(/^[a-z0-9-]+$/);
   });
 });

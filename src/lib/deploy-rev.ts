@@ -2,7 +2,7 @@
 export const BUILD_MARKER = "mistral-agent-g2-1";
 
 /** Bump when UI/PWA/shell ships (viewport lock, settings, manifest). */
-export const SHELL_REV = "pwa-appstore-v2";
+export const SHELL_REV = "native-shell-2";
 
 /** Production URL — used by prod-smoke and CI. */
 export const PROD_ORIGIN = "https://cosy-app-kit.lovable.app";
