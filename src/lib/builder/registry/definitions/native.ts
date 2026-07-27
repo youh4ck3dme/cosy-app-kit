@@ -43,9 +43,7 @@ export const textDefinition: NodeDefinition<Record<string, unknown>> = {
   defaultProps: { text: "Text" },
   defaultLayout: { display: "block" },
   defaultStyle: { color: "#e8edf2", fontSize: "16px" },
-  propertyControls: [
-    { name: "text", label: "Text", widget: "text-input", defaultValue: "Text" },
-  ],
+  propertyControls: [{ name: "text", label: "Text", widget: "text-input", defaultValue: "Text" }],
   canvasRendererId: "canvas.text",
   codeGeneratorId: "html.text",
   generateCode: (node: BuilderNode) => {

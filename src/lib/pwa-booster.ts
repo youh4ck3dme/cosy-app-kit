@@ -26,7 +26,9 @@ let warmStarted = false;
  * assets through `vercel.com/sso-api`, which fails CORS for warm fetch.
  * Skip warming there; test PWA on the unprotected production host instead.
  */
-export function shouldWarmPwaAssets(hostname = typeof window !== "undefined" ? window.location.hostname : ""): boolean {
+export function shouldWarmPwaAssets(
+  hostname = typeof window !== "undefined" ? window.location.hostname : "",
+): boolean {
   if (!hostname) return false;
   return !hostname.endsWith(".vercel.app");
 }

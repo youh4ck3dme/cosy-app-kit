@@ -90,111 +90,125 @@ function AuthPage() {
     setMounted(true);
     setLocalHint(isLocalHost());
 
+    // Fail-open if getUser/getSession hang (offline, flaky network, e2e).
+    const BRIDGE_TIMEOUT_MS = 12_000;
+    const bridgeTimer = window.setTimeout(() => {
+      if (!cancelled) setBridging(false);
+    }, BRIDGE_TIMEOUT_MS);
+
     (async () => {
-      // ── 1) Published: local hopped here to STAGE return URL, then start Google ──
-      if (!isLocalHost() && oauth_stage === "1" && lrParam && isLocalDevReturnUrl(lrParam)) {
-        const nextPath = next || "/chat";
-        const provider = (
-          providerParam === "apple" || providerParam === "microsoft" || providerParam === "lovable"
-            ? providerParam
-            : "google"
-        ) as "google" | "apple" | "microsoft" | "lovable";
-        startPublishedOAuthAfterStage(provider, lrParam, nextPath);
-        return;
-      }
-
-      // ── 2) Tokens in URL (hash/query) after OAuth broker ──
-      const tokens = extractOAuthTokensFromLocation();
-      if (tokens) {
-        const st = decodeOAuthState(tokens.state);
-        const staged = !isLocalHost() ? readStagedLocalReturn() : null;
-        const lr = (st?.lr && isLocalDevReturnUrl(st.lr) ? st.lr : null) || staged?.lr || null;
-        const nextPath = st?.next || staged?.next || next || "/chat";
-
-        // On production with a local return target → bounce home (do NOT setSession on prod)
-        if (lr && !isLocalHost()) {
-          bounceTokensToLocalDev({
-            access_token: tokens.access_token,
-            refresh_token: tokens.refresh_token,
-            state: tokens.state,
-            lr,
-            next: nextPath,
-          });
+      try {
+        // ── 1) Published: local hopped here to STAGE return URL, then start Google ──
+        if (!isLocalHost() && oauth_stage === "1" && lrParam && isLocalDevReturnUrl(lrParam)) {
+          const nextPath = next || "/chat";
+          const provider = (
+            providerParam === "apple" ||
+            providerParam === "microsoft" ||
+            providerParam === "lovable"
+              ? providerParam
+              : "google"
+          ) as "google" | "apple" | "microsoft" | "lovable";
+          startPublishedOAuthAfterStage(provider, lrParam, nextPath);
           return;
         }
 
-        // Local (or prod without bridge): apply session here
-        try {
-          const { error } = await supabase.auth.setSession({
-            access_token: tokens.access_token,
-            refresh_token: tokens.refresh_token,
-          });
-          if (error) throw error;
-          stripOAuthParamsFromUrl();
-          clearStagedLocalReturn();
-          if (cancelled) return;
-          const dest =
-            nextPath ||
-            new URLSearchParams(window.location.hash.replace(/^#/, "")).get("next") ||
-            "/chat";
-          goTo(dest.startsWith("/") ? dest : "/chat");
-          return;
-        } catch (e) {
-          if (!cancelled) {
-            toast.error((e as Error).message || "Failed to apply Google session");
-            stripOAuthParamsFromUrl();
-          }
-        }
-      }
+        // ── 2) Tokens in URL (hash/query) after OAuth broker ──
+        const tokens = extractOAuthTokensFromLocation();
+        if (tokens) {
+          const st = decodeOAuthState(tokens.state);
+          const staged = !isLocalHost() ? readStagedLocalReturn() : null;
+          const lr = (st?.lr && isLocalDevReturnUrl(st.lr) ? st.lr : null) || staged?.lr || null;
+          const nextPath = st?.next || staged?.next || next || "/chat";
 
-      // ── 3) Already signed in (cookie session on this origin) ──
-      // Drop cross-project / rotated-JWKS sessions (e.g. hyff env + magq OAuth kid).
-      {
-        const { data: userData, error: userErr } = await supabase.auth.getUser();
-        if (userErr) {
-          const msg = (userErr.message || "").toLowerCase();
-          if (
-            msg.includes("jwt") ||
-            msg.includes("kid") ||
-            msg.includes("unverifiable") ||
-            msg.includes("invalid")
-          ) {
-            await supabase.auth.signOut({ scope: "local" });
-          }
-        } else if (!userData.user) {
-          /* no session */
-        }
-      }
-      if (cancelled) return;
-
-      const { data } = await supabase.auth.getSession();
-      if (cancelled) return;
-
-      if (data.session) {
-        // Critical: if production has session after OAuth but no hash tokens,
-        // still bounce to local when we staged lr (broker may drop hash/state).
-        const staged = !isLocalHost() ? readStagedLocalReturn() : null;
-        if (staged?.lr && !isLocalHost()) {
-          const { access_token, refresh_token } = data.session;
-          if (access_token && refresh_token) {
+          // On production with a local return target → bounce home (do NOT setSession on prod)
+          if (lr && !isLocalHost()) {
             bounceTokensToLocalDev({
-              access_token,
-              refresh_token,
-              lr: staged.lr,
-              next: staged.next,
+              access_token: tokens.access_token,
+              refresh_token: tokens.refresh_token,
+              state: tokens.state,
+              lr,
+              next: nextPath,
             });
             return;
           }
-        }
-        goTo(next || "/chat");
-        return;
-      }
 
-      setBridging(false);
+          // Local (or prod without bridge): apply session here
+          try {
+            const { error } = await supabase.auth.setSession({
+              access_token: tokens.access_token,
+              refresh_token: tokens.refresh_token,
+            });
+            if (error) throw error;
+
+            stripOAuthParamsFromUrl();
+            clearStagedLocalReturn();
+            if (cancelled) return;
+            const dest =
+              nextPath ||
+              new URLSearchParams(window.location.hash.replace(/^#/, "")).get("next") ||
+              "/chat";
+            goTo(dest.startsWith("/") ? dest : "/chat");
+            return;
+          } catch (e) {
+            if (!cancelled) {
+              toast.error((e as Error).message || "Failed to apply Google session");
+              stripOAuthParamsFromUrl();
+            }
+          }
+        }
+
+        // ── 3) Already signed in (cookie session on this origin) ──
+        // Drop cross-project / rotated-JWKS sessions (e.g. hyff env + magq OAuth kid).
+        {
+          const { data: userData, error: userErr } = await supabase.auth.getUser();
+          if (userErr) {
+            const msg = (userErr.message || "").toLowerCase();
+            if (
+              msg.includes("jwt") ||
+              msg.includes("kid") ||
+              msg.includes("unverifiable") ||
+              msg.includes("invalid")
+            ) {
+              await supabase.auth.signOut({ scope: "local" });
+            }
+          } else if (!userData.user) {
+            /* no session */
+          }
+        }
+        if (cancelled) return;
+
+        const { data } = await supabase.auth.getSession();
+        if (cancelled) return;
+
+        if (data.session) {
+          // Critical: if production has session after OAuth but no hash tokens,
+          // still bounce to local when we staged lr (broker may drop hash/state).
+          const staged = !isLocalHost() ? readStagedLocalReturn() : null;
+          if (staged?.lr && !isLocalHost()) {
+            const { access_token, refresh_token } = data.session;
+            if (access_token && refresh_token) {
+              bounceTokensToLocalDev({
+                access_token,
+                refresh_token,
+                lr: staged.lr,
+                next: staged.next,
+              });
+              return;
+            }
+          }
+          goTo(next || "/chat");
+          return;
+        }
+
+        setBridging(false);
+      } finally {
+        window.clearTimeout(bridgeTimer);
+      }
     })();
 
     return () => {
       cancelled = true;
+      window.clearTimeout(bridgeTimer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- OAuth bootstrap once per landing
   }, []);
@@ -235,9 +249,10 @@ function AuthPage() {
     try {
       const nextPath = next || "/chat";
       const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: `${window.location.origin}${nextPath}`,
+        redirect_uri: `${window.location.origin}/auth`,
         nextPath,
       });
+
       if (result.error) {
         toast.error(result.error.message, { duration: 8_000 });
         setLoading(false);
@@ -277,7 +292,10 @@ function AuthPage() {
           BUILDER
         </div>
 
-        <div className="w-full rounded-2xl border border-border bg-panel/80 p-6 shadow-2xl backdrop-blur">
+        <div
+          data-testid="auth-sign-in"
+          className="w-full rounded-2xl border border-border bg-panel/80 p-6 shadow-2xl backdrop-blur"
+        >
           <h1 className="mb-1 text-xl font-semibold">
             {mode === "signin" ? "Sign in to Builder" : "Create your Builder account"}
           </h1>

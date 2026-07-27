@@ -1,0 +1,48 @@
+---
+description: OmniOps One-Command Ship Loop — default verify, branches, lanes, post-deploy smoke
+alwaysApply: true
+---
+
+# OmniOps Ship Loop
+
+## Default command
+
+After any fix, run:
+
+```bash
+bun run ship
+```
+
+That is typecheck + unit + lint:gate + ship-gates (CDN + wow testids) + landing/chat e2e subset.
+
+Do **not** ask the human to read todo boards for the daily path. Prefer `docs/runbooks/daily-dev.md`.
+
+## Git
+
+- Work on `developeredit` or `feature/*` only.
+- **Never** `git push origin main`, force-push `main`, or merge to `main` unless the human explicitly ordered it in that turn.
+- Ship via PR into `main`. Details: `.github/BRANCH_PROTECTION.md`.
+
+## Agent lanes
+
+| Lane | Role | Does | Avoid |
+| --- | --- | --- | --- |
+| **Cursor = ship** | Wire, fix, test, short PR | `bun run ship`, CI green | Long ADR essays from scratch |
+| **Claude = shape** | ADR, copy, design direction | Docs/API shape | Same branch as Cursor at once |
+
+One agent = one branch = one PR.
+
+## Product AI
+
+Mistral only for app chat. No OpenAI / Lovable AI Gateway for product inference.
+
+## After production deploy
+
+Smoke:
+
+1. `GET /api/ai-status` → `ok: true`, mistral
+2. Open `/chat` (auth gate or workspace)
+
+## Out of scope unless asked
+
+Marketplace, CRDT multiplayer, Design Canvas host — do not expand ship PRs into those.

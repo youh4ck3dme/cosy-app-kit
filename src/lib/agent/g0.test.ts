@@ -109,9 +109,7 @@ describe("toolCreatedArtifact + summarize", () => {
 
   it("ignores failed create", () => {
     expect(
-      toolCreatedArtifact([
-        { toolName: "create_artifact", output: { ok: false, error: "nope" } },
-      ]),
+      toolCreatedArtifact([{ toolName: "create_artifact", output: { ok: false, error: "nope" } }]),
     ).toBe(false);
   });
 

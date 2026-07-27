@@ -6,11 +6,11 @@ Product policy: **Mistral only** (`MISTRAL_API_KEY`). No OpenAI / Lovable AI Gat
 
 ## Two models already wired in code
 
-| Role | Model id | When |
-| --- | --- | --- |
-| Plan / default chat | `mistral-large-latest` | Default thread model; Plan mode |
-| Build / code | `codestral-latest` | Build mode when thread still uses Large (or medium) default |
-| Suggestions | `mistral-small-latest` | Follow-up chips |
+| Role                | Model id               | When                                                        |
+| ------------------- | ---------------------- | ----------------------------------------------------------- |
+| Plan / default chat | `mistral-large-latest` | Default thread model; Plan mode                             |
+| Build / code        | `codestral-latest`     | Build mode when thread still uses Large (or medium) default |
+| Suggestions         | `mistral-small-latest` | Follow-up chips                                             |
 
 Source of truth: [`src/lib/models.ts`](../src/lib/models.ts) (`DEFAULT_MODEL`, `BUILD_CODE_MODEL`, `resolveModelForMode`).
 

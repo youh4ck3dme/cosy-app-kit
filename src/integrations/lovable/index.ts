@@ -61,9 +61,15 @@ export function isLocalDevReturnUrl(url: string): boolean {
   }
 }
 
-const lovableAuth = createLovableAuth(
-  isLocalHost() ? { oauthBrokerUrl: `${PUBLISHED_ORIGIN}/~oauth/initiate` } : undefined,
-);
+let _lovableAuth: ReturnType<typeof createLovableAuth> | undefined;
+function getLovableAuth() {
+  if (!_lovableAuth) {
+    _lovableAuth = createLovableAuth(
+      isLocalHost() ? { oauthBrokerUrl: `${PUBLISHED_ORIGIN}/~oauth/initiate` } : undefined,
+    );
+  }
+  return _lovableAuth;
+}
 
 type SignInOptions = {
   redirect_uri?: string;
@@ -252,7 +258,8 @@ export function startPublishedOAuthAfterStage(
     state,
   });
 
-  window.location.href = `${PUBLISHED_ORIGIN}/~oauth/initiate?${params.toString()}`;
+  const initiateUrl = `${PUBLISHED_ORIGIN}/~oauth/initiate?${params.toString()}`;
+  window.location.href = initiateUrl;
 }
 
 export const lovable = {
@@ -266,7 +273,7 @@ export const lovable = {
         return signInWithOAuthLocalFullPage(provider, opts);
       }
 
-      const result = await lovableAuth.signInWithOAuth(provider, {
+      const result = await getLovableAuth().signInWithOAuth(provider, {
         redirect_uri: opts?.redirect_uri ?? `${window.location.origin}/auth`,
         extraParams: {
           ...opts?.extraParams,

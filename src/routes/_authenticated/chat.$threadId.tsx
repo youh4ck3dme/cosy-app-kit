@@ -220,7 +220,14 @@ function ChatPage() {
       // G1.3 transient stream data parts from /api/chat
       const p = part as { type?: string; data?: Record<string, unknown> };
       if (!p?.type || !p.data) return;
-      if (p.type === "data-artifact-created") {
+      if (p.type === "data-intent-detected") {
+        const intent = typeof p.data.intent === "string" ? p.data.intent : "product";
+        const brand = typeof p.data.brand === "string" ? p.data.brand : "";
+        toast.message(`Instant skeleton · ${intent}`, {
+          id: "intent-detected",
+          description: brand ? `${brand} — Build is filling logic…` : "Build is filling logic…",
+        });
+      } else if (p.type === "data-artifact-created") {
         const artifactId = typeof p.data.artifactId === "string" ? p.data.artifactId : null;
         const title = typeof p.data.title === "string" ? p.data.title : "Artifact";
         if (artifactId) setActiveArtifactId(artifactId);
@@ -615,7 +622,7 @@ function ChatPage() {
         open={showSettings}
         onClose={() => setShowSettings(false)}
         title="Settings"
-        description="Speed, PWA, model, tools, and project memory."
+        description="Speed, PWA, model, tools, and thread memory."
       >
         <AgentSettingsPanel threadId={threadId} />
       </AppDialog>

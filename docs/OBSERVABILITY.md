@@ -10,13 +10,13 @@ Opt-in only: hosts attach telemetry; kernel dispatch semantics are unchanged. Ta
 
 ## Public modules
 
-| Module | Intent |
-| --- | --- |
-| `commandTelemetry` | Observe command outcomes without changing dispatch semantics |
-| `performanceTracker` | Bounded timing metrics |
-| `invariantReporter` | Structured invariant reports |
-| `auditTrail` | Append-only bounded audit log |
-| `kernelHealth` | Aggregate health snapshot |
+| Module               | Intent                                                       |
+| -------------------- | ------------------------------------------------------------ |
+| `commandTelemetry`   | Observe command outcomes without changing dispatch semantics |
+| `performanceTracker` | Bounded timing metrics                                       |
+| `invariantReporter`  | Structured invariant reports                                 |
+| `auditTrail`         | Append-only bounded audit log                                |
+| `kernelHealth`       | Aggregate health snapshot                                    |
 
 Operators should also rely on:
 

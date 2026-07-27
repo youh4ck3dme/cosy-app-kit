@@ -742,6 +742,7 @@ export function Canvas({
 
   return (
     <div
+      data-testid="builder-canvas"
       className={cn(
         "relative flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[color-mix(in_oklab,var(--color-background)_94%,black)]",
         fullscreen && "fixed inset-0 z-50 bg-background",
@@ -977,7 +978,9 @@ export function Canvas({
                   ) : (
                     <Share2 className="h-3.5 w-3.5" />
                   )}
-                  <span className="hidden md:inline">{artifact.is_public ? "Shared" : "Share"}</span>
+                  <span className="hidden md:inline">
+                    {artifact.is_public ? "Shared" : "Share"}
+                  </span>
                 </button>
               </>
             )}
@@ -1297,19 +1300,12 @@ export function Canvas({
                   style={{ height: frame.iframeHeight, width: frame.mediaWidth }}
                 >
                   {!iframeLoaded && (
-                    <Skeleton
-                      aria-hidden
-                      className="absolute inset-0 rounded-none"
-                    />
+                    <Skeleton aria-hidden className="absolute inset-0 rounded-none" />
                   )}
                   <iframe
                     key={key}
                     ref={iframeRef}
-                    {...(previewSrc
-                      ? { src: previewSrc }
-                      : srcDoc
-                        ? { srcDoc }
-                        : {})}
+                    {...(previewSrc ? { src: previewSrc } : srcDoc ? { srcDoc } : {})}
                     sandbox="allow-scripts allow-forms"
                     onLoad={() => setIframeLoaded(true)}
                     onError={() => setIframeLoaded(true)}

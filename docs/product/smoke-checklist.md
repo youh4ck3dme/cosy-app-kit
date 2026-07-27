@@ -22,7 +22,7 @@
 
 ## 1c. Multi-page canvas (Mission B · LMAP)
 
-- [ ] Build: *multi-page web Home/About/Contact/Pricing…* → tool `launch_site` / Launch multi-page site
+- [ ] Build: _multi-page web Home/About/Contact/Pricing…_ → tool `launch_site` / Launch multi-page site
 - [ ] Artifact has 4 HTML files (+ optional `blueprint.json`); canvas shows **N pages** label
 - [ ] Desktop: page chips (Home / About / …); active = current preview; click swaps preview
 - [ ] Mobile (~390): page **select** picker works; Preview stays usable
@@ -37,7 +37,7 @@
 
 ## 2. Build mode
 
-- [ ] New chat → starter or: *dark ops dashboard Chart.js Week/Month/Year*
+- [ ] New chat → starter or: _dark ops dashboard Chart.js Week/Month/Year_
 - [ ] First preview appears (fence and/or tool)
 - [ ] **Only one** new artifact for that turn (no double fence+tool)
 - [ ] Canvas focuses new artifact after `create_artifact` (Cursor D)
@@ -52,7 +52,7 @@
 ## 4. Plan mode
 
 - [ ] Toggle Plan (Cmd+/)
-- [ ] Prompt: *plan a todo app with localStorage*
+- [ ] Prompt: _plan a todo app with localStorage_
 - [ ] Response is plan / steps — **no** full HTML artifact created
 - [ ] Switch back to Build works
 

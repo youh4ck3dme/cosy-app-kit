@@ -68,9 +68,7 @@ function parseFilesJson(raw: Json | null | undefined): ArtifactFile[] {
 
 function sanitizeFiles(
   files: Array<{ path: string; language: string; content: string }>,
-):
-  | { ok: true; files: ArtifactFile[] }
-  | { ok: false; error: string } {
+): { ok: true; files: ArtifactFile[] } | { ok: false; error: string } {
   const out: ArtifactFile[] = [];
   for (const f of files) {
     const path = sanitizeRelativePath(f.path);
@@ -229,7 +227,7 @@ export function buildTools({
   });
 
   const remember = tool({
-    description: "Store a key/value preference for this project thread (brand, stack, tone).",
+    description: "Store a key/value preference for this thread (brand, stack, tone).",
     inputSchema: z.object({
       key: z.string().min(1).max(120),
       value: z.string().min(1).max(2000),
@@ -254,7 +252,8 @@ export function buildTools({
       url: z.string().url().max(2000),
     }),
     execute: async ({ url }) => {
-      if (!f.fetch_url) return { ok: false as const, error: "fetch_url is disabled in agent settings" };
+      if (!f.fetch_url)
+        return { ok: false as const, error: "fetch_url is disabled in agent settings" };
       return fetchUrlText(url);
     },
   });
@@ -267,7 +266,8 @@ export function buildTools({
       max_results: z.number().int().min(1).max(8).optional().default(5),
     }),
     execute: async ({ query, max_results }) => {
-      if (!f.web_search) return { ok: false as const, error: "web_search is disabled in agent settings" };
+      if (!f.web_search)
+        return { ok: false as const, error: "web_search is disabled in agent settings" };
       return webSearch(query, { maxResults: max_results });
     },
   });
@@ -360,9 +360,7 @@ export function buildTools({
         entry = ep.path;
       }
       const resolvedEntry =
-        entry ??
-        files.find((x) => /\.html?$/i.test(x.path))?.path ??
-        files[0].path;
+        entry ?? files.find((x) => /\.html?$/i.test(x.path))?.path ?? files[0].path;
       const main = files.find((x) => x.path === resolvedEntry) ?? files[0];
       const quality = analyzeProjectRuntime(files);
       const { data, error } = await supabase
@@ -434,7 +432,8 @@ export function buildTools({
         .eq("id", input.artifact_id)
         .eq("thread_id", threadId)
         .single();
-      if (error || !art) return { ok: false as const, error: error?.message ?? "Artifact not found" };
+      if (error || !art)
+        return { ok: false as const, error: error?.message ?? "Artifact not found" };
 
       const files = parseFilesJson(art.files);
       if (!files.length) {
@@ -670,8 +669,7 @@ export function buildTools({
   });
 
   const write_project_file = tool({
-    description:
-      "Write/replace one file in an existing artifact (does not create a new artifact).",
+    description: "Write/replace one file in an existing artifact (does not create a new artifact).",
     inputSchema: z.object({
       artifact_id: z.string().uuid(),
       path: z.string().min(1).max(240),
@@ -715,7 +713,8 @@ export function buildTools({
       };
       if (idx >= 0) files[idx] = nextFile;
       else files.push(nextFile);
-      const entry = row.entry_path || files.find((x) => /\.html?$/i.test(x.path))?.path || files[0]!.path;
+      const entry =
+        row.entry_path || files.find((x) => /\.html?$/i.test(x.path))?.path || files[0]!.path;
       const main = files.find((x) => x.path === entry) ?? files[0]!;
       const { error } = await supabase
         .from("artifacts")
@@ -759,9 +758,7 @@ export function buildTools({
       if (!row) return { ok: false as const, error: "Artifact not found" };
       const files = parseFilesJson(row.files);
       const pack =
-        files.length > 0
-          ? files
-          : [{ path: row.entry_path || "index.html", content: row.content }];
+        files.length > 0 ? files : [{ path: row.entry_path || "index.html", content: row.content }];
       const result = validateProject(pack, { entryPath: row.entry_path });
       return {
         ok: true as const,
@@ -788,9 +785,7 @@ export function buildTools({
       if (!row) return { ok: false as const, error: "Artifact not found" };
       const files = parseFilesJson(row.files);
       const pack =
-        files.length > 0
-          ? files
-          : [{ path: row.entry_path || "index.html", content: row.content }];
+        files.length > 0 ? files : [{ path: row.entry_path || "index.html", content: row.content }];
       const result = validateProject(pack, { entryPath: row.entry_path });
       const linkChecks = result.checks.filter(
         (c) => c.id === "relative-links" || c.id.startsWith("link:"),
@@ -819,19 +814,28 @@ export function buildTools({
       if (!row) return { ok: false as const, error: "Artifact not found" };
       const files = parseFilesJson(row.files);
       const pack =
-        files.length > 0
-          ? files
-          : [{ path: row.entry_path || "index.html", content: row.content }];
+        files.length > 0 ? files : [{ path: row.entry_path || "index.html", content: row.content }];
       const result = validateProject(pack, { entryPath: row.entry_path });
       const jsChecks = result.checks.filter((c) => c.id.startsWith("javascript-syntax"));
       const failed = jsChecks.some((c) => c.status === "fail");
       return {
         ok: true as const,
         artifactId: row.id,
-        status: jsChecks.length === 0 ? ("pass" as const) : failed ? ("fail" as const) : ("pass" as const),
+        status:
+          jsChecks.length === 0
+            ? ("pass" as const)
+            : failed
+              ? ("fail" as const)
+              : ("pass" as const),
         checks: jsChecks.length
           ? jsChecks
-          : [{ id: "javascript-syntax", status: "pass" as const, evidence: "No JS files to parse" }],
+          : [
+              {
+                id: "javascript-syntax",
+                status: "pass" as const,
+                evidence: "No JS files to parse",
+              },
+            ],
       };
     },
   });
@@ -851,9 +855,7 @@ export function buildTools({
       if (!row) return { ok: false as const, error: "Artifact not found" };
       const files = parseFilesJson(row.files);
       const pack =
-        files.length > 0
-          ? files
-          : [{ path: row.entry_path || "index.html", content: row.content }];
+        files.length > 0 ? files : [{ path: row.entry_path || "index.html", content: row.content }];
       const result = validateProject(pack, { entryPath: row.entry_path });
       return {
         ok: true as const,

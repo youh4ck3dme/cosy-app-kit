@@ -42,9 +42,7 @@ export class PluginSdkRegistry {
 
   private createContext(plugin: RegisteredPlugin): PluginContext {
     // Independent frozen grant list — never alias a mutable caller array.
-    const granted: readonly PluginPermission[] = Object.freeze([
-      ...plugin.manifest.permissions,
-    ]);
+    const granted: readonly PluginPermission[] = Object.freeze([...plugin.manifest.permissions]);
     const manifestSnapshot: PluginManifest = Object.freeze({
       name: plugin.manifest.name,
       version: plugin.manifest.version,
@@ -59,13 +57,9 @@ export class PluginSdkRegistry {
       manifest: manifestSnapshot,
       hasPermission: (permission: PluginPermission) => hasPermission(granted, permission),
       readDocument: () =>
-        hasPermission(granted, "document.read")
-          ? this.options.documentSource?.read()
-          : undefined,
+        hasPermission(granted, "document.read") ? this.options.documentSource?.read() : undefined,
       readCanvas: () =>
-        hasPermission(granted, "canvas.read")
-          ? this.options.canvasSource?.read()
-          : undefined,
+        hasPermission(granted, "canvas.read") ? this.options.canvasSource?.read() : undefined,
     });
   }
 

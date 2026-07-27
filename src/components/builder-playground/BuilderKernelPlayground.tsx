@@ -181,9 +181,7 @@ export function BuilderKernelPlayground() {
                   <button
                     type="button"
                     className="rounded-md border border-border-subtle bg-secondary px-3 py-1.5 text-xs"
-                    onClick={() =>
-                      controller.updateNodeProp(activeNodeId, propPath, propValue)
-                    }
+                    onClick={() => controller.updateNodeProp(activeNodeId, propPath, propValue)}
                   >
                     Update property
                   </button>
@@ -267,15 +265,18 @@ export function BuilderKernelPlayground() {
               <p className="text-xs text-muted-foreground">No events yet.</p>
             ) : (
               <ul className="space-y-1">
-                {[...snap.events].reverse().slice(0, 40).map((ev, i) => (
-                  <li
-                    key={`${ev.type}-${ev.timestamp}-${i}`}
-                    className="font-mono text-[11px] text-muted-foreground"
-                  >
-                    <span className="text-foreground">{ev.type}</span>{" "}
-                    {new Date(ev.timestamp).toLocaleTimeString()}
-                  </li>
-                ))}
+                {[...snap.events]
+                  .reverse()
+                  .slice(0, 40)
+                  .map((ev, i) => (
+                    <li
+                      key={`${ev.type}-${ev.timestamp}-${i}`}
+                      className="font-mono text-[11px] text-muted-foreground"
+                    >
+                      <span className="text-foreground">{ev.type}</span>{" "}
+                      {new Date(ev.timestamp).toLocaleTimeString()}
+                    </li>
+                  ))}
               </ul>
             )}
           </Panel>

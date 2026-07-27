@@ -16,9 +16,9 @@ describe("PWA assets (Claude S1 port)", () => {
     for (const icon of manifest.icons as { src: string }[]) {
       expect(existsSync(join(PUBLIC, icon.src))).toBe(true);
     }
-    expect(
-      (manifest.icons as { purpose?: string }[]).some((i) => i.purpose === "maskable"),
-    ).toBe(true);
+    expect((manifest.icons as { purpose?: string }[]).some((i) => i.purpose === "maskable")).toBe(
+      true,
+    );
   });
 
   it("offline page and SW guards API", () => {

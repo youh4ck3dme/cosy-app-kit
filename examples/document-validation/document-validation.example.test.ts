@@ -4,10 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import {
-  createDefaultDocument,
-  validateDocument,
-} from "../../src/lib/builder";
+import { createDefaultDocument, validateDocument } from "../../src/lib/builder";
 
 describe("example: document-validation", () => {
   it("accepts a factory default document", () => {

@@ -19,9 +19,7 @@ describe("example: undo-redo", () => {
       props: { text: "T" },
     });
 
-    expect(
-      kernel.dispatch(new AddNodeCommand({ parentId: rootId, node })).success,
-    ).toBe(true);
+    expect(kernel.dispatch(new AddNodeCommand({ parentId: rootId, node })).success).toBe(true);
     expect(kernel.undo().success).toBe(true);
     expect(kernel.getDocument().tree.nodes[node.id]).toBeUndefined();
     expect(kernel.redo().success).toBe(true);

@@ -133,9 +133,7 @@ describe("resolveModelForMode matrix", () => {
     }
     expect(resolveModelForMode(DEFAULT_MODEL, "build")).toBe(BUILD_CODE_MODEL);
     expect(resolveModelForMode(BUILD_CODE_MODEL, "plan")).toBe(DEFAULT_MODEL);
-    expect(resolveModelForMode("pixtral-large-latest", "build")).toBe(
-      "pixtral-large-latest",
-    );
+    expect(resolveModelForMode("pixtral-large-latest", "build")).toBe("pixtral-large-latest");
   });
 });
 

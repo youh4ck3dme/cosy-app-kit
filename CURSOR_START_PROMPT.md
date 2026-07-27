@@ -6,11 +6,13 @@
 Repo: `/Users/erikbabcan/lovable-builder-cosyapp` (youh4ck3dme/cosy-app-kit).
 
 ## Hard rules
+
 - AI **len** cez Mistral API (`MISTRAL_API_KEY` → api.mistral.ai).
 - **Zákaz** Lovable AI Gateway, LOVABLE_API_KEY, OpenAI, ChatGPT, Gemini.
 - Ne force-push / rebase `main` (Lovable git sync) — AGENTS.md.
 
 ## Urob
+
 1. Over `.env` má MISTRAL_API_KEY + Supabase keys.
 2. `bun install` && `bun dev`.
 3. Over `src/routes/api/chat.ts` + `src/lib/ai-gateway.server.ts` + `src/lib/models.ts`.

@@ -46,11 +46,7 @@ export class CommandTelemetry {
    * Measures duration around `execute` and records success/failure.
    * Does not catch-and-swallow: thrown errors are rethrown after recording failure.
    */
-  track<T>(
-    commandName: string,
-    execute: () => T,
-    options: TrackCommandOptions<T> = {},
-  ): T {
+  track<T>(commandName: string, execute: () => T, options: TrackCommandOptions<T> = {}): T {
     const now = options.now ?? Date.now;
     const startedAt = now();
     const t0 = performance.now();

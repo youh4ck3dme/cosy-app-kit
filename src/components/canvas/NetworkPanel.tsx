@@ -65,7 +65,9 @@ export function NetworkPanel({
         <div className="inline-flex min-w-0 flex-wrap items-center gap-2 text-[11px] font-medium text-muted-foreground">
           <span>
             Network{" "}
-            <span className="font-mono tabular-nums text-muted-foreground/70">{entries.length}</span>
+            <span className="font-mono tabular-nums text-muted-foreground/70">
+              {entries.length}
+            </span>
           </span>
           {failCount > 0 && (
             <span className="rounded-full bg-destructive/20 px-1.5 font-mono text-[10px] text-destructive tabular-nums">
@@ -183,7 +185,9 @@ export function NetworkPanel({
                 {selected.status ?? "pending"}
               </span>
               <span>Time</span>
-              <span className="text-foreground">{selected.ms != null ? `${selected.ms}ms` : "—"}</span>
+              <span className="text-foreground">
+                {selected.ms != null ? `${selected.ms}ms` : "—"}
+              </span>
             </div>
             {selected.error && (
               <p className="rounded border border-destructive/30 bg-destructive/10 px-2 py-1 text-destructive">

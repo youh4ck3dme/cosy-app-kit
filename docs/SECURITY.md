@@ -6,15 +6,15 @@ Covers the Builder Kernel, Plugin SDK, and repository operational controls that 
 
 ## Threat model (current)
 
-| Asset | Threat | Mitigation in code / process |
-| --- | --- | --- |
-| Kernel document integrity | Corrupt graph via bad commands | Snapshot rollback + `validateDocument` |
-| Kernel memory safety | External aliasing / mutation | `getDocument` clones; readonly freeze path |
-| Plugin privilege escalation (SDK) | Mutate granted permissions | Frozen manifests + frozen context grants |
-| Plugin privilege escalation (kernel) | Overwrite core commands / native nodes | Permission gates; core types blocked |
-| Secrets | Leak via git | `.gitignore`, Lovable secrets, no keys in commits |
-| Product AI provider abuse | Wrong provider / key exfil | Mistral-only policy; server-side key usage |
-| Generated / imported code | Hostile execution on app origin | Policy: do not execute untrusted generated code on authenticated origin (see AGENTS / forge rules) |
+| Asset                                | Threat                                 | Mitigation in code / process                                                                       |
+| ------------------------------------ | -------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Kernel document integrity            | Corrupt graph via bad commands         | Snapshot rollback + `validateDocument`                                                             |
+| Kernel memory safety                 | External aliasing / mutation           | `getDocument` clones; readonly freeze path                                                         |
+| Plugin privilege escalation (SDK)    | Mutate granted permissions             | Frozen manifests + frozen context grants                                                           |
+| Plugin privilege escalation (kernel) | Overwrite core commands / native nodes | Permission gates; core types blocked                                                               |
+| Secrets                              | Leak via git                           | `.gitignore`, Lovable secrets, no keys in commits                                                  |
+| Product AI provider abuse            | Wrong provider / key exfil             | Mistral-only policy; server-side key usage                                                         |
+| Generated / imported code            | Hostile execution on app origin        | Policy: do not execute untrusted generated code on authenticated origin (see AGENTS / forge rules) |
 
 ## Plugin isolation
 
@@ -33,11 +33,11 @@ Covers the Builder Kernel, Plugin SDK, and repository operational controls that 
 
 ## Immutable / sealed state
 
-| Surface | Mechanism |
-| --- | --- |
-| Document external read | Clone / deepFreeze |
-| SDK manifest | `freezePluginManifest` |
-| SDK context | `Object.freeze` on context + permissions |
+| Surface                | Mechanism                                |
+| ---------------------- | ---------------------------------------- |
+| Document external read | Clone / deepFreeze                       |
+| SDK manifest           | `freezePluginManifest`                   |
+| SDK context            | `Object.freeze` on context + permissions |
 
 ## Validation and invariants
 
@@ -55,13 +55,13 @@ Covers the Builder Kernel, Plugin SDK, and repository operational controls that 
 
 ## Known limitations
 
-| Limitation | Status |
-| --- | --- |
-| Design Canvas sandbox runtime | Types only — Not yet implemented |
-| plugin-sdk write surface | Not yet implemented |
-| Diagnostics audit trail as shipped API | Future milestone |
-| Public LICENSE / open-source legal pack | See [LICENSE_GUIDE.md](./LICENSE_GUIDE.md) |
-| Coverage badge / published coverage gate | Not configured in CI |
+| Limitation                               | Status                                     |
+| ---------------------------------------- | ------------------------------------------ |
+| Design Canvas sandbox runtime            | Types only — Not yet implemented           |
+| plugin-sdk write surface                 | Not yet implemented                        |
+| Diagnostics audit trail as shipped API   | Future milestone                           |
+| Public LICENSE / open-source legal pack  | See [LICENSE_GUIDE.md](./LICENSE_GUIDE.md) |
+| Coverage badge / published coverage gate | Not configured in CI                       |
 
 ## Future hardening
 

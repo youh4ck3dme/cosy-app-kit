@@ -7,7 +7,7 @@
 
 ## PROMPT
 
-```
+````
 You are the Cursor UI track on Cosyapp Builder (Lovable-connected React app).
 
 ## Hard rules
@@ -94,20 +94,21 @@ Acceptance Mission B:
 - Tests run
 - Commit SHA + push status
 - Blockers for Grok / human
-```
+````
 
 ---
 
 ## Poznámka pre teba (human)
 
-| Kedy | Čo dať Cursorovi |
-|------|------------------|
-| Teraz (pred LMAP) | **Mission A** — UI stabilita |
-| Po Grok LMAP | **Mission B** — multi-page canvas polish |
-| Nikdy bez opýtania | Mission C veci |
+| Kedy               | Čo dať Cursorovi                         |
+| ------------------ | ---------------------------------------- |
+| Teraz (pred LMAP)  | **Mission A** — UI stabilita             |
+| Po Grok LMAP       | **Mission B** — multi-page canvas polish |
+| Nikdy bez opýtania | Mission C veci                           |
 
 Odporúčané poradie session:
-1. **Ty:** manuálny Build smoke  
-2. **Cursor:** MEGA_PROMPT Mission A (ak treba polish)  
-3. **Grok:** MEGA_PROMPT po „smoke OK“ → LMAP  
-4. **Cursor:** Mission B multi-page UI  
+
+1. **Ty:** manuálny Build smoke
+2. **Cursor:** MEGA_PROMPT Mission A (ak treba polish)
+3. **Grok:** MEGA_PROMPT po „smoke OK“ → LMAP
+4. **Cursor:** Mission B multi-page UI

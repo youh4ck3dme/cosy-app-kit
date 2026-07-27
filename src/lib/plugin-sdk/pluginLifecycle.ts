@@ -1,8 +1,4 @@
-import type {
-  PluginContext,
-  PluginLifecycleHandlers,
-  PluginLifecycleState,
-} from "./plugin.types";
+import type { PluginContext, PluginLifecycleHandlers, PluginLifecycleState } from "./plugin.types";
 
 const VALID_TRANSITIONS: Record<PluginLifecycleState, PluginLifecycleState[]> = {
   registered: ["installed"],
@@ -21,9 +17,7 @@ export class PluginLifecycleError extends Error {
 
 function assertTransition(from: PluginLifecycleState, to: PluginLifecycleState): void {
   if (!VALID_TRANSITIONS[from].includes(to)) {
-    throw new PluginLifecycleError(
-      `Cannot transition plugin lifecycle from "${from}" to "${to}".`,
-    );
+    throw new PluginLifecycleError(`Cannot transition plugin lifecycle from "${from}" to "${to}".`);
   }
 }
 

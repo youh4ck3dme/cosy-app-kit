@@ -559,9 +559,7 @@ export const PromptInput = ({
       // Side effects (onError, nanoid, object URLs) stay outside the state
       // updater so it remains pure under Strict Mode double-invocation.
       const capacity =
-        typeof maxFiles === "number"
-          ? Math.max(0, maxFiles - filesRef.current.length)
-          : undefined;
+        typeof maxFiles === "number" ? Math.max(0, maxFiles - filesRef.current.length) : undefined;
       const capped = typeof capacity === "number" ? sized.slice(0, capacity) : sized;
       if (typeof capacity === "number" && sized.length > capacity) {
         onError?.({

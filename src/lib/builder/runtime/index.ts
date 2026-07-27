@@ -4,10 +4,7 @@ export {
   type BuilderRuntimeOptions,
 } from "./builderRuntime";
 
-export {
-  InMemoryRuntimePersistence,
-  type RuntimePersistence,
-} from "./persistence";
+export { InMemoryRuntimePersistence, type RuntimePersistence } from "./persistence";
 
 export {
   createDevPluginSdkHost,

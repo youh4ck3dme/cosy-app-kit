@@ -47,9 +47,9 @@ describe("analyzeResponsiveHtml", () => {
   it("fails no media + soft sidebar", () => {
     const r = analyzeResponsiveHtml(NO_MEDIA);
     expect(r.hardFails).toContain("no_media_queries");
-    expect(r.softFails.some((s) => s.startsWith("large_min_width") || s === "sidebar_no_collapse")).toBe(
-      true,
-    );
+    expect(
+      r.softFails.some((s) => s.startsWith("large_min_width") || s === "sidebar_no_collapse"),
+    ).toBe(true);
     expect(r.ok).toBe(false);
     expect(r.hints.length).toBeGreaterThan(0);
   });

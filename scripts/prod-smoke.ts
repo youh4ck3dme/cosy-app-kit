@@ -31,12 +31,7 @@ async function main() {
   console.log(`Expected: buildMarker=${BUILD_MARKER}, shellRev=${SHELL_REV}\n`);
 
   // Static PWA assets
-  for (const p of [
-    "/manifest.webmanifest",
-    "/sw.js",
-    "/offline.html",
-    "/icons/icon-192.png",
-  ]) {
+  for (const p of ["/manifest.webmanifest", "/sw.js", "/offline.html", "/icons/icon-192.png"]) {
     try {
       const r = await get(p);
       check(r.status === 200, `GET ${p} → ${r.status}`);
@@ -94,10 +89,7 @@ async function main() {
       html.includes("apple-mobile-web-app-capable"),
       "/chat HTML contains apple-mobile-web-app-capable",
     );
-    check(
-      html.includes("viewport-fit=cover"),
-      "/chat HTML contains viewport-fit=cover",
-    );
+    check(html.includes("viewport-fit=cover"), "/chat HTML contains viewport-fit=cover");
   } catch (e) {
     check(false, `/chat HTML → ${e instanceof Error ? e.message : e}`);
   }

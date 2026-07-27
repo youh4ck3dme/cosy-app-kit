@@ -21,27 +21,27 @@ Grok vlastní **mozog a dátovú cestu**: `/api/chat`, tools, prompty, memory, p
 
 ### 1.1 Hotové (neotvárať znova bez dôvodu)
 
-| Oblast | Stav | Kde |
-|--------|------|-----|
-| Fence + hybrid tools | ✅ | `src/routes/api/chat.ts`, `src/lib/agent/tools.ts` |
-| Plan/Build tool split | ✅ | `buildTools({ mode })` |
-| Memory load → system | ✅ | `src/lib/agent/memory.ts` + `composeSystem` |
-| Codestral Build routing | ✅ | `src/lib/models.ts` `resolveModelForMode` |
-| Anti-cliché system prompt | ✅ | `DEFAULT_SYSTEM_PROMPT` |
-| Fence parser + 9 unit tests | ✅ | `src/lib/agent/artifacts*.ts` |
-| Error classify helpers | ✅ | `src/lib/agent/error-handling.ts` |
-| `/api/ai-status` hybrid marker | ✅ | `src/routes/api/ai-status.ts` |
-| Context trim (24 msgs) | ✅ | `chat.ts` `MAX_CONTEXT_MESSAGES` |
+| Oblast                         | Stav | Kde                                                |
+| ------------------------------ | ---- | -------------------------------------------------- |
+| Fence + hybrid tools           | ✅   | `src/routes/api/chat.ts`, `src/lib/agent/tools.ts` |
+| Plan/Build tool split          | ✅   | `buildTools({ mode })`                             |
+| Memory load → system           | ✅   | `src/lib/agent/memory.ts` + `composeSystem`        |
+| Codestral Build routing        | ✅   | `src/lib/models.ts` `resolveModelForMode`          |
+| Anti-cliché system prompt      | ✅   | `DEFAULT_SYSTEM_PROMPT`                            |
+| Fence parser + 9 unit tests    | ✅   | `src/lib/agent/artifacts*.ts`                      |
+| Error classify helpers         | ✅   | `src/lib/agent/error-handling.ts`                  |
+| `/api/ai-status` hybrid marker | ✅   | `src/routes/api/ai-status.ts`                      |
+| Context trim (24 msgs)         | ✅   | `chat.ts` `MAX_CONTEXT_MESSAGES`                   |
 
 ### 1.2 Otvorené P0/P1 z 200% auditu (Grok-owned)
 
-| ID | Severity | Issue | Fix outline |
-|----|----------|-------|-------------|
-| **G-P0-1** | P0 | ✅ **Shipped G0** — `truncateThreadMessagesAfter` + client wire | Server fn + `chat.$threadId` edit/retry |
-| **G-P1-1** | P1 | ✅ **Shipped G0** — skip fence when tool created artifact | `shouldFenceArtifacts` in `finish.ts` / `chat.ts` |
-| **G-P1-2** | P1 | ✅ **Shipped G0** — tool summary when empty text | `summarizeToolResults` in `persistAssistant` |
-| **G-P2-1** | P2 | `stopWhen: 25` vs roadmap 50 | Tuning po live latency; default nechať 25, Plan 12 |
-| **G-P2-2** | P2 | `ai-status` root REST probe bol flaky | Fixed: non-5xx = reachable; re-verify after deploy |
+| ID         | Severity | Issue                                                           | Fix outline                                        |
+| ---------- | -------- | --------------------------------------------------------------- | -------------------------------------------------- |
+| **G-P0-1** | P0       | ✅ **Shipped G0** — `truncateThreadMessagesAfter` + client wire | Server fn + `chat.$threadId` edit/retry            |
+| **G-P1-1** | P1       | ✅ **Shipped G0** — skip fence when tool created artifact       | `shouldFenceArtifacts` in `finish.ts` / `chat.ts`  |
+| **G-P1-2** | P1       | ✅ **Shipped G0** — tool summary when empty text                | `summarizeToolResults` in `persistAssistant`       |
+| **G-P2-1** | P2       | `stopWhen: 25` vs roadmap 50                                    | Tuning po live latency; default nechať 25, Plan 12 |
+| **G-P2-2** | P2       | `ai-status` root REST probe bol flaky                           | Fixed: non-5xx = reachable; re-verify after deploy |
 
 ---
 
@@ -81,13 +81,13 @@ src/styles.css token play (unless Grok needs 1-line fix — ask)
 
 ### 2.3 Shared files — **protocol**
 
-| File | Rule |
-|------|------|
-| `src/routes/_authenticated/chat.$threadId.tsx` | Grok: wire server fns (truncate, tool data). Cursor: palette/layout. **One owner per PR**; other waits or small coordinated patch. |
-| `src/components/app-shell/MessageList.tsx` | Grok: tool-result toasts / error banners logic. Cursor: visual actions, suggestions chips. |
-| `src/components/app-shell/AgentSettingsPanel.tsx` | Grok: tools flags schema. Cursor: layout polish. |
-| `src/lib/threads.functions.ts` | Grok adds fns; Cursor only consumes via `useServerFn`. |
-| `package.json` | Add deps in own PR; never remove the other’s dep. |
+| File                                              | Rule                                                                                                                               |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `src/routes/_authenticated/chat.$threadId.tsx`    | Grok: wire server fns (truncate, tool data). Cursor: palette/layout. **One owner per PR**; other waits or small coordinated patch. |
+| `src/components/app-shell/MessageList.tsx`        | Grok: tool-result toasts / error banners logic. Cursor: visual actions, suggestions chips.                                         |
+| `src/components/app-shell/AgentSettingsPanel.tsx` | Grok: tools flags schema. Cursor: layout polish.                                                                                   |
+| `src/lib/threads.functions.ts`                    | Grok adds fns; Cursor only consumes via `useServerFn`.                                                                             |
+| `package.json`                                    | Add deps in own PR; never remove the other’s dep.                                                                                  |
 
 ### 2.4 Conflict rule
 
@@ -105,28 +105,32 @@ Never both force-push. Never rewrite published history (Lovable).
 #### G0.1 Truncate messages on edit/retry
 
 **Files**
+
 - `src/lib/threads.functions.ts` — new `truncateThreadMessagesAfter`
 - `src/routes/_authenticated/chat.$threadId.tsx` — call before `setMessages` + regenerate
 - optional: soft-delete vs hard `DELETE … WHERE created_at >= …`
 
 **SQL (if needed)**
+
 ```sql
 -- Prefer hard delete scoped by RLS (owner via thread)
 -- Or: messages.superseded_at timestamptz NULL
 ```
 
 **API sketch**
+
 ```ts
 truncateThreadMessagesAfter({
   threadId: uuid,
-  afterMessageId: uuid, // exclusive: keep this message if user edit? 
+  afterMessageId: uuid, // exclusive: keep this message if user edit?
   // Edit user: delete this message + all after
   // Retry assistant: delete this assistant + all after
   mode: "edit_user" | "retry_assistant",
-})
+});
 ```
 
 **Acceptance**
+
 - [x] Pure helpers + unit tests (`selectMessageIdsToDelete`, keepCount)
 - [x] Server fn `truncateThreadMessagesAfter` (uuid + keepCount fallback)
 - [x] Edit/retry wire in `chat.$threadId.tsx`
@@ -139,6 +143,7 @@ truncateThreadMessagesAfter({
 **Files:** `src/routes/api/chat.ts`
 
 **Logic**
+
 ```ts
 // onFinish or after stream:
 const toolCreated = /* inspect steps / toolResults for create_artifact ok */;
@@ -148,6 +153,7 @@ if (mode === "build" && !toolCreated && toolFlags.create_artifact !== false) {
 ```
 
 **Acceptance**
+
 - [x] Unit: `shouldFenceArtifacts` / `toolCreatedArtifact`
 - [x] `onFinish` uses all steps' toolResults; skip fence if create ok
 - [ ] Manual: tool create without fence double (human smoke)
@@ -158,11 +164,13 @@ if (mode === "build" && !toolCreated && toolFlags.create_artifact !== false) {
 **Files:** `src/routes/api/chat.ts` `persistAssistant`
 
 **Logic**
+
 - If `text` empty and tools ran: insert parts with tool summary text  
   e.g. `Created artifact «Title» (id…)` / `Edited path in artifact …`
 - Prefer real UIMessage parts if AI SDK exposes them in `onFinish` steps
 
 **Acceptance**
+
 - [x] Code: empty text + tool summary → insert assistant row
 - [ ] Manual: tool-only Codestral turn shows summary in list
 
@@ -180,13 +188,13 @@ if (mode === "build" && !toolCreated && toolFlags.create_artifact !== false) {
 
 #### G1.1 Tool quality pass ✅
 
-| Tool | Improvements |
-|------|----------------|
+| Tool              | Improvements                                   |
+| ----------------- | ---------------------------------------------- |
 | `create_artifact` | Cap content size; sanitize paths; `filesCount` |
-| `edit_file` | `beforeSnippet`/`afterSnippet`; `replace_all` |
-| `read_artifact` | `paths_only` |
-| `remember` | returns `previous` |
-| `plan_steps` | optional `persist` → memory `last_plan` |
+| `edit_file`       | `beforeSnippet`/`afterSnippet`; `replace_all`  |
+| `read_artifact`   | `paths_only`                                   |
+| `remember`        | returns `previous`                             |
+| `plan_steps`      | optional `persist` → memory `last_plan`        |
 
 #### G1.2 `web_search` + `fetch_url` ✅
 
@@ -211,39 +219,40 @@ if (mode === "build" && !toolCreated && toolFlags.create_artifact !== false) {
 
 > UI timeline = Cursor **H**. Schema + write + server fns = Grok.
 
-| Item | Status |
-|------|--------|
-| Migration `20260720120000_artifact_versions.sql` | ✅ written — **apply on Supabase/Lovable** |
-| Snapshots from tool / fence / user_save / restore | ✅ |
-| `listArtifactVersions` / `restoreArtifactVersion` | ✅ `threads.functions.ts` |
-| Memory index | ✅ in same migration |
-| Realtime channel helper | deferred (client can subscribe to artifacts) |
-| Docs + Cursor handoff phase H | ✅ READY |
+| Item                                              | Status                                       |
+| ------------------------------------------------- | -------------------------------------------- |
+| Migration `20260720120000_artifact_versions.sql`  | ✅ written — **apply on Supabase/Lovable**   |
+| Snapshots from tool / fence / user_save / restore | ✅                                           |
+| `listArtifactVersions` / `restoreArtifactVersion` | ✅ `threads.functions.ts`                    |
+| Memory index                                      | ✅ in same migration                         |
+| Realtime channel helper                           | deferred (client can subscribe to artifacts) |
+| Docs + Cursor handoff phase H                     | ✅ READY                                     |
 
 ---
 
 ### Sprint G3 — Quality, monitoring, BPI (partial)
 
-| Item | Status |
-|------|--------|
-| Vitest expansion (edge cases + suggestions) | ✅ in progress / expanded |
-| `suggestFollowups` (Mistral Small + static fallback) | ✅ |
-| `docs/migrations.md` + smoke-checklist + samples README | ✅ |
-| Live BPI HTML scores | ⏳ human + smoke |
-| prompt_rev already | ✅ `2026-07-20-b` |
+| Item                                                    | Status                    |
+| ------------------------------------------------------- | ------------------------- |
+| Vitest expansion (edge cases + suggestions)             | ✅ in progress / expanded |
+| `suggestFollowups` (Mistral Small + static fallback)    | ✅                        |
+| `docs/migrations.md` + smoke-checklist + samples README | ✅                        |
+| Live BPI HTML scores                                    | ⏳ human + smoke          |
+| prompt_rev already                                      | ✅ `2026-07-20-b`         |
 
 #### G3.1 Live regen suite (Grok drives process + scoring)
 
 Fixed prompts (export to `docs/samples/2026-07/`):
 
-| # | Prompt id | Prompt (short) | Expect |
-|---|-----------|----------------|--------|
-| 1 | `dash-ops` | dark ops dashboard Chart.js Week/Month/Year | HTML + interactivity |
-| 2 | `landing-northline` | SaaS landing Northline, not purple | visual craft |
-| 3 | `todo-local` | todo app localStorage | a11y + persistence |
-| 4 | `edit-cycle` | follow-up on #1: “collapse sidebar” via `edit_file` | speed |
+| #   | Prompt id           | Prompt (short)                                      | Expect               |
+| --- | ------------------- | --------------------------------------------------- | -------------------- |
+| 1   | `dash-ops`          | dark ops dashboard Chart.js Week/Month/Year         | HTML + interactivity |
+| 2   | `landing-northline` | SaaS landing Northline, not purple                  | visual craft         |
+| 3   | `todo-local`        | todo app localStorage                               | a11y + persistence   |
+| 4   | `edit-cycle`        | follow-up on #1: “collapse sidebar” via `edit_file` | speed                |
 
 **Per sample write**
+
 ```
 docs/samples/2026-07/{id}.html
 docs/samples/2026-07/{id}.meta.md  # time_s, model, mode, tool_calls, score
@@ -253,13 +262,13 @@ docs/samples/2026-07/{id}.meta.md  # time_s, model, mode, tool_calls, score
 
 #### G3.2 Vitest expansion (target ≥ 25 tests)
 
-| Module | Cases |
-|--------|--------|
-| `extractArtifacts` | nested fences, empty, huge, title= |
-| `composeSystem` | plan no fence instruction, memory empty |
-| `resolveModelForMode` | all catalog ids × modes |
-| `classifyChatError` | 429/402/5xx/offline |
-| `parseMeta` | path quotes |
+| Module                   | Cases                                            |
+| ------------------------ | ------------------------------------------------ |
+| `extractArtifacts`       | nested fences, empty, huge, title=               |
+| `composeSystem`          | plan no fence instruction, memory empty          |
+| `resolveModelForMode`    | all catalog ids × modes                          |
+| `classifyChatError`      | 429/402/5xx/offline                              |
+| `parseMeta`              | path quotes                                      |
 | `edit_file` pure helpers | extract pure applyPatch to test without supabase |
 
 #### G3.3 Health & status
@@ -270,21 +279,21 @@ docs/samples/2026-07/{id}.meta.md  # time_s, model, mode, tool_calls, score
 
 #### G3.4 Prompt / craft iteration
 
-- Tune `DEFAULT_SYSTEM_PROMPT` + `SYSTEM_BUILD` after sample scores  
-- Never weaken Mistral-only rule  
+- Tune `DEFAULT_SYSTEM_PROMPT` + `SYSTEM_BUILD` after sample scores
+- Never weaken Mistral-only rule
 - Log prompt version string in system: `prompt_rev: 2026-07-20-a`
 
 ---
 
 ### Sprint G4 — Advanced agent (later)
 
-| Item | Notes | Priority |
-|------|-------|----------|
-| `run_js` tool | Client worker + tool result callback — design with Cursor | Low |
-| Multi-file edit batch | `edit_files[]` tool | Medium |
-| Cost / token log table | `usage_daily` | Medium |
-| Public generate API | `/api/public/v1/generate` + api_keys | Post-1.0 |
-| Branch threads SQL | `parent_thread_id` — Grok schema, Cursor UI | Medium |
+| Item                   | Notes                                                     | Priority |
+| ---------------------- | --------------------------------------------------------- | -------- |
+| `run_js` tool          | Client worker + tool result callback — design with Cursor | Low      |
+| Multi-file edit batch  | `edit_files[]` tool                                       | Medium   |
+| Cost / token log table | `usage_daily`                                             | Medium   |
+| Public generate API    | `/api/public/v1/generate` + api_keys                      | Post-1.0 |
+| Branch threads SQL     | `parent_thread_id` — Grok schema, Cursor UI               | Medium   |
 
 ---
 
@@ -292,23 +301,23 @@ docs/samples/2026-07/{id}.meta.md  # time_s, model, mode, tool_calls, score
 
 ### Create
 
-- [ ] `src/lib/agent/web.ts` — fetch_url helpers + SSRF guard  
-- [ ] `src/lib/agent/tools.test.ts`  
-- [ ] `src/lib/agent/patch.ts` — pure search_replace for unit tests  
-- [ ] `supabase/migrations/YYYYMMDD_artifact_versions.sql`  
-- [ ] `supabase/migrations/YYYYMMDD_thread_memory_idx.sql`  
-- [ ] `docs/samples/2026-07/*.html` + `*.meta.md`  
+- [ ] `src/lib/agent/web.ts` — fetch_url helpers + SSRF guard
+- [ ] `src/lib/agent/tools.test.ts`
+- [ ] `src/lib/agent/patch.ts` — pure search_replace for unit tests
+- [ ] `supabase/migrations/YYYYMMDD_artifact_versions.sql`
+- [ ] `supabase/migrations/YYYYMMDD_thread_memory_idx.sql`
+- [ ] `docs/samples/2026-07/*.html` + `*.meta.md`
 - [ ] `docs/agent-tools.md` — tool reference (Grok writes)
 
 ### Modify
 
-- [ ] `src/routes/api/chat.ts` — G0–G1  
-- [ ] `src/lib/agent/tools.ts` — quality + new tools  
-- [ ] `src/lib/agent/prompts.ts` — prompt_rev  
-- [ ] `src/lib/models.ts` — routing matrix  
-- [ ] `src/lib/threads.functions.ts` — truncate + versions list/restore  
-- [ ] `docs/progress.md` — real BPI  
-- [ ] `docs/architecture.md` — tools/data flow update  
+- [ ] `src/routes/api/chat.ts` — G0–G1
+- [ ] `src/lib/agent/tools.ts` — quality + new tools
+- [ ] `src/lib/agent/prompts.ts` — prompt_rev
+- [ ] `src/lib/models.ts` — routing matrix
+- [ ] `src/lib/threads.functions.ts` — truncate + versions list/restore
+- [ ] `docs/progress.md` — real BPI
+- [ ] `docs/architecture.md` — tools/data flow update
 
 ### Do not create (Cursor)
 
@@ -320,14 +329,14 @@ docs/samples/2026-07/{id}.meta.md  # time_s, model, mode, tool_calls, score
 
 Grok track is **done for parallel milestone G★** when:
 
-- [x] G-P0-1, G-P1-1, G-P1-2 closed  
-- [ ] Live 4-prompt suite scored in `progress.md` (**human + Grok G3**)  
-- [x] ≥ 20 unit tests green (**54**)  
-- [x] `create_artifact` / `edit_file` write `artifact_versions` (code; SQL apply human)  
-- [x] `web_search`/`fetch_url` behind flags (+ Tavily key optional)  
-- [ ] `/api/ai-status` green on **prod** after deploy  
-- [x] No OpenAI/Gateway regression  
-- [x] Cursor can call list/restore versions (C★ UI landed)  
+- [x] G-P0-1, G-P1-1, G-P1-2 closed
+- [ ] Live 4-prompt suite scored in `progress.md` (**human + Grok G3**)
+- [x] ≥ 20 unit tests green (**54**)
+- [x] `create_artifact` / `edit_file` write `artifact_versions` (code; SQL apply human)
+- [x] `web_search`/`fetch_url` behind flags (+ Tavily key optional)
+- [ ] `/api/ai-status` green on **prod** after deploy
+- [x] No OpenAI/Gateway regression
+- [x] Cursor can call list/restore versions (C★ UI landed)
 
 ---
 
@@ -349,33 +358,33 @@ Grok standup:
 
 When Grok finishes a contract, append here:
 
-| Date | Contract | Payload | Cursor action |
-|------|----------|---------|---------------|
-| 2026-07-20 | `truncateThreadMessagesAfter` | `{ threadId, messageId?, mode, keepCount? }` | ✅ wired |
-| 2026-07-20 | `data-artifact-created` etc. | see `docs/agent-tools.md` | focus canvas |
-| 2026-07-20 | `listArtifactVersions` / `restoreArtifactVersion` | see agent-tools G2 | phase **H** timeline |
+| Date       | Contract                                          | Payload                                      | Cursor action        |
+| ---------- | ------------------------------------------------- | -------------------------------------------- | -------------------- |
+| 2026-07-20 | `truncateThreadMessagesAfter`                     | `{ threadId, messageId?, mode, keepCount? }` | ✅ wired             |
+| 2026-07-20 | `data-artifact-created` etc.                      | see `docs/agent-tools.md`                    | focus canvas         |
+| 2026-07-20 | `listArtifactVersions` / `restoreArtifactVersion` | see agent-tools G2                           | phase **H** timeline |
 
 ---
 
 ## 8. Explicit out of scope (Grok)
 
-- Monaco editor, DiffEditor chrome, version **slider UI**  
-- Template gallery pages & seed **UI**  
-- Onboarding tour  
-- Landing marketing rewrite  
-- Playwright browser flows  
-- Billing, collab Yjs, voice Whisper  
-- Any non-Mistral chat provider  
+- Monaco editor, DiffEditor chrome, version **slider UI**
+- Template gallery pages & seed **UI**
+- Onboarding tour
+- Landing marketing rewrite
+- Playwright browser flows
+- Billing, collab Yjs, voice Whisper
+- Any non-Mistral chat provider
 
 ---
 
 ## 9. OmniOps hard rules (reminder)
 
-| Rule | |
-|------|--|
-| Workspace | `/Users/erikbabcan/lovable-builder-cosyapp` only |
-| Branch | `developeredit` |
-| `main` | locked — PR only, human merge order |
-| AI | Mistral only |
-| Secrets | never commit; Lovable Secrets + local `.env` |
-| After prod | smoke `/api/ai-status` + `/chat` |
+| Rule       |                                                  |
+| ---------- | ------------------------------------------------ |
+| Workspace  | `/Users/erikbabcan/lovable-builder-cosyapp` only |
+| Branch     | `developeredit`                                  |
+| `main`     | locked — PR only, human merge order              |
+| AI         | Mistral only                                     |
+| Secrets    | never commit; Lovable Secrets + local `.env`     |
+| After prod | smoke `/api/ai-status` + `/chat`                 |

@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { loadE2eAuthFromFile } from "./e2e/load-e2e-auth";
 
 /**
  * Local quality gate (MR-40 / Cursor L).
@@ -7,7 +8,11 @@ import { defineConfig, devices } from "@playwright/test";
  *   bun run test:e2e:install
  *   bun run dev   # terminal A (default 3000 or set PLAYWRIGHT_BASE_URL)
  *   bun run test:e2e
+ *
+ * Authenticated suite: set E2E_EMAIL/E2E_PASSWORD or fill e2e/e2e:authenticated.md
  */
+loadE2eAuthFromFile();
+
 // Lovable vite stack defaults to 8080 (see scripts/smoke.ts)
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:8080";
 const startWebServer = process.env.PLAYWRIGHT_WEB_SERVER !== "0";

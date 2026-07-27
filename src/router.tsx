@@ -12,9 +12,7 @@ import { routeTree } from "./routeTree.gen";
  * Transitioner's per-render overwrite. Pending UI still tracks isLoading / hasPending
  * from the router store.
  */
-function pinSafeStartTransition(router: {
-  startTransition: (fn: () => void) => void;
-}): void {
+function pinSafeStartTransition(router: { startTransition: (fn: () => void) => void }): void {
   const run = (fn: () => void) => {
     fn();
   };

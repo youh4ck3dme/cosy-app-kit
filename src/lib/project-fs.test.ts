@@ -97,9 +97,10 @@ describe("resolveArtifactFile", () => {
 
   it("mime allowlist rejects unknown extensions", () => {
     expect(mimeForPath("x.exe")).toBeNull();
-    expect(
-      resolveArtifactFile([{ path: "x.exe", content: "MZ" }], "x.exe"),
-    ).toMatchObject({ ok: false, status: 415 });
+    expect(resolveArtifactFile([{ path: "x.exe", content: "MZ" }], "x.exe")).toMatchObject({
+      ok: false,
+      status: 415,
+    });
   });
 });
 
@@ -202,8 +203,6 @@ describe("artifactToFiles", () => {
       entry_path: "index.html",
       files: [],
     });
-    expect(files).toEqual([
-      { path: "index.html", content: "<html></html>", language: "html" },
-    ]);
+    expect(files).toEqual([{ path: "index.html", content: "<html></html>", language: "html" }]);
   });
 });

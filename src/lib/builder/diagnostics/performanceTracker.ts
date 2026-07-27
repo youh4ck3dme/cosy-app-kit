@@ -47,9 +47,7 @@ export class PerformanceTracker {
     }
   }
 
-  record(
-    input: Omit<PerformanceMetric, "id"> & { readonly id?: string },
-  ): PerformanceMetric {
+  record(input: Omit<PerformanceMetric, "id"> & { readonly id?: string }): PerformanceMetric {
     const metric: PerformanceMetric = Object.freeze({
       id: input.id ?? this.nextId(),
       name: input.name,

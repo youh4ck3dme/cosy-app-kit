@@ -1,8 +1,4 @@
-import type {
-  CommandResult,
-  ICommand,
-  SerializedCommand,
-} from "../command.interface";
+import type { CommandResult, ICommand, SerializedCommand } from "../command.interface";
 import type { BuilderDocument, NodeId } from "../../document/document.types";
 import { isCloneable } from "../../document/cloneDocument";
 
@@ -33,11 +29,7 @@ function getAtPath(target: Record<string, unknown>, pathParts: string[]): unknow
   return current;
 }
 
-function setAtPath(
-  target: Record<string, unknown>,
-  pathParts: string[],
-  value: unknown,
-): boolean {
+function setAtPath(target: Record<string, unknown>, pathParts: string[], value: unknown): boolean {
   if (pathParts.length === 0) return false;
 
   let current: Record<string, unknown> = target;
@@ -134,8 +126,7 @@ export class UpdatePropertyCommand implements ICommand<UpdatePropertyPayload> {
     const nodeRecord = node as unknown as Record<string, unknown>;
     const previousValue = getAtPath(nodeRecord, pathParts);
     this.inverse = {
-      previousValue:
-        previousValue === undefined ? undefined : structuredClone(previousValue),
+      previousValue: previousValue === undefined ? undefined : structuredClone(previousValue),
       hadPrevious: true,
     };
 
@@ -215,7 +206,9 @@ export class UpdatePropertyCommand implements ICommand<UpdatePropertyPayload> {
     };
   }
 
-  static fromSerialized(serialized: SerializedCommand<UpdatePropertyPayload>): UpdatePropertyCommand {
+  static fromSerialized(
+    serialized: SerializedCommand<UpdatePropertyPayload>,
+  ): UpdatePropertyCommand {
     return new UpdatePropertyCommand(
       serialized.payload,
       serialized.id,

@@ -20,9 +20,7 @@ describe("ensureHtmlDocument", () => {
   it("rejects empty output", () => {
     expect(() => ensureHtmlDocument("")).toThrow(/Empty HTML/);
     // Fence strip may leave a non-document string rather than empty
-    expect(() => ensureHtmlDocument("```html\n\n```")).toThrow(
-      /Empty HTML|not an HTML document/,
-    );
+    expect(() => ensureHtmlDocument("```html\n\n```")).toThrow(/Empty HTML|not an HTML document/);
   });
 
   it("rejects non-HTML snippets", () => {

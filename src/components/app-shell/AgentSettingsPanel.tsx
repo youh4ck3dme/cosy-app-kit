@@ -21,6 +21,19 @@ import { SpeedPwaSettings } from "./SpeedPwaSettings";
 import { toast } from "sonner";
 import { Loader2, RotateCcw, Trash2 } from "lucide-react";
 
+/** Suggested keys aligned with the `remember` tool (brand, stack, tone). */
+const MEMORY_KEY_SUGGESTIONS = [
+  "brand",
+  "stack",
+  "tone",
+  "colors",
+  "do_not",
+] as const;
+
+const MEMORY_ENTRY_SOFT_LIMIT = 20;
+const MEMORY_KEY_MAX = 120;
+const MEMORY_VALUE_MAX = 2000;
+
 export function AgentSettingsPanel({ threadId }: { threadId?: string }) {
   const qc = useQueryClient();
   const get = useServerFn(getAgentSettings);
@@ -54,6 +67,7 @@ export function AgentSettingsPanel({ threadId }: { threadId?: string }) {
     code_interpreter: false,
   });
   const [saving, setSaving] = useState(false);
+  const [memSaving, setMemSaving] = useState(false);
   const [memKey, setMemKey] = useState("");
   const [memVal, setMemVal] = useState("");
 
@@ -192,7 +206,7 @@ export function AgentSettingsPanel({ threadId }: { threadId?: string }) {
               ],
               ["edit_file", "Edit file", "Tool: patch a file in an existing artifact", true],
               ["read_artifact", "Read artifact", "Tool: read canvas files before editing", true],
-              ["remember", "Remember", "Tool: store project preferences in thread memory", true],
+              ["remember", "Remember", "Tool: store preferences in this thread's memory", true],
               ["plan_steps", "Plan steps", "Tool: structured plans in Plan mode", true],
               ["fetch_url", "Fetch URL", "Tool: load public page text (SSRF-guarded)", true],
               ["web_search", "Web search", "Tool: needs SEARCH_API_KEY (Tavily) on server", true],
@@ -214,77 +228,138 @@ export function AgentSettingsPanel({ threadId }: { threadId?: string }) {
 
       {threadId && (
         <section>
-          <SectionTitle>Project memory</SectionTitle>
+          <div className="mb-2 flex items-baseline justify-between gap-3">
+            <SectionTitle>Thread memory</SectionTitle>
+            <span className="font-mono text-[11px] text-muted-foreground">
+              {memory.length}/{MEMORY_ENTRY_SOFT_LIMIT}
+            </span>
+          </div>
           <p className="mb-3 text-xs text-muted-foreground">
-            Injected into the system prompt for this thread. Empty is fine.
+            Short preferences for <span className="text-foreground/80">this chat only</span> — injected
+            into every reply. Saves immediately (not via Save agent settings). Keep values brief; long
+            briefs belong in System prompt.
           </p>
           {memory.length === 0 ? (
             <p className="mb-3 text-xs text-muted-foreground">
-              No project memory yet. Ask the agent to remember something, or add a key below.
+              Empty. Ask in chat “remember that brand is …” or add a key below.
             </p>
           ) : (
             <ul className="mb-3 space-y-2">
-              {memory.map((row) => (
-                <li
-                  key={row.id}
-                  className="flex items-start justify-between gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-                >
-                  <div className="min-w-0">
-                    <div className="font-mono text-[11px] text-muted-foreground">{row.key}</div>
-                    <div className="wrap-anywhere text-xs">
-                      {typeof row.value === "string" ? row.value : JSON.stringify(row.value)}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    aria-label={`Delete ${row.key}`}
-                    className="min-h-11 min-w-11 rounded-md p-2 text-muted-foreground hover:bg-elevated hover:text-foreground"
-                    onClick={async () => {
-                      await deleteMem({ data: { threadId, key: row.key } });
-                      await refetchMem();
-                    }}
+              {memory.map((row) => {
+                const display =
+                  typeof row.value === "string" ? row.value : JSON.stringify(row.value);
+                return (
+                  <li
+                    key={row.id}
+                    className="flex items-start justify-between gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </li>
-              ))}
+                    <button
+                      type="button"
+                      className="min-w-0 flex-1 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      title="Edit in the form below"
+                      onClick={() => {
+                        setMemKey(row.key);
+                        setMemVal(typeof row.value === "string" ? row.value : JSON.stringify(row.value));
+                      }}
+                    >
+                      <div className="font-mono text-[11px] text-muted-foreground">{row.key}</div>
+                      <div className="wrap-anywhere text-xs">{display}</div>
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Delete ${row.key}`}
+                      className="min-h-11 min-w-11 rounded-md p-2 text-muted-foreground hover:bg-elevated hover:text-foreground"
+                      onClick={async () => {
+                        await deleteMem({ data: { threadId, key: row.key } });
+                        await refetchMem();
+                        toast.success(`Removed «${row.key}»`);
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {MEMORY_KEY_SUGGESTIONS.map((key) => {
+              const used = memory.some((row) => row.key === key);
+              return (
+                <Chip
+                  key={key}
+                  active={memKey === key}
+                  className={used && memKey !== key ? "opacity-60" : undefined}
+                  onClick={() => {
+                    setMemKey(key);
+                    const existing = memory.find((row) => row.key === key);
+                    if (existing) {
+                      setMemVal(
+                        typeof existing.value === "string"
+                          ? existing.value
+                          : JSON.stringify(existing.value),
+                      );
+                    }
+                  }}
+                >
+                  {key}
+                  {used ? " · set" : ""}
+                </Chip>
+              );
+            })}
+          </div>
+          <div className="flex flex-col gap-2">
             <input
               id="memory-key"
               name="memory_key"
               value={memKey}
-              onChange={(e) => setMemKey(e.target.value)}
-              placeholder="key"
+              onChange={(e) => setMemKey(e.target.value.slice(0, MEMORY_KEY_MAX))}
+              placeholder="key (e.g. brand)"
+              maxLength={MEMORY_KEY_MAX}
               autoComplete="off"
-              className="min-h-11 flex-1 rounded-md border border-border bg-surface px-3 text-sm"
+              className="min-h-11 w-full rounded-md border border-border bg-surface px-3 font-mono text-sm outline-none focus:border-ring"
             />
-            <input
+            <textarea
               id="memory-value"
               name="memory_value"
               value={memVal}
-              onChange={(e) => setMemVal(e.target.value)}
-              placeholder="value"
-              autoComplete="off"
-              className="min-h-11 flex-2 rounded-md border border-border bg-surface px-3 text-sm"
+              onChange={(e) => setMemVal(e.target.value.slice(0, MEMORY_VALUE_MAX))}
+              placeholder="Short preference — e.g. Cosy, graphite UI, Slovak copy"
+              maxLength={MEMORY_VALUE_MAX}
+              rows={3}
+              className="w-full rounded-md border border-border bg-surface px-3 py-2.5 text-sm leading-relaxed outline-none focus:border-ring"
             />
-            <button
-              type="button"
-              className="min-h-11 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground"
-              onClick={async () => {
-                if (!memKey.trim() || !memVal.trim()) return;
-                await upsertMem({
-                  data: { threadId, key: memKey.trim(), value: memVal.trim() },
-                });
-                setMemKey("");
-                setMemVal("");
-                await refetchMem();
-                toast.success(`Remembered: ${memKey.trim()}`);
-              }}
-            >
-              Add
-            </button>
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-[10px] text-muted-foreground">
+                {memVal.length}/{MEMORY_VALUE_MAX}
+              </span>
+              <button
+                type="button"
+                disabled={memSaving || !memKey.trim() || !memVal.trim()}
+                className="inline-flex min-h-11 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+                onClick={async () => {
+                  const key = memKey.trim().slice(0, MEMORY_KEY_MAX);
+                  const value = memVal.trim().slice(0, MEMORY_VALUE_MAX);
+                  if (!key || !value) return;
+                  const updating = memory.some((row) => row.key === key);
+                  setMemSaving(true);
+                  try {
+                    await upsertMem({ data: { threadId, key, value } });
+                    setMemKey("");
+                    setMemVal("");
+                    await refetchMem();
+                    toast.success(updating ? `Updated «${key}»` : `Saved «${key}» to this thread`);
+                  } catch (e) {
+                    toast.error((e as Error).message);
+                  } finally {
+                    setMemSaving(false);
+                  }
+                }}
+              >
+                {memSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                {memory.some((row) => row.key === memKey.trim()) ? "Update" : "Save to thread"}
+              </button>
+            </div>
           </div>
         </section>
       )}
@@ -296,7 +371,7 @@ export function AgentSettingsPanel({ threadId }: { threadId?: string }) {
           className="inline-flex min-h-11 items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
         >
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-          Save
+          Save agent settings
         </button>
       </div>
     </div>

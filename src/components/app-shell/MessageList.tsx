@@ -261,7 +261,10 @@ function ThinkingWorkPanel({
                     : "text-muted-foreground/45",
               )}
             >
-              <span className="mt-0.5 inline-flex h-3 w-3 shrink-0 items-center justify-center" aria-hidden>
+              <span
+                className="mt-0.5 inline-flex h-3 w-3 shrink-0 items-center justify-center"
+                aria-hidden
+              >
                 {current ? (
                   <Loader2 className="h-3 w-3 animate-spin text-accent-primary" />
                 ) : done ? (
@@ -292,7 +295,10 @@ function ThinkingWorkPanel({
               const err = tp.state === "output-error" || tp.state === "output-denied";
               return (
                 <li key={toolKey(tp, i)} className="flex items-start gap-2 text-[11px]">
-                  <span className="mt-0.5 inline-flex h-3 w-3 shrink-0 items-center justify-center" aria-hidden>
+                  <span
+                    className="mt-0.5 inline-flex h-3 w-3 shrink-0 items-center justify-center"
+                    aria-hidden
+                  >
                     {running ? (
                       <Loader2 className="h-3 w-3 animate-spin text-accent-primary" />
                     ) : ok ? (
@@ -794,10 +800,16 @@ function MessageActions({
         {/* Fixed icon slot: keep both SVGs mounted to avoid React 19 insertBefore crashes on swap. */}
         <span className="relative inline-flex h-3 w-3 shrink-0" aria-hidden>
           <Copy
-            className={cn("absolute inset-0 h-3 w-3", copyState === "copied" ? "invisible" : "visible")}
+            className={cn(
+              "absolute inset-0 h-3 w-3",
+              copyState === "copied" ? "invisible" : "visible",
+            )}
           />
           <Check
-            className={cn("absolute inset-0 h-3 w-3", copyState === "copied" ? "visible" : "invisible")}
+            className={cn(
+              "absolute inset-0 h-3 w-3",
+              copyState === "copied" ? "visible" : "invisible",
+            )}
           />
         </span>
         <span className="min-w-[4.5rem] text-left">{copyLabel}</span>

@@ -105,7 +105,9 @@ describe("adversarial hardening", () => {
     snap.metadata.title = "HACK";
     (snap.tree.nodes[rootId]!.props as Record<string, unknown>).x = "evil";
     expect(k.getDocument().metadata.title).toBe("Safe");
-    expect((k.getDocument().tree.nodes[rootId]!.props as Record<string, unknown>).x).toBeUndefined();
+    expect(
+      (k.getDocument().tree.nodes[rootId]!.props as Record<string, unknown>).x,
+    ).toBeUndefined();
 
     const frozen = k.getReadonlyDocument();
     expect(Object.isFrozen(frozen)).toBe(true);
@@ -272,9 +274,7 @@ describe("adversarial hardening", () => {
     const rootId = k.getDocument().tree.rootId;
 
     for (const path of ["__proto__.polluted", "constructor.prototype.x", "props.__proto__.y"]) {
-      const result = k.dispatch(
-        new UpdatePropertyCommand({ nodeId: rootId, path, value: true }),
-      );
+      const result = k.dispatch(new UpdatePropertyCommand({ nodeId: rootId, path, value: true }));
       expect(result.success).toBe(false);
       expect(result.error).toMatch(/forbidden|prototype/i);
     }
@@ -353,11 +353,7 @@ describe("adversarial hardening", () => {
       }),
     };
     const c1 = new AddNodeCommand(payload, "cmd_1", 1);
-    const c2 = new AddNodeCommand(
-      JSON.parse(JSON.stringify(c1.serialize().payload)),
-      "cmd_1",
-      1,
-    );
+    const c2 = new AddNodeCommand(JSON.parse(JSON.stringify(c1.serialize().payload)), "cmd_1", 1);
     expect(ka.dispatch(c1).success).toBe(true);
     expect(kb.dispatch(c2).success).toBe(true);
 

@@ -11,6 +11,7 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
 import type { ConfigEnv, PluginOption, UserConfig } from "vite";
+import { VitePWA } from "vite-plugin-pwa";
 
 function isTsconfigPathsPlugin(p: PluginOption): boolean {
   return (
@@ -36,7 +37,21 @@ const lovableConfig = defineConfig({
     server: { entry: "server" },
   },
   vite: {
-    plugins: [mcpPlugin()],
+    plugins: [
+      mcpPlugin(),
+      VitePWA({
+        registerType: "autoUpdate",
+        manifest: {
+          name: "Lovable Builder",
+          short_name: "Builder",
+          description: "Premium Lovable Generator Builder",
+          theme_color: "#000000",
+          background_color: "#000000",
+          display: "standalone",
+          orientation: "portrait",
+        },
+      }),
+    ],
     resolve: {
       tsconfigPaths: true,
       dedupe: ["react", "react-dom"],

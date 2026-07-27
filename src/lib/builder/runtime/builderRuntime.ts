@@ -147,8 +147,6 @@ class BuilderRuntimeSession implements BuilderRuntime {
 }
 
 /** Create a Runtime-owned kernel session (ADR-0005 Slice A). */
-export function createBuilderRuntime(
-  options: BuilderRuntimeOptions = {},
-): BuilderRuntime {
+export function createBuilderRuntime(options: BuilderRuntimeOptions = {}): BuilderRuntime {
   return new BuilderRuntimeSession(options);
 }

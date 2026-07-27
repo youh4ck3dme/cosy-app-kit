@@ -6,10 +6,10 @@ Fence HTML fallback still runs when Build mode finishes **without** a successful
 
 ## Modes
 
-| Mode | Tools |
-|------|--------|
+| Mode      | Tools                                                                                                           |
+| --------- | --------------------------------------------------------------------------------------------------------------- |
 | **Build** | `create_artifact`, `edit_file`, `launch_site`, `read_artifact`, `remember`, optional `fetch_url` / `web_search` |
-| **Plan** | `plan_steps`, `read_artifact`, `remember`, optional `fetch_url` / `web_search` — **no** create/edit/launch |
+| **Plan**  | `plan_steps`, `read_artifact`, `remember`, optional `fetch_url` / `web_search` — **no** create/edit/launch      |
 
 Flags default: create/edit/read/remember/plan **on**; `web_search` / `fetch_url` **off** until user enables in Agent Settings.
 
@@ -19,12 +19,12 @@ Flags default: create/edit/read/remember/plan **on**; `web_search` / `fetch_url`
 
 ### `create_artifact` (Build)
 
-| Input | |
-|-------|--|
-| `title` | string ≤120 |
-| `kind` | `html` \| `markdown` \| `code` |
-| `entry_path?` | relative path |
-| `files[]` | `{ path, language, content }` 1–40 |
+| Input         |                                    |
+| ------------- | ---------------------------------- |
+| `title`       | string ≤120                        |
+| `kind`        | `html` \| `markdown` \| `code`     |
+| `entry_path?` | relative path                      |
+| `files[]`     | `{ path, language, content }` 1–40 |
 
 **Guards:** path sanitize (no `..`, no absolute); max file size 500k.  
 **Output:** `{ ok, artifactId, title, kind, filesCount }`  
@@ -32,8 +32,8 @@ Flags default: create/edit/read/remember/plan **on**; `web_search` / `fetch_url`
 
 ### `launch_site` (Build · LMAP)
 
-| Input | |
-|-------|--|
+| Input   |                                                        |
+| ------- | ------------------------------------------------------ |
 | `brief` | string 10–4000 — business brief for a 4-page mini-site |
 
 **Pipeline:** blueprint (Mistral Small → Large retry) → deterministic shell → parallel Codestral pages → assemble `index.html` / `about.html` / `contact.html` / `pricing.html` + `blueprint.json`.  
@@ -43,23 +43,23 @@ Flags default: create/edit/read/remember/plan **on**; `web_search` / `fetch_url`
 
 ### `edit_file` (Build)
 
-| Input | |
-|-------|--|
-| `artifact_id` | uuid |
-| `path` | relative |
-| `mode` | `search_replace` (default) \| `rewrite` |
-| `search` / `replace` / `replace_all` | for search_replace |
-| `content` | for rewrite |
+| Input                                |                                         |
+| ------------------------------------ | --------------------------------------- |
+| `artifact_id`                        | uuid                                    |
+| `path`                               | relative                                |
+| `mode`                               | `search_replace` (default) \| `rewrite` |
+| `search` / `replace` / `replace_all` | for search_replace                      |
+| `content`                            | for rewrite                             |
 
 **Output:** `{ ok, artifactId, path, bytes, replacements?, beforeSnippet, afterSnippet }`  
 Snippets ≤2k for Cursor Diff UI later.
 
 ### `read_artifact` (Plan + Build)
 
-| Input | |
-|-------|--|
-| `artifact_id?` | uuid — else latest in thread |
-| `paths_only?` | if true, return path/language/bytes only |
+| Input          |                                          |
+| -------------- | ---------------------------------------- |
+| `artifact_id?` | uuid — else latest in thread             |
+| `paths_only?`  | if true, return path/language/bytes only |
 
 ### `remember` (Plan + Build)
 
@@ -87,11 +87,11 @@ Requires server secret `SEARCH_API_KEY` or `TAVILY_API_KEY` (Tavily). Without ke
 
 Listen with `useChat({ onData })` or parts with `type: "data-*"`.
 
-| Type | Payload | Suggested UI |
-|------|---------|--------------|
-| `data-artifact-created` | `{ artifactId, title, kind? }` | toast + invalidate thread + focus canvas |
-| `data-memory-saved` | `{ key, previous? }` | toast |
-| `data-plan` | `{ goal, steps, risks?, open_questions? }` | toast / plan card |
+| Type                    | Payload                                    | Suggested UI                             |
+| ----------------------- | ------------------------------------------ | ---------------------------------------- |
+| `data-artifact-created` | `{ artifactId, title, kind? }`             | toast + invalidate thread + focus canvas |
+| `data-memory-saved`     | `{ key, previous? }`                       | toast                                    |
+| `data-plan`             | `{ goal, steps, risks?, open_questions? }` | toast / plan card                        |
 
 ---
 
@@ -99,12 +99,12 @@ Listen with `useChat({ onData })` or parts with `type: "data-*"`.
 
 Every successful write creates a row in `artifact_versions`:
 
-| Source | When |
-|--------|------|
-| `tool` | `create_artifact` / `edit_file` |
-| `fence` | fence HTML insert path |
+| Source      | When                                |
+| ----------- | ----------------------------------- |
+| `tool`      | `create_artifact` / `edit_file`     |
+| `fence`     | fence HTML insert path              |
 | `user_save` | Canvas Save (`updateArtifactFiles`) |
-| `restore` | after `restoreArtifactVersion` |
+| `restore`   | after `restoreArtifactVersion`      |
 
 ### Server fns (Cursor phase H)
 
@@ -133,20 +133,20 @@ suggestFollowups({ lastAssistantText?: string })
 
 - Model: `mistral-small-latest` (`SUGGESTION_MODEL`)
 - Falls back to static starters if no key / parse fail
-- Pure parse helpers: `src/lib/agent/suggestions.ts`  
+- Pure parse helpers: `src/lib/agent/suggestions.ts`
 - Cursor: call after last assistant message; static chips OK without this
 
 ---
 
 ## Related files
 
-| Path | Role |
-|------|------|
-| `src/lib/agent/tools.ts` | tool factory |
-| `src/lib/agent/patch.ts` | search/replace pure |
-| `src/lib/agent/web.ts` | fetch + search |
-| `src/lib/agent/stream-parts.ts` | data-part mapping |
-| `src/lib/agent/finish.ts` | fence gate + summaries |
-| `src/lib/agent/versions.ts` | version snapshots |
-| `src/lib/threads.functions.ts` | list/restore + user_save snapshot |
-| `src/routes/api/chat.ts` | stream + persist |
+| Path                            | Role                              |
+| ------------------------------- | --------------------------------- |
+| `src/lib/agent/tools.ts`        | tool factory                      |
+| `src/lib/agent/patch.ts`        | search/replace pure               |
+| `src/lib/agent/web.ts`          | fetch + search                    |
+| `src/lib/agent/stream-parts.ts` | data-part mapping                 |
+| `src/lib/agent/finish.ts`       | fence gate + summaries            |
+| `src/lib/agent/versions.ts`     | version snapshots                 |
+| `src/lib/threads.functions.ts`  | list/restore + user_save snapshot |
+| `src/routes/api/chat.ts`        | stream + persist                  |

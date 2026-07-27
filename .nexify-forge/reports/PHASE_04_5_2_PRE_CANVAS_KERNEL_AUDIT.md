@@ -31,6 +31,7 @@ Both are fixable with small, local patches (no architecture change) and each nee
 **Issue:** `UpdatePropertyCommand.execute` accepts `payload.value: unknown` with no serializability check. `BuilderKernel.dispatch()`/`undo()`/`getDocument()`/`getReadonlyDocument()` all call `cloneDocument()` → `structuredClone(document)` on the **live internal document**. `structuredClone` throws `DataCloneError` on functions, symbols, and other non-cloneable values. Zod schema validation (`commandSchemas.ts`) only runs inside `CommandRegistry.create()` — i.e. only on the **replay/deserialize** path — never on the **live dispatch** path where `new UpdatePropertyCommand(...)` is constructed directly and passed to `kernel.dispatch()`.
 
 **Impact:** Once such a value lands in the document (dispatch succeeds — `execute()` itself has no clone step, it mutates the live document object directly), the kernel is permanently dead:
+
 - `getDocument()` throws
 - `getReadonlyDocument()` throws
 - Every subsequent `dispatch()` throws before the new command even runs (snapshot-clone happens first)
@@ -39,6 +40,7 @@ Both are fixable with small, local patches (no architecture change) and each nee
 There is no recovery. This is a full, unrecoverable denial of service triggered by ordinary application code, not an attacker — e.g. a UI bug that accidentally stores an event handler or a DOM ref in `props`, or a future "custom script" feature storing a closure.
 
 **Evidence (reproduced):**
+
 ```
 r1 = k.dispatch(new UpdatePropertyCommand({ nodeId, path: "props.fn", value: () => 1 }))
 r1.success === true
@@ -48,9 +50,11 @@ k.getReadonlyDocument()  // throws
 k.dispatch(anyCommand)   // throws — never reaches the new command's execute()
 k.undo()                 // throws
 ```
+
 File/lines: `src/lib/builder/kernel/builderKernel.ts:42,50,78,166`; `src/lib/builder/commands/impl/updateProperty.command.ts:89-150`; `src/lib/builder/commands/commandSchemas.ts:26-30` (schema exists but is never invoked on this path); `src/lib/builder/document/cloneDocument.ts:3-5`.
 
 **Minimal fix:**
+
 1. In `UpdatePropertyCommand.execute` (and `AddNodeCommand.execute`), validate the incoming value/node with the existing Zod schemas from `commandSchemas.ts` (`parseCommandPayload`-equivalent) **before** mutating the document, on the live path too — not just on replay. Reject with a normal `{success:false}` result on failure, exactly like every other validation branch in these commands.
 2. Defense in depth: wrap `cloneDocument()`'s `structuredClone` call in a try/catch inside `BuilderKernel` and surface a `{success:false, error:"SNAPSHOT_CLONE_FAILED"}` result instead of letting it throw through `dispatch`/`undo`/`getDocument`. This turns a fatal, permanent bricking into a recoverable, reportable error — it does not fix root cause #1 alone, but it stops "one bad value" from becoming "kernel is dead forever."
 
@@ -64,14 +68,14 @@ File/lines: `src/lib/builder/kernel/builderKernel.ts:42,50,78,166`; `src/lib/bui
 
 **Impact:** measured on this machine (`vitest`, single dispatch):
 
-| Nodes | Shape | `validateDocument()` alone | `cloneDocument()` alone | Full `kernel.dispatch(UPDATE_PROPERTY)` |
-|---|---|---:|---:|---:|
-| 10 | balanced | 0.6ms | 0.4ms | 5.0ms |
-| 100 | balanced | 0.3ms | 1.0ms | 2.2ms |
-| 1,000 | balanced | 3.8ms | 29.7ms | 19.8ms |
-| 10,000 | balanced | 160ms | 592ms | **2,302ms** |
-| 1,000 | linear chain (depth=1000) | 65ms | — | 80ms |
-| 10,000 | linear chain (depth=10000) | **5,034ms** | — | *(timed out, >5s)* |
+| Nodes  | Shape                      | `validateDocument()` alone | `cloneDocument()` alone | Full `kernel.dispatch(UPDATE_PROPERTY)` |
+| ------ | -------------------------- | -------------------------: | ----------------------: | --------------------------------------: |
+| 10     | balanced                   |                      0.6ms |                   0.4ms |                                   5.0ms |
+| 100    | balanced                   |                      0.3ms |                   1.0ms |                                   2.2ms |
+| 1,000  | balanced                   |                      3.8ms |                  29.7ms |                                  19.8ms |
+| 10,000 | balanced                   |                      160ms |                   592ms |                             **2,302ms** |
+| 1,000  | linear chain (depth=1000)  |                       65ms |                       — |                                    80ms |
+| 10,000 | linear chain (depth=10000) |                **5,034ms** |                       — |                      _(timed out, >5s)_ |
 
 The scaling from 100→1,000→10,000 nodes (≈12x, then ≈53x for a 10x increase in `n`) confirms quadratic behavior, exactly as predicted by the per-node cycle walk.
 
@@ -80,6 +84,7 @@ Canvas's entire purpose is nested containers and imported design trees (Figma/HT
 **Evidence:** benchmark reproduced via a throwaway vitest file exercising `cloneDocument`, `validateDocument`, and `BuilderKernel.dispatch` directly (see method note above; not checked in).
 
 **Minimal fix (no architecture change):**
+
 1. Make `hasCycleFrom` a **shared visited-set pass** instead of one fresh walk per node: a single `O(n)` pass computing "does following parentId from every node eventually hit a repeat" (e.g. path-compression / memoized visited status across the whole loop) turns the cycle check into `O(n)` total instead of `O(n·depth)`. This alone removes the quadratic blowup and is a small, local change to one function.
 2. Scope validation to the mutated subtree where possible: commands already return `mutatedNodeIds`; a fast-path "validate only these nodes and their ancestor chain to root" check catches the overwhelming majority of real corruption (dangling/duplicate children, parent/child asymmetry, orphaning) without walking the whole tree, with a periodic/idle full-document sweep as a backstop. This is a larger change than #1 — recommend #1 first as the surgical fix, #2 as a follow-up once a benchmark regression test exists to prove it's safe.
 3. Snapshot-before-execute in `dispatch()` is currently a full `structuredClone()` of the whole document for every command. This is required for correctness of the rollback guarantee today, but item #1 (making validation cheap) is the higher-leverage fix; clone cost only matters once validation is fixed.
@@ -95,6 +100,7 @@ Canvas's entire purpose is nested containers and imported design trees (Figma/HT
 **Issue:** `PluginRegistry.createFacade()` (`src/lib/builder/plugins/pluginRegistry.ts:52-98`) builds sealed, read-only views for `nodeRegistry` and `commandRegistry` — that hardening is real and correctly closes the escape hatches from the prior audit (A5/A6). But `eventBus: this.eventBus` on the same facade hands every plugin the **actual live `KernelEventBus` instance** the kernel itself emits `COMMAND_EXECUTED`/`DOCUMENT_LOADED`/etc. on — same object, no wrapper, full `emit()` and `clear()` access.
 
 **Impact:** the stated trust model is "Plugins are NOT trusted" (audit brief §6) and the prior hardening pass explicitly sealed the node/command registries for exactly this reason — but missed the event bus. A plugin can:
+
 - **Forge kernel events**: `facade.eventBus.emit("COMMAND_EXECUTED", { command: fakePayload, mutatedNodeIds: [...], historyEntryId: "forged" })` — any host code that trusts `COMMAND_EXECUTED` payloads (undo/redo UI state, collaboration sync, analytics, autosave triggers) cannot distinguish a forged event from a real one.
 - **Deny service kernel-wide**: `facade.eventBus.clear()` silently removes every listener for every event type, registered by the host, other plugins, or the UI layer — with no way for those listeners to know they were dropped.
 
@@ -103,12 +109,14 @@ Canvas's entire purpose is nested containers and imported design trees (Figma/HT
 File/lines: `src/lib/builder/plugins/pluginRegistry.ts:55` (`eventBus: this.eventBus`); `src/lib/builder/kernel/eventBus.ts:36-52` (`emit`/`clear` are public with no caller/origin check).
 
 **Minimal fix:** give the facade a scoped view analogous to `PluginNodeRegistryView`/`PluginCommandRegistryView`:
+
 ```ts
 interface PluginEventBusView {
   subscribe<T>(type: KernelEventType, cb: EventCallback<T>): () => void;
   // no emit(), no clear()
 }
 ```
+
 If plugins legitimately need to emit their own custom events (plausible — e.g. a plugin-specific event channel), namespace it separately from the kernel's own `KernelEventType` union (e.g. require a `plugin:<id>:*` prefix) rather than sharing the kernel's authoritative event channel.
 
 **Regression test:** plugin facade's `eventBus` has no `emit`/`clear` in its type surface (mirrors the existing "sealed registry views" test already in `pluginEngine.test.ts`); a behavioral test that a plugin attempting to call `emit`/`clear` fails/doesn't exist as a function.
@@ -122,9 +130,11 @@ If plugins legitimately need to emit their own custom events (plausible — e.g.
 **Impact:** any code that treats `kernel.transaction(fn)` like `kernel.dispatch(cmd)` — i.e. assumes it never throws, matching its sibling methods and its own return type — will crash on an exception it can't see coming from the type signature. `transactionDepth` is correctly reset by the `finally`, so the kernel itself isn't left in a bad state, but the caller's own error handling is bypassed.
 
 **Evidence (reproduced):**
+
 ```
 expect(() => k.transaction((tx) => { tx.dispatch(cmd); throw new Error("boom"); })).toThrow(/boom/);
 ```
+
 This assertion passes today — i.e. `transaction()` really does throw instead of returning `{success:false}`.
 
 **Minimal fix:** wrap the callback-building phase in `try { input(tx) } catch (error) { return { success:false, mutatedNodeIds:[], error: error instanceof Error ? error.message : "transaction callback threw" }; } finally { this.transactionDepth -= 1; }` — same pattern `dispatch()` already uses for `command.execute()` throwing.
@@ -188,7 +198,7 @@ This assertion passes today — i.e. `transaction()` really does throw instead o
 
 **What's solid (verified, not re-litigated):** `nodeRegistry`/`commandRegistry` views handed to plugins have no `register`/mutator methods; native node overwrite requires opt-in `nodes.overwrite`; core command types (`ADD_NODE`/`REMOVE_NODE`/`UPDATE_PROPERTY`/`MOVE_NODE`/`BATCH`) can never be registered or overwritten by a plugin regardless of permissions (`CORE_COMMAND_SET` check in `pluginRegistry.ts:82-87`).
 
-**What's not solid:** HIGH-3 above (live event bus). Also worth naming explicitly, already honestly disclosed in the prior report and unchanged: **there is no JS-level sandbox** — a plugin's `register()` function runs as ordinary code in the same process/realm as the host. The permission system in `plugin.types.ts` governs access to *kernel APIs* (registries, commands, and — once HIGH-3 is fixed — events); it cannot stop a plugin from doing anything a normal JS module can do (network calls, DOM access, prototype-chain games on objects it's handed elsewhere in the host app, infinite loops). That is a correct and reasonable scope for a kernel-level permission system — but it means the **product-level** decision of "who is allowed to install a plugin at all" carries all of the actual trust weight, not the kernel.
+**What's not solid:** HIGH-3 above (live event bus). Also worth naming explicitly, already honestly disclosed in the prior report and unchanged: **there is no JS-level sandbox** — a plugin's `register()` function runs as ordinary code in the same process/realm as the host. The permission system in `plugin.types.ts` governs access to _kernel APIs_ (registries, commands, and — once HIGH-3 is fixed — events); it cannot stop a plugin from doing anything a normal JS module can do (network calls, DOM access, prototype-chain games on objects it's handed elsewhere in the host app, infinite loops). That is a correct and reasonable scope for a kernel-level permission system — but it means the **product-level** decision of "who is allowed to install a plugin at all" carries all of the actual trust weight, not the kernel.
 
 **Recommendation for future sandbox architecture (not required for Canvas):** if/when marketplace-style third-party plugins are planned, the next real security boundary is a **realm boundary**, not a bigger permission list — e.g. running plugin `register()` bodies in a Worker or a `iframe` with the same `sandbox="allow-scripts"` discipline already specified for Canvas in `canvasRpc.types.ts`, communicating with the kernel only via a structured RPC contract (mirroring §7 below) so a plugin physically cannot reach host memory, only a message channel. This is a Phase 05+ concern, not a 04.5.2 blocker.
 
@@ -206,20 +216,20 @@ This assertion passes today — i.e. `transaction()` really does throw instead o
 6. **Error recovery / reconnect.** What happens when the iframe reloads, crashes, or is slow to respond to `INIT_DOCUMENT`? Define a timeout + re-init handshake and a host-side "canvas unresponsive" state, rather than discovering this live.
 7. **Size/rate limits.** A buggy or hostile iframe posting an oversized or high-frequency message stream should be bounded (max payload size, max messages/sec) at the RPC layer — cheap to add now, expensive to retrofit once real traffic exists.
 
-None of this needs to exist before Canvas *work begins*, but it should exist as a written contract (an ADR or a typed schema file, same spirit as `commandSchemas.ts`) before Canvas *code* starts landing, so the RPC layer isn't designed ad hoc while also being implemented.
+None of this needs to exist before Canvas _work begins_, but it should exist as a written contract (an ADR or a typed schema file, same spirit as `commandSchemas.ts`) before Canvas _code_ starts landing, so the RPC layer isn't designed ad hoc while also being implemented.
 
 ---
 
 ## 8. Performance baseline (measured)
 
-Method: direct calls to `cloneDocument`, `validateDocument`, and `BuilderKernel.dispatch` from a throwaway vitest file (not checked in), single run, this machine. Treat absolute numbers as indicative, not a formal SLA — the point is the *shape* of the curve, which is unambiguous.
+Method: direct calls to `cloneDocument`, `validateDocument`, and `BuilderKernel.dispatch` from a throwaway vitest file (not checked in), single run, this machine. Treat absolute numbers as indicative, not a formal SLA — the point is the _shape_ of the curve, which is unambiguous.
 
-| Nodes | `cloneDocument` (balanced) | `validateDocument` (balanced) | `validateDocument` (linear chain, depth=n) | full `dispatch(UPDATE_PROPERTY)` (balanced) |
-|---:|---:|---:|---:|---:|
-| 10 | 0.4ms | 0.6ms | 0.03ms | 5.0ms |
-| 100 | 1.0ms | 0.3ms | 0.77ms | 2.2ms |
-| 1,000 | 29.7ms | 3.8ms | 65ms | 19.8ms |
-| 10,000 | 592ms | 160ms | 5,034ms | 2,302ms |
+|  Nodes | `cloneDocument` (balanced) | `validateDocument` (balanced) | `validateDocument` (linear chain, depth=n) | full `dispatch(UPDATE_PROPERTY)` (balanced) |
+| -----: | -------------------------: | ----------------------------: | -----------------------------------------: | ------------------------------------------: |
+|     10 |                      0.4ms |                         0.6ms |                                     0.03ms |                                       5.0ms |
+|    100 |                      1.0ms |                         0.3ms |                                     0.77ms |                                       2.2ms |
+|  1,000 |                     29.7ms |                         3.8ms |                                       65ms |                                      19.8ms |
+| 10,000 |                      592ms |                         160ms |                                    5,034ms |                                     2,302ms |
 
 `transaction()` batching 1,000 `ADD_NODE` commands into one history entry: **27ms** — batching itself is cheap and works as intended; the cost is entirely in per-command clone+validate overhead, not the transaction mechanism.
 
@@ -229,15 +239,15 @@ Method: direct calls to `cloneDocument`, `validateDocument`, and `BuilderKernel.
 
 ## 9. Missing tests (exact list)
 
-1. `UpdatePropertyCommand`/`AddNodeCommand` reject non-serializable values (function, symbol) at `execute()` with `{success:false}`, no document mutation. *(closes CRITICAL-1)*
-2. `getDocument()`/`getReadonlyDocument()`/`dispatch()`/`undo()` return graceful failures rather than throwing if a snapshot clone ever fails. *(defense-in-depth for CRITICAL-1)*
-3. Benchmark/regression test: `validateDocument` and `kernel.dispatch` stay within an asserted time budget at 10,000 nodes, both balanced and linear-chain shapes. *(closes CRITICAL-2)*
-4. Plugin facade's `eventBus` view has no `emit`/`clear` in its type/runtime surface; a plugin cannot forge `COMMAND_EXECUTED` or clear host listeners. *(closes HIGH-3)*
-5. `transaction()` callback throwing mid-build returns `{success:false}` instead of throwing; kernel remains usable for a subsequent dispatch. *(closes HIGH-4)*
-6. `exportEventLog()` behavior across undo/redo matches whatever semantics are chosen (append-only log vs. live-stack view) — assert it explicitly, it's untested today either way. *(closes MEDIUM-5)*
-7. Deeply nested (1,000+) `BATCH`-of-`BATCH` replay is rejected with a bounded-depth error, not a stack overflow; `BATCH` with mismatched `count` vs. `commands.length` is rejected. *(closes MEDIUM-6)*
-8. `nodeGraph.walkNodeIds` and `IRToCommandCompiler.traverseNode` handle a deep (10,000+) linear tree without a stack overflow. *(closes LOW-9)*
-9. IR compiler behavior on a semver-adjacent version string (e.g. `"1.0.1"` vs. required `"1.0.0"`) matches whatever tolerance policy is chosen — currently untested and hard-rejects. *(closes MEDIUM-8)*
+1. `UpdatePropertyCommand`/`AddNodeCommand` reject non-serializable values (function, symbol) at `execute()` with `{success:false}`, no document mutation. _(closes CRITICAL-1)_
+2. `getDocument()`/`getReadonlyDocument()`/`dispatch()`/`undo()` return graceful failures rather than throwing if a snapshot clone ever fails. _(defense-in-depth for CRITICAL-1)_
+3. Benchmark/regression test: `validateDocument` and `kernel.dispatch` stay within an asserted time budget at 10,000 nodes, both balanced and linear-chain shapes. _(closes CRITICAL-2)_
+4. Plugin facade's `eventBus` view has no `emit`/`clear` in its type/runtime surface; a plugin cannot forge `COMMAND_EXECUTED` or clear host listeners. _(closes HIGH-3)_
+5. `transaction()` callback throwing mid-build returns `{success:false}` instead of throwing; kernel remains usable for a subsequent dispatch. _(closes HIGH-4)_
+6. `exportEventLog()` behavior across undo/redo matches whatever semantics are chosen (append-only log vs. live-stack view) — assert it explicitly, it's untested today either way. _(closes MEDIUM-5)_
+7. Deeply nested (1,000+) `BATCH`-of-`BATCH` replay is rejected with a bounded-depth error, not a stack overflow; `BATCH` with mismatched `count` vs. `commands.length` is rejected. _(closes MEDIUM-6)_
+8. `nodeGraph.walkNodeIds` and `IRToCommandCompiler.traverseNode` handle a deep (10,000+) linear tree without a stack overflow. _(closes LOW-9)_
+9. IR compiler behavior on a semver-adjacent version string (e.g. `"1.0.1"` vs. required `"1.0.0"`) matches whatever tolerance policy is chosen — currently untested and hard-rejects. _(closes MEDIUM-8)_
 
 ---
 
@@ -245,14 +255,14 @@ Method: direct calls to `cloneDocument`, `validateDocument`, and `BuilderKernel.
 
 Only patches that materially change safety/correctness — no style, no refactors, no new abstractions beyond what each fix strictly needs:
 
-| # | File | Change | Size |
-|---|---|---|---|
-| 1 | `commands/impl/updateProperty.command.ts`, `commands/impl/addNode.command.ts` | Validate value/node against existing Zod schemas on the live `execute()` path, not just replay | ~10 lines each |
-| 2 | `kernel/builderKernel.ts` | Try/catch around `cloneDocument()` calls, return `{success:false}` instead of throwing | ~15 lines |
-| 3 | `document/documentInvariants.ts` | Replace per-node `hasCycleFrom` re-walk with a single shared-visited-set pass | ~20 lines, same function shape |
-| 4 | `plugins/pluginRegistry.ts`, `plugins/plugin.types.ts` | Replace `eventBus: this.eventBus` with a subscribe-only `PluginEventBusView` | ~15 lines |
-| 5 | `kernel/builderKernel.ts` | Add `catch` around the transaction-builder callback, return `{success:false}` | ~5 lines |
-| 6 | `commands/commandManager.ts` | Add `maxDepth` guard to recursive `BATCH` reconstruction | ~10 lines |
+| #   | File                                                                          | Change                                                                                         | Size                           |
+| --- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------ |
+| 1   | `commands/impl/updateProperty.command.ts`, `commands/impl/addNode.command.ts` | Validate value/node against existing Zod schemas on the live `execute()` path, not just replay | ~10 lines each                 |
+| 2   | `kernel/builderKernel.ts`                                                     | Try/catch around `cloneDocument()` calls, return `{success:false}` instead of throwing         | ~15 lines                      |
+| 3   | `document/documentInvariants.ts`                                              | Replace per-node `hasCycleFrom` re-walk with a single shared-visited-set pass                  | ~20 lines, same function shape |
+| 4   | `plugins/pluginRegistry.ts`, `plugins/plugin.types.ts`                        | Replace `eventBus: this.eventBus` with a subscribe-only `PluginEventBusView`                   | ~15 lines                      |
+| 5   | `kernel/builderKernel.ts`                                                     | Add `catch` around the transaction-builder callback, return `{success:false}`                  | ~5 lines                       |
+| 6   | `commands/commandManager.ts`                                                  | Add `maxDepth` guard to recursive `BATCH` reconstruction                                       | ~10 lines                      |
 
 None of these require touching the public API shape (`ICommand`, `CommandResult`, `KernelDispatchResult`, `BuilderKernelFacade` all stay as-is) except patch #4, which narrows (not widens) the `eventBus` type on the plugin facade only — `BuilderKernelFacade.eventBus` goes from `KernelEventBus` to a new `PluginEventBusView` interface. This is a breaking change **only** for plugin code that currently calls `.emit()`/`.clear()` on the facade — which, per the stated trust model, no legitimate plugin should be doing anyway.
 
@@ -282,35 +292,37 @@ MEDIUM-7 (schema migration seam) and MEDIUM-8 (IR semver tolerance) are not bloc
 
 Patches 1–5 (Critical-1, Critical-2, High-3, High-4) were implemented and verified in this pass. Patch 6 (BATCH depth guard) and the MEDIUM/LOW items remain open for Round 2/3 per the checklist above — not applied here, by design (surgical scope).
 
-| # | Finding closed | File(s) changed | What changed |
-|---|---|---|---|
-| 1 | CRITICAL-1 (root cause) | `commands/impl/updateProperty.command.ts`, `document/cloneDocument.ts` | Added `isCloneable()` helper; `UpdatePropertyCommand.execute()` now rejects non-cloneable `value` with `{success:false}` before it ever reaches the live document. |
-| 2 | CRITICAL-1 (defense-in-depth) | `document/cloneDocument.ts`, `kernel/builderKernel.ts` | `cloneDocument`/`cloneNode` wrap `structuredClone` in a `KernelCloneError`; `dispatch()`/`undo()`/`redo()` wrap their pre-mutation snapshot clone in try/catch and return `{success:false}` instead of throwing if it ever fails (e.g. from a future command bypassing patch 1). |
-| 3 | CRITICAL-2 | `document/documentInvariants.ts` | Replaced the per-node `hasCycleFrom` re-walk (`O(n·depth)`) with a single-pass 3-color (unvisited/visiting/done) cycle detection over parent pointers (`O(n)` total). `CYCLE_FOUND` now flags exactly the cyclic node set; `ok:false` semantics on any cycle are unchanged. |
-| 4 | HIGH-3 | `plugins/plugin.types.ts`, `plugins/pluginRegistry.ts`, `index.ts` | Added `PluginEventBusView` (subscribe-only). `BuilderKernelFacade.eventBus` is now this sealed view, not the live `KernelEventBus` — plugins can no longer call `.emit()` or `.clear()`. |
-| 5 | HIGH-4 | `kernel/builderKernel.ts` | `transaction()`'s builder-callback phase is now wrapped in `try/catch`; a thrown exception returns `{success:false, error}` like every other kernel entrypoint, instead of propagating uncaught. `transactionDepth` reset behavior (already correct) is unchanged. |
+| #   | Finding closed                | File(s) changed                                                        | What changed                                                                                                                                                                                                                                                                     |
+| --- | ----------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | CRITICAL-1 (root cause)       | `commands/impl/updateProperty.command.ts`, `document/cloneDocument.ts` | Added `isCloneable()` helper; `UpdatePropertyCommand.execute()` now rejects non-cloneable `value` with `{success:false}` before it ever reaches the live document.                                                                                                               |
+| 2   | CRITICAL-1 (defense-in-depth) | `document/cloneDocument.ts`, `kernel/builderKernel.ts`                 | `cloneDocument`/`cloneNode` wrap `structuredClone` in a `KernelCloneError`; `dispatch()`/`undo()`/`redo()` wrap their pre-mutation snapshot clone in try/catch and return `{success:false}` instead of throwing if it ever fails (e.g. from a future command bypassing patch 1). |
+| 3   | CRITICAL-2                    | `document/documentInvariants.ts`                                       | Replaced the per-node `hasCycleFrom` re-walk (`O(n·depth)`) with a single-pass 3-color (unvisited/visiting/done) cycle detection over parent pointers (`O(n)` total). `CYCLE_FOUND` now flags exactly the cyclic node set; `ok:false` semantics on any cycle are unchanged.      |
+| 4   | HIGH-3                        | `plugins/plugin.types.ts`, `plugins/pluginRegistry.ts`, `index.ts`     | Added `PluginEventBusView` (subscribe-only). `BuilderKernelFacade.eventBus` is now this sealed view, not the live `KernelEventBus` — plugins can no longer call `.emit()` or `.clear()`.                                                                                         |
+| 5   | HIGH-4                        | `kernel/builderKernel.ts`                                              | `transaction()`'s builder-callback phase is now wrapped in `try/catch`; a thrown exception returns `{success:false, error}` like every other kernel entrypoint, instead of propagating uncaught. `transactionDepth` reset behavior (already correct) is unchanged.               |
 
 **New regression tests:** `src/lib/builder/hardening.round2.test.ts` (9 tests, B1–B5) — non-cloneable value rejection (direct + nested + defense-in-depth-via-hostile-command), cycle-detection correctness (self-loop + disjoint multi-node cycle) and performance (10,000-deep chain), plugin event-bus sealing, and transaction-callback-throw contract.
 
 **Verified post-patch (measured, this pass):**
 
-| Check | Before | After |
-|---|---:|---:|
-| `validateDocument`, 10,000-deep linear chain | 5,034ms | **13.2ms** (≈380x) |
-| `validateDocument`, 10,000-node balanced tree | 160ms | 112ms |
-| A single non-cloneable `UPDATE_PROPERTY` value | Bricks the kernel permanently | `{success:false}`, kernel fully usable immediately after |
-| `transaction()` callback throwing | Uncaught exception | `{success:false, error}` |
-| Plugin `register(kernel)` calling `kernel.eventBus.emit(...)`/`.clear()` | Succeeds silently | `emit`/`clear` are `undefined` on the facade — not callable |
+| Check                                                                    |                        Before |                                                       After |
+| ------------------------------------------------------------------------ | ----------------------------: | ----------------------------------------------------------: |
+| `validateDocument`, 10,000-deep linear chain                             |                       5,034ms |                                          **13.2ms** (≈380x) |
+| `validateDocument`, 10,000-node balanced tree                            |                         160ms |                                                       112ms |
+| A single non-cloneable `UPDATE_PROPERTY` value                           | Bricks the kernel permanently |    `{success:false}`, kernel fully usable immediately after |
+| `transaction()` callback throwing                                        |            Uncaught exception |                                    `{success:false, error}` |
+| Plugin `register(kernel)` calling `kernel.eventBus.emit(...)`/`.clear()` |             Succeeds silently | `emit`/`clear` are `undefined` on the facade — not callable |
 
 Residual, expected, **not** part of this round's scope: a full `dispatch()` on a 10,000-node **balanced** (shallow) tree is still ~1.1s, now dominated by the whole-document `structuredClone` snapshot cost rather than quadratic validation — this is the follow-up noted in §2 CRITICAL-2's fix option 2/3 (scoped validation, cheaper snapshotting) and is correctly out of scope for the surgical Round 1 patch set.
 
 **Full verification, this pass:**
+
 - `npx tsc --noEmit` — PASS, 0 errors
 - `npx eslint "src/lib/builder/**/*.{ts,tsx}" --max-warnings 0` — PASS, 0 errors/warnings
 - `npx vitest run` (whole repo) — **307/307 PASS** (298 prior + 9 new), 44 files
 - No file outside `src/lib/builder/**` depends on the changed plugin-facade shape (checked via grep) — confirmed zero blast radius beyond the kernel module.
 
 **Freeze checklist status after this pass:**
+
 - [x] CRITICAL-1 fixed + regression tests green
 - [x] CRITICAL-2 fixed + benchmark regression test green
 - [x] HIGH-3 fixed + regression test green
