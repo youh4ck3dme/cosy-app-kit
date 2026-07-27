@@ -83,14 +83,15 @@ export class MistralKeyRotator {
       const activeKey = this.getNextKey();
       try {
         return await operation(activeKey);
-      } catch (error: any) {
+      } catch (error: unknown) {
         lastError = error;
+        const errObj = error as { status?: number; statusCode?: number; message?: string } | null;
         const isRateLimit =
-          error?.status === 429 ||
-          error?.statusCode === 429 ||
-          error?.message?.includes("429") ||
-          error?.message?.includes("Rate limit") ||
-          error?.message?.includes("too many requests");
+          errObj?.status === 429 ||
+          errObj?.statusCode === 429 ||
+          errObj?.message?.includes("429") ||
+          errObj?.message?.includes("Rate limit") ||
+          errObj?.message?.includes("too many requests");
 
         if (isRateLimit) {
           this.markRateLimited(activeKey);
