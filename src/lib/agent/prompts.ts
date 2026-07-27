@@ -4,10 +4,10 @@ import { DEFAULT_SYSTEM_PROMPT } from "@/lib/models";
 export const PROMPT_REV = "2026-07-27-master-craft";
 
 export const SYSTEM_SHARED_STYLE = `## Visual & UI Output craft
-- Prefer distinctive, state-of-the-art visual direction over generic white AI dashboards.
-- Support rich dark mode palettes (e.g. Obsidian background, glassmorphism, accent glows) and modern typographic scale.
-- Mobile-first responsive CSS; accessible interactive controls with aria-labels and visible focus rings.
-- Self-contained HTML with clean CSS and DOM-safe JS unless the user asks otherwise.
+- When generating NEW code from scratch: Prefer distinctive, state-of-the-art visual direction over generic white AI dashboards (e.g. rich Obsidian dark modes, glassmorphism, accent glows, modern typography).
+- When modifying or polishing EXISTING artifacts: Preserve the user's existing brand palette, theme variables, and layout structure unless explicitly asked to redesign.
+- Mobile-first responsive CSS; accessible controls with aria-labels and visible focus rings.
+- Self-contained HTML with clean CSS and DOM-safe JS.
 - Never use generic placeholder text; provide realistic sample data and clean SVG icons.
 (prompt_rev: ${PROMPT_REV})`;
 
