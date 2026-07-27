@@ -87,7 +87,8 @@ export async function seedInstantProductSkeleton(
         content: html,
         files: files as unknown as Json,
         entry_path: "index.html",
-      })
+        is_instant_seed: true,
+      } as any)
       .select("id,title")
       .single();
 
