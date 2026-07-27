@@ -609,7 +609,7 @@ function ChatPage() {
         open={showSettings}
         onClose={() => setShowSettings(false)}
         title="Settings"
-        description="Speed, PWA, model, tools, and project memory."
+        description="Speed, PWA, model, tools, and thread memory."
       >
         <AgentSettingsPanel threadId={threadId} />
       </AppDialog>

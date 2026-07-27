@@ -227,7 +227,7 @@ export function buildTools({
   });
 
   const remember = tool({
-    description: "Store a key/value preference for this project thread (brand, stack, tone).",
+    description: "Store a key/value preference for this thread (brand, stack, tone).",
     inputSchema: z.object({
       key: z.string().min(1).max(120),
       value: z.string().min(1).max(2000),
