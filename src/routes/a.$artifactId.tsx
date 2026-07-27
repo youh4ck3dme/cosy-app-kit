@@ -89,6 +89,7 @@ export const Route = createFileRoute("/a/$artifactId")({
 });
 
 type Device = "desktop" | "tablet" | "mobile";
+/** mobile width aligned with iPhone 17 Air CSS viewport (420pt) */
 const WIDTHS: Record<Device, number> = { desktop: 1200, tablet: 768, mobile: 420 };
 
 function PublicArtifactPage() {

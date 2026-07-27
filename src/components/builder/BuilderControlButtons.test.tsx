@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import React from "react";
 import { ZipExporterEngine } from "@/lib/builder/export/zipExporter";
 import { FigmaAdapterEngine } from "@/lib/builder/semantic-intent/FigmaAdapterEngine";
 import type { RawNode } from "@/lib/builder/semantic-intent/types";
+import { IPHONE_17_AIR } from "@/lib/builder/devices/iphone17Air";
 
 describe("UI Control Buttons & Interaction Suite", () => {
   beforeEach(() => {
@@ -64,15 +64,20 @@ describe("UI Control Buttons & Interaction Suite", () => {
     expect(res.status).toBe("success");
   });
 
-  it("4. Viewport Switcher Buttons change canvas sandbox resolution", () => {
+  it("4. Viewport Switcher Buttons change canvas sandbox resolution (iPhone 17 Air default mobile)", () => {
     let currentWidth = 1440; // Desktop default
+    let currentHeight = 900;
 
-    const setViewport = (width: number) => {
+    const setViewport = (width: number, height?: number) => {
       currentWidth = width;
+      if (height != null) currentHeight = height;
     };
 
-    setViewport(412); // Mobile
-    expect(currentWidth).toBe(412);
+    // Mobile = iPhone 17 Air CSS viewport (was legacy 412×915)
+    setViewport(IPHONE_17_AIR.viewport.width, IPHONE_17_AIR.viewport.height);
+    expect(currentWidth).toBe(420);
+    expect(currentHeight).toBe(912);
+    expect(currentWidth).toBe(IPHONE_17_AIR.viewport.width);
 
     setViewport(768); // Tablet
     expect(currentWidth).toBe(768);

@@ -12,7 +12,7 @@ export async function parseImageToRawNode(_imageBase64: string): Promise<RawNode
     id: "root-container",
     type: "box",
     className:
-      "min-h-screen w-full flex items-center justify-center bg-background p-4 sm:p-8",
+      "min-h-[100dvh] w-full flex items-center justify-center bg-background p-4 sm:p-8 pt-[env(safe-area-inset-top,20px)] pb-[env(safe-area-inset-bottom,20px)]",
     children: [
       {
         id: "card-box",

@@ -98,204 +98,109 @@ function AuthPage() {
 
     (async () => {
       try {
-      // #region agent log
-      fetch("http://127.0.0.1:7902/ingest/0243bef4-d50a-482b-b552-d96902be1642", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d9cc51" },
-        body: JSON.stringify({
-          sessionId: "d9cc51",
-          runId: "pre-fix",
-          hypothesisId: "H-B",
-          location: "auth.tsx:bootstrap",
-          message: "oauth bootstrap start",
-          data: {
-            origin: window.location.origin,
-            href: window.location.href.split("#")[0],
-            hasHash: Boolean(window.location.hash),
-            isLocal: isLocalHost(),
-            oauth_stage,
-            lrOk: Boolean(lrParam && isLocalDevReturnUrl(lrParam)),
-            lrHost: (() => {
-              try {
-                return lrParam ? new URL(lrParam).host : null;
-              } catch {
-                return "invalid-lr";
-              }
-            })(),
-            providerParam: providerParam || null,
-            next: next || null,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
-      // ── 1) Published: local hopped here to STAGE return URL, then start Google ──
-      if (!isLocalHost() && oauth_stage === "1" && lrParam && isLocalDevReturnUrl(lrParam)) {
-        const nextPath = next || "/chat";
-        const provider = (
-          providerParam === "apple" || providerParam === "microsoft" || providerParam === "lovable"
-            ? providerParam
-            : "google"
-        ) as "google" | "apple" | "microsoft" | "lovable";
-        // #region agent log
-        fetch("http://127.0.0.1:7902/ingest/0243bef4-d50a-482b-b552-d96902be1642", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d9cc51" },
-          body: JSON.stringify({
-            sessionId: "d9cc51",
-            runId: "pre-fix",
-            hypothesisId: "H-B",
-            location: "auth.tsx:bootstrap:stage",
-            message: "starting published oauth after stage",
-            data: { provider, nextPath, lrHost: new URL(lrParam).host },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
-        startPublishedOAuthAfterStage(provider, lrParam, nextPath);
-        return;
-      }
-
-      // ── 2) Tokens in URL (hash/query) after OAuth broker ──
-      const tokens = extractOAuthTokensFromLocation();
-      if (tokens) {
-        const st = decodeOAuthState(tokens.state);
-        const staged = !isLocalHost() ? readStagedLocalReturn() : null;
-        const lr = (st?.lr && isLocalDevReturnUrl(st.lr) ? st.lr : null) || staged?.lr || null;
-        const nextPath = st?.next || staged?.next || next || "/chat";
-        // #region agent log
-        fetch("http://127.0.0.1:7902/ingest/0243bef4-d50a-482b-b552-d96902be1642", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d9cc51" },
-          body: JSON.stringify({
-            sessionId: "d9cc51",
-            runId: "pre-fix",
-            hypothesisId: "H-D",
-            location: "auth.tsx:bootstrap:tokens",
-            message: "tokens found in url",
-            data: {
-              isLocal: isLocalHost(),
-              hasState: Boolean(tokens.state),
-              stateHasLr: Boolean(st?.lr),
-              stagedHasLr: Boolean(staged?.lr),
-              willBounce: Boolean(lr && !isLocalHost()),
-              nextPath,
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
-
-        // On production with a local return target → bounce home (do NOT setSession on prod)
-        if (lr && !isLocalHost()) {
-          bounceTokensToLocalDev({
-            access_token: tokens.access_token,
-            refresh_token: tokens.refresh_token,
-            state: tokens.state,
-            lr,
-            next: nextPath,
-          });
+        // ── 1) Published: local hopped here to STAGE return URL, then start Google ──
+        if (!isLocalHost() && oauth_stage === "1" && lrParam && isLocalDevReturnUrl(lrParam)) {
+          const nextPath = next || "/chat";
+          const provider = (
+            providerParam === "apple" ||
+            providerParam === "microsoft" ||
+            providerParam === "lovable"
+              ? providerParam
+              : "google"
+          ) as "google" | "apple" | "microsoft" | "lovable";
+          startPublishedOAuthAfterStage(provider, lrParam, nextPath);
           return;
         }
 
-        // Local (or prod without bridge): apply session here
-        try {
-          const { error } = await supabase.auth.setSession({
-            access_token: tokens.access_token,
-            refresh_token: tokens.refresh_token,
-          });
-          if (error) throw error;
-          // #region agent log
-          fetch("http://127.0.0.1:7902/ingest/0243bef4-d50a-482b-b552-d96902be1642", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d9cc51" },
-            body: JSON.stringify({
-              sessionId: "d9cc51",
-              runId: "pre-fix",
-              hypothesisId: "H-E",
-              location: "auth.tsx:bootstrap:setSession",
-              message: "setSession ok",
-              data: { nextPath },
-              timestamp: Date.now(),
-            }),
-          }).catch(() => {});
-          // #endregion
-          stripOAuthParamsFromUrl();
-          clearStagedLocalReturn();
-          if (cancelled) return;
-          const dest =
-            nextPath ||
-            new URLSearchParams(window.location.hash.replace(/^#/, "")).get("next") ||
-            "/chat";
-          goTo(dest.startsWith("/") ? dest : "/chat");
-          return;
-        } catch (e) {
-          // #region agent log
-          fetch("http://127.0.0.1:7902/ingest/0243bef4-d50a-482b-b552-d96902be1642", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d9cc51" },
-            body: JSON.stringify({
-              sessionId: "d9cc51",
-              runId: "pre-fix",
-              hypothesisId: "H-E",
-              location: "auth.tsx:bootstrap:setSession:error",
-              message: "setSession failed",
-              data: { error: e instanceof Error ? e.message : String(e) },
-              timestamp: Date.now(),
-            }),
-          }).catch(() => {});
-          // #endregion
-          if (!cancelled) {
-            toast.error((e as Error).message || "Failed to apply Google session");
-            stripOAuthParamsFromUrl();
-          }
-        }
-      }
+        // ── 2) Tokens in URL (hash/query) after OAuth broker ──
+        const tokens = extractOAuthTokensFromLocation();
+        if (tokens) {
+          const st = decodeOAuthState(tokens.state);
+          const staged = !isLocalHost() ? readStagedLocalReturn() : null;
+          const lr = (st?.lr && isLocalDevReturnUrl(st.lr) ? st.lr : null) || staged?.lr || null;
+          const nextPath = st?.next || staged?.next || next || "/chat";
 
-      // ── 3) Already signed in (cookie session on this origin) ──
-      // Drop cross-project / rotated-JWKS sessions (e.g. hyff env + magq OAuth kid).
-      {
-        const { data: userData, error: userErr } = await supabase.auth.getUser();
-        if (userErr) {
-          const msg = (userErr.message || "").toLowerCase();
-          if (
-            msg.includes("jwt") ||
-            msg.includes("kid") ||
-            msg.includes("unverifiable") ||
-            msg.includes("invalid")
-          ) {
-            await supabase.auth.signOut({ scope: "local" });
-          }
-        } else if (!userData.user) {
-          /* no session */
-        }
-      }
-      if (cancelled) return;
-
-      const { data } = await supabase.auth.getSession();
-      if (cancelled) return;
-
-      if (data.session) {
-        // Critical: if production has session after OAuth but no hash tokens,
-        // still bounce to local when we staged lr (broker may drop hash/state).
-        const staged = !isLocalHost() ? readStagedLocalReturn() : null;
-        if (staged?.lr && !isLocalHost()) {
-          const { access_token, refresh_token } = data.session;
-          if (access_token && refresh_token) {
+          // On production with a local return target → bounce home (do NOT setSession on prod)
+          if (lr && !isLocalHost()) {
             bounceTokensToLocalDev({
-              access_token,
-              refresh_token,
-              lr: staged.lr,
-              next: staged.next,
+              access_token: tokens.access_token,
+              refresh_token: tokens.refresh_token,
+              state: tokens.state,
+              lr,
+              next: nextPath,
             });
             return;
           }
-        }
-        goTo(next || "/chat");
-        return;
-      }
 
-      setBridging(false);
+          // Local (or prod without bridge): apply session here
+          try {
+            const { error } = await supabase.auth.setSession({
+              access_token: tokens.access_token,
+              refresh_token: tokens.refresh_token,
+            });
+            if (error) throw error;
+
+            stripOAuthParamsFromUrl();
+            clearStagedLocalReturn();
+            if (cancelled) return;
+            const dest =
+              nextPath ||
+              new URLSearchParams(window.location.hash.replace(/^#/, "")).get("next") ||
+              "/chat";
+            goTo(dest.startsWith("/") ? dest : "/chat");
+            return;
+          } catch (e) {
+            if (!cancelled) {
+              toast.error((e as Error).message || "Failed to apply Google session");
+              stripOAuthParamsFromUrl();
+            }
+          }
+        }
+
+        // ── 3) Already signed in (cookie session on this origin) ──
+        // Drop cross-project / rotated-JWKS sessions (e.g. hyff env + magq OAuth kid).
+        {
+          const { data: userData, error: userErr } = await supabase.auth.getUser();
+          if (userErr) {
+            const msg = (userErr.message || "").toLowerCase();
+            if (
+              msg.includes("jwt") ||
+              msg.includes("kid") ||
+              msg.includes("unverifiable") ||
+              msg.includes("invalid")
+            ) {
+              await supabase.auth.signOut({ scope: "local" });
+            }
+          } else if (!userData.user) {
+            /* no session */
+          }
+        }
+        if (cancelled) return;
+
+        const { data } = await supabase.auth.getSession();
+        if (cancelled) return;
+
+        if (data.session) {
+          // Critical: if production has session after OAuth but no hash tokens,
+          // still bounce to local when we staged lr (broker may drop hash/state).
+          const staged = !isLocalHost() ? readStagedLocalReturn() : null;
+          if (staged?.lr && !isLocalHost()) {
+            const { access_token, refresh_token } = data.session;
+            if (access_token && refresh_token) {
+              bounceTokensToLocalDev({
+                access_token,
+                refresh_token,
+                lr: staged.lr,
+                next: staged.next,
+              });
+              return;
+            }
+          }
+          goTo(next || "/chat");
+          return;
+        }
+
+        setBridging(false);
       } finally {
         window.clearTimeout(bridgeTimer);
       }
@@ -343,52 +248,11 @@ function AuthPage() {
     setLoading(true);
     try {
       const nextPath = next || "/chat";
-      // #region agent log
-      fetch("http://127.0.0.1:7902/ingest/0243bef4-d50a-482b-b552-d96902be1642", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d9cc51" },
-        body: JSON.stringify({
-          sessionId: "d9cc51",
-          runId: "pre-fix",
-          hypothesisId: "H-A",
-          location: "auth.tsx:google",
-          message: "google sign-in clicked",
-          data: {
-            origin: typeof window !== "undefined" ? window.location.origin : null,
-            hostname: typeof window !== "undefined" ? window.location.hostname : null,
-            nextPath,
-            isLocal: typeof window !== "undefined" ? isLocalHost() : null,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: `${window.location.origin}${nextPath}`,
+        redirect_uri: `${window.location.origin}/auth`,
         nextPath,
       });
-      // #region agent log
-      fetch("http://127.0.0.1:7902/ingest/0243bef4-d50a-482b-b552-d96902be1642", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d9cc51" },
-        body: JSON.stringify({
-          sessionId: "d9cc51",
-          runId: "pre-fix",
-          hypothesisId: "H-A",
-          location: "auth.tsx:google:result",
-          message: "signInWithOAuth returned",
-          data: {
-            redirected: Boolean((result as { redirected?: boolean })?.redirected),
-            hasError: Boolean((result as { error?: unknown })?.error),
-            errorMessage:
-              (result as { error?: { message?: string } | Error })?.error instanceof Error
-                ? (result as { error: Error }).error.message
-                : (result as { error?: { message?: string } })?.error?.message ?? null,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
+
       if (result.error) {
         toast.error(result.error.message, { duration: 8_000 });
         setLoading(false);
@@ -399,21 +263,6 @@ function AuthPage() {
       await router.invalidate();
       goNext();
     } catch (err) {
-      // #region agent log
-      fetch("http://127.0.0.1:7902/ingest/0243bef4-d50a-482b-b552-d96902be1642", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d9cc51" },
-        body: JSON.stringify({
-          sessionId: "d9cc51",
-          runId: "pre-fix",
-          hypothesisId: "H-A",
-          location: "auth.tsx:google:catch",
-          message: "google sign-in threw",
-          data: { error: err instanceof Error ? err.message : String(err) },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       toast.error((err as Error).message || "Google sign-in failed");
       setLoading(false);
     }
