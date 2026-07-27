@@ -20,18 +20,67 @@ export class CanvasSandboxManager {
       <!DOCTYPE html>
       <html>
         <head>
-          <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-          <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-          <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-          <script src="https://cdn.tailwindcss.com"></script>
+          <script src="https://unpkg.com/react@18/umd/react.production.min.js"><\/script>
+          <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"><\/script>
+          <script src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script>
+          <script src="https://cdn.tailwindcss.com"><\/script>
           <style>
             body { margin: 0; padding: 0; background: transparent; font-family: sans-serif; overflow-x: hidden; }
-          </style>
+            [data-node-id] { cursor: pointer; transition: outline 0.12s ease, box-shadow 0.12s ease; }
+            [data-node-id].sandbox-hover {
+              outline: 2px solid rgba(99, 102, 241, 0.55);
+              outline-offset: 2px;
+              box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+            }
+            [data-node-id].sandbox-selected {
+              outline: 2px solid rgba(16, 185, 129, 0.85);
+              outline-offset: 2px;
+              box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
+            }
+          <\/style>
         </head>
         <body>
           <div id="root"></div>
           <script>
             let currentRoot = null;
+            let selectedEl = null;
+            let selectionBound = false;
+
+            function findNodeEl(target) {
+              if (!target || !target.closest) return null;
+              return target.closest('[data-node-id]');
+            }
+
+            function clearHover() {
+              document.querySelectorAll('.sandbox-hover').forEach(function(el) {
+                el.classList.remove('sandbox-hover');
+              });
+            }
+
+            function bindSelection() {
+              if (selectionBound) return;
+              selectionBound = true;
+              document.addEventListener('mousemove', function(e) {
+                clearHover();
+                var el = findNodeEl(e.target);
+                if (el && el !== selectedEl) el.classList.add('sandbox-hover');
+              }, true);
+              document.addEventListener('mouseleave', clearHover, true);
+              document.addEventListener('click', function(e) {
+                var el = findNodeEl(e.target);
+                if (!el) return;
+                e.preventDefault();
+                e.stopPropagation();
+                if (selectedEl) selectedEl.classList.remove('sandbox-selected');
+                selectedEl = el;
+                selectedEl.classList.add('sandbox-selected');
+                clearHover();
+                var nodeId = el.getAttribute('data-node-id');
+                if (nodeId) {
+                  window.parent.postMessage({ type: 'NODE_SELECTED', nodeId: nodeId }, '*');
+                }
+              }, true);
+            }
 
             window.addEventListener('message', async (event) => {
               const { type, code, css } = event.data || {};
@@ -64,7 +113,9 @@ export class CanvasSandboxManager {
                     currentRoot = ReactDOM.createRoot(rootEl);
                   }
 
+                  selectedEl = null;
                   currentRoot.render(React.createElement(Component));
+                  bindSelection();
                   window.parent.postMessage({ type: 'RENDER_SUCCESS' }, '*');
                 } catch (err) {
                   window.parent.postMessage({
@@ -75,7 +126,7 @@ export class CanvasSandboxManager {
               }
             });
             window.parent.postMessage({ type: 'SANDBOX_READY' }, '*');
-          </script>
+          <\/script>
         </body>
       </html>
     `;
@@ -120,11 +171,11 @@ export class CanvasSandboxManager {
 
   private handleHostMessage = (event: MessageEvent<SandboxRPCMessage>) => {
     const data = event.data;
-    if (data?.type === "RENDER_SUCCESS" || data?.type === "RUNTIME_ERROR") {
+    if (!data || typeof data !== "object" || !("type" in data)) return;
+
+    if (data.type === "RENDER_SUCCESS" || data.type === "RUNTIME_ERROR") {
       if (this.renderTimeoutTimer) clearTimeout(this.renderTimeoutTimer);
     }
-    if (data?.type) {
-      this.onMessage?.(data);
-    }
+    this.onMessage?.(data);
   };
 }

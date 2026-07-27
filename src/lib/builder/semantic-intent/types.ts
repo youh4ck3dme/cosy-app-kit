@@ -43,6 +43,7 @@ export const RawNodeSchema: z.ZodType<RawNode> = z.lazy(
       label: z.string().optional(),
       text: z.string().optional(),
       inputType: z.enum(["text", "email", "password", "number"]).optional(),
+      name: z.string().optional(),
       action: z.enum(["submit", "cancel", "navigate"]).optional(),
       className: z.string().optional(),
       children: z.array(RawNodeSchema).optional(),
@@ -109,7 +110,8 @@ export type SandboxRPCMessage =
   | { type: "RENDER_SUCCESS" }
   | { type: "RUNTIME_ERROR"; error: { message: string; stack?: string } }
   | { type: "EXECUTION_TIMEOUT"; timeoutMs: number }
-  | { type: "CANVAS_RESIZED"; height: number; width: number };
+  | { type: "CANVAS_RESIZED"; height: number; width: number }
+  | { type: "NODE_SELECTED"; nodeId: string };
 
 export interface PluginManifest {
   id: string;

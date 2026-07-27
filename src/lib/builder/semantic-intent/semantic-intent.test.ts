@@ -50,9 +50,13 @@ describe("SemanticIntentEngine", () => {
 
     expect(result.intent).toBe("StaticIntent");
     expect(result.code).not.toContain("useState");
-    expect(result.code).toContain('<p className="text-2xl font-bold">Hello World</p>');
+    // data-node-id for canvas selection + mobile auto-fixer text overflow classes
+    expect(result.code).toContain('data-node-id="1"');
     expect(result.code).toContain(
-      '<p className="text-gray-700">This is a static block of text.</p>',
+      'className="text-2xl font-bold break-words overflow-hidden"',
     );
+    expect(result.code).toContain("Hello World");
+    expect(result.code).toContain('data-node-id="2"');
+    expect(result.code).toContain("This is a static block of text.");
   });
 });

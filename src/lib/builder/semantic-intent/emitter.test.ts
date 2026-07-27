@@ -40,6 +40,8 @@ describe("CodeEmitter (Unit Tests)", () => {
     const result = emitter.emit("TestStatic", "StaticIntent", nodes);
 
     expect(result.code).not.toContain("useState");
-    expect(result.code).toContain('<p className="text-red-500">Just some text</p>');
+    expect(result.code).toContain('data-node-id="1"');
+    expect(result.code).toContain('className="text-red-500"');
+    expect(result.code).toContain("Just some text");
   });
 });

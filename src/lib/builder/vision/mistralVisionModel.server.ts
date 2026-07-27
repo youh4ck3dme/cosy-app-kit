@@ -24,46 +24,50 @@ export const rawNodeSchema: z.ZodType<RawNode> = z.lazy(() =>
   }),
 );
 
+import { mistralKeyRotator } from "../ai/MistralKeyRotator";
+
 export const parseVisionImage = createServerFn({ method: "POST" })
   .validator((data: { imageBase64: string }) => data)
   .handler(async ({ data }): Promise<{ node: RawNode; source: "mistral" | "mock" }> => {
-    const mistralKey = (process.env.MISTRAL_API_KEY ?? process.env.MISTRAL_KEY ?? "").trim();
-
-    if (!mistralKey) {
-      console.warn("[VisionModel] MISTRAL_API_KEY is not set. Falling back to mock model.");
+    if (mistralKeyRotator.keyCount === 0) {
+      console.warn("[VisionModel] No Mistral API keys available. Falling back to mock model.");
       const mockNode = await parseMockImage(data.imageBase64);
       return { node: mockNode, source: "mock" };
     }
 
     try {
-      const mistral = createMistralProvider(mistralKey);
-      // Use pixtral-12b-2409 for Vision processing
-      const model = mistral("pixtral-12b-2409");
+      const { object: rawNode } = await mistralKeyRotator.executeWithRetry(async (apiKey) => {
+        const mistral = createMistralProvider(apiKey);
+        const model = mistral("pixtral-12b-2409");
 
-      const result = await generateObject({
-        model,
-        schema: rawNodeSchema,
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: "Analyze this UI screenshot / mockup and extract its component hierarchy into a structured AST (RawNode tree). Identify containers (box), text elements (text), inputs (input with email/password/text inputType), buttons (button with submit/cancel action), and lists (list). Output accurate Tailwind CSS class names in className where appropriate for layout.",
-              },
-              {
-                type: "image",
-                image: data.imageBase64,
-              },
-            ],
-          },
-        ],
+        return await generateObject({
+          model,
+          schema: rawNodeSchema,
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: "Analyze this UI screenshot / mockup and extract its component hierarchy into a structured AST (RawNode tree). Identify containers (box), text elements (text), inputs (input with email/password/text inputType), buttons (button with submit/cancel action), and lists (list). Output accurate Tailwind CSS class names in className where appropriate for layout.",
+                },
+                {
+                  type: "image",
+                  image: data.imageBase64,
+                },
+              ],
+            },
+          ],
+        });
       });
 
-      return { node: result.object, source: "mistral" };
-    } catch (error) {
-      console.error("[VisionModel] Mistral Pixtral Vision error:", error);
-      const mockNode = await parseMockImage(data.imageBase64);
-      return { node: mockNode, source: "mock" };
+      return { node: rawNode, source: "mistral" };
+    } catch (err) {
+      console.error(
+        "[VisionModel] Mistral Vision API generation failed, using mock fallback:",
+        err,
+      );
+      const fallbackNode = await parseMockImage(data.imageBase64);
+      return { node: fallbackNode, source: "mock" };
     }
   });
