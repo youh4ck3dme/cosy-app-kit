@@ -3,17 +3,9 @@ import { useAutoAnimate } from "@formkit/auto-animate/react";
 
 import { useAppPreferences } from "@/hooks/use-app-preferences";
 import { useReducedMotionSafe } from "./motion";
+import { shouldEnableAutoAnimate } from "./auto-animate-gate-core";
 
-/**
- * Pure decision: should AutoAnimate run at all right now?
- * Kept dependency-free so it's testable without React/DOM.
- */
-export function shouldEnableAutoAnimate(params: {
-  prefersReducedMotion: boolean;
-  speedMode: boolean;
-}): boolean {
-  return !params.prefersReducedMotion && !params.speedMode;
-}
+export { shouldEnableAutoAnimate } from "./auto-animate-gate-core";
 
 /**
  * `useAutoAnimate`, gated by the same two signals every other motion in the
