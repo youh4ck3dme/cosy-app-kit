@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { parseImageToRawNode } from "./mockVisionModel";
 import { rawNodeSchema } from "./mistralVisionModel.server";
 

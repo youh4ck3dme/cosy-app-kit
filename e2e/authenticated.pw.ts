@@ -65,22 +65,16 @@ function debugLog(
 async function signIn(page: Page) {
   await page.goto("/auth");
   await page.waitForLoadState("domcontentloaded");
+  // Bridging shell ("Completing sign-in…") can last until OAuth/session bootstrap
+  // or the 12s fail-open timer in auth.tsx — wait for the real form.
+  await expect(page.getByTestId("auth-sign-in")).toBeVisible({ timeout: 25_000 });
   // #region agent log
-  const signInVisible = await page
-    .getByTestId("auth-sign-in")
-    .isVisible()
-    .catch(() => false);
-  const youPlaceholder = await page
-    .getByPlaceholder(/you@/i)
-    .count()
-    .catch(() => 0);
-  debugLog("H3", "authenticated.pw.ts:signIn", "auth page selectors", {
+  const youPlaceholder = await page.getByPlaceholder(/you@/i).count();
+  debugLog("H3", "authenticated.pw.ts:signIn", "auth form ready", {
     path: new URL(page.url()).pathname,
-    signInVisible,
     youPlaceholderCount: youPlaceholder,
   });
   // #endregion
-  await expect(page.getByTestId("auth-sign-in")).toBeVisible({ timeout: 25_000 });
   await page.getByPlaceholder(/you@/i).fill(EMAIL!);
   await page.getByPlaceholder(/password/i).fill(PASSWORD!);
   await page.getByRole("button", { name: /^sign in$/i }).click();
@@ -114,6 +108,20 @@ async function openChatWorkspace(page: Page) {
 
 test.describe("Authenticated workspace", () => {
   test.skip(!hasCreds, "E2E_EMAIL / E2E_PASSWORD not set — skipping authenticated flow");
+
+  test.beforeEach(async ({ page }) => {
+    // Avoid sticky Supabase/OAuth session leaving /auth on AuthPendingShell forever in workers.
+    await page.context().clearCookies();
+    await page.goto("/auth");
+    await page.evaluate(() => {
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch {
+        /* ignore */
+      }
+    });
+  });
 
   test("signs in and lands in the chat workspace", async ({ page }) => {
     await signIn(page);
@@ -178,22 +186,32 @@ test.describe("Authenticated workspace", () => {
   });
 });
 
-/** Always runs — probes /auth selectors without credentials (H3). */
+/** Always runs — probes /auth selectors without credentials (H3 / bridging). */
 test("auth page exposes sign-in testid (no secrets)", async ({ page }) => {
+  await page.context().clearCookies();
   await page.goto("/auth");
+  await page.evaluate(() => {
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch {
+      /* ignore */
+    }
+  });
+  await page.reload();
   await page.waitForLoadState("domcontentloaded");
-  const signInVisible = await page.getByTestId("auth-sign-in").isVisible({ timeout: 25_000 });
+  // Must outlast auth.tsx BRIDGE_TIMEOUT_MS (12s) fail-open when session probe hangs.
+  await expect(page.getByTestId("auth-sign-in")).toBeVisible({ timeout: 20_000 });
   const emailCount = await page.getByPlaceholder(/you@/i).count();
   const passwordCount = await page.getByPlaceholder(/password/i).count();
   // #region agent log
-  debugLog("H3", "authenticated.pw.ts:probe", "public auth probe", {
-    signInVisible,
+  debugLog("H3", "authenticated.pw.ts:probe", "public auth probe after wait", {
     emailCount,
     passwordCount,
     path: new URL(page.url()).pathname,
+    bodyText: (await page.locator("body").innerText()).slice(0, 80),
   });
   // #endregion
-  expect(signInVisible).toBe(true);
   expect(emailCount).toBeGreaterThan(0);
   expect(passwordCount).toBeGreaterThan(0);
 });
