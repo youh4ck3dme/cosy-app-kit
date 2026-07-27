@@ -12,7 +12,49 @@ import { applyScopedNodeEdit } from "@/lib/builder/semantic-intent/scopedEdit.se
 
 import { ZipExporterEngine } from "@/lib/builder/export/zipExporter";
 import { LiveCanvasPreview } from "@/components/builder/LiveCanvasPreview";
+import { ComponentTreeExplorer } from "@/components/builder/playground/ComponentTreeExplorer";
+import { VisualPropertyInspector } from "@/components/builder/playground/VisualPropertyInspector";
 import { haptic } from "@/lib/haptics";
+
+function findNodeById(nodes: RawNode[], nodeId: string): RawNode | null {
+  for (const node of nodes) {
+    if (node.id === nodeId) return node;
+    if (node.children) {
+      const found = findNodeById(node.children, nodeId);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function findAndUpdateNode(nodes: RawNode[], updated: RawNode): RawNode[] {
+  return nodes.map((node) => {
+    if (node.id === updated.id) {
+      return updated;
+    }
+    if (node.children && node.children.length > 0) {
+      return {
+        ...node,
+        children: findAndUpdateNode(node.children, updated),
+      };
+    }
+    return node;
+  });
+}
+
+function findAndDeleteNode(nodes: RawNode[], nodeId: string): RawNode[] {
+  return nodes
+    .filter((node) => node.id !== nodeId)
+    .map((node) => {
+      if (node.children && node.children.length > 0) {
+        return {
+          ...node,
+          children: findAndDeleteNode(node.children, nodeId),
+        };
+      }
+      return node;
+    });
+}
 
 export const Route = createFileRoute("/_authenticated/builder")({
   component: BuilderWorkspacePage,
@@ -82,9 +124,7 @@ function BuilderWorkspacePage() {
       } catch (error) {
         console.error("Failed to process image:", error);
         setVisionError(
-          error instanceof Error
-            ? error.message
-            : "Mistral Vision failed. Set MISTRAL_API_KEY.",
+          error instanceof Error ? error.message : "Mistral Vision failed. Set MISTRAL_API_KEY.",
         );
       } finally {
         setIsProcessing(false);
@@ -98,6 +138,36 @@ function BuilderWorkspacePage() {
     setScopedEditError(null);
     haptic(8);
   }, []);
+
+  const selectedNode = React.useMemo(() => {
+    if (!currentAST || !selectedNodeId) return null;
+    return findNodeById(currentAST, selectedNodeId);
+  }, [currentAST, selectedNodeId]);
+
+  const handleUpdateInspectorNode = React.useCallback(
+    (updatedNode: RawNode) => {
+      if (!currentAST) return;
+      haptic(10);
+      const newAST = findAndUpdateNode(currentAST, updatedNode);
+      setCurrentAST(newAST);
+      regenerateFromAST(newAST, engineResult?.componentName ?? "GeneratedForm");
+    },
+    [currentAST, regenerateFromAST, engineResult?.componentName],
+  );
+
+  const handleDeleteTreeNode = React.useCallback(
+    (nodeId: string) => {
+      if (!currentAST) return;
+      haptic(15);
+      const newAST = findAndDeleteNode(currentAST, nodeId);
+      setCurrentAST(newAST);
+      if (selectedNodeId === nodeId) {
+        setSelectedNodeId(null);
+      }
+      regenerateFromAST(newAST, engineResult?.componentName ?? "GeneratedForm");
+    },
+    [currentAST, selectedNodeId, regenerateFromAST, engineResult?.componentName],
+  );
 
   const handleScopedEdit = React.useCallback(async () => {
     if (!currentAST || !selectedNodeId || !scopedPrompt.trim()) return;
@@ -149,13 +219,13 @@ function BuilderWorkspacePage() {
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-background text-foreground flex flex-col md:flex-row overflow-hidden">
-      {/* LEFT PANEL - Uploader & Vision Context */}
-      <div className="w-full md:w-1/2 p-6 border-r border-border-subtle flex flex-col relative z-10">
-        <div className="mb-8">
+      {/* LEFT PANEL - Uploader, Tree Explorer & Vision Context */}
+      <div className="w-full md:w-1/2 p-6 border-r border-border-subtle flex flex-col relative z-10 space-y-6">
+        <div>
           <h1 className="text-2xl font-bold tracking-tight mb-2">Vision Builder Workspace</h1>
           <p className="text-muted-foreground text-sm">
-            Upload a design screenshot. Click a live canvas element, then apply a scoped edit —
-            only the selected sub-tree is sent to the AI.
+            Upload a design screenshot. Select AST elements in tree explorer or canvas, edit
+            properties or apply AI scoped edits.
           </p>
         </div>
 
@@ -203,6 +273,16 @@ function BuilderWorkspacePage() {
           )}
         </div>
 
+        {/* Tree Explorer */}
+        {currentAST && (
+          <ComponentTreeExplorer
+            nodes={currentAST}
+            selectedNodeId={selectedNodeId}
+            onSelectNode={handleNodeSelected}
+            onDeleteNode={handleDeleteTreeNode}
+          />
+        )}
+
         {/* Scoped edit composer */}
         {engineResult && (
           <div className="mt-6 rounded-xl border border-border-subtle bg-surface/60 p-4 space-y-3">
@@ -231,9 +311,7 @@ function BuilderWorkspacePage() {
                 }}
                 disabled={!selectedNodeId || isScopedEditing}
                 placeholder={
-                  selectedNodeId
-                    ? 'e.g. "Zmeň farbu na červenú"'
-                    : "Select a node first…"
+                  selectedNodeId ? 'e.g. "Zmeň farbu na červenú"' : "Select a node first…"
                 }
                 className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent-primary/40 disabled:opacity-50"
               />
@@ -320,6 +398,12 @@ function BuilderWorkspacePage() {
                   />
                 </div>
               </div>
+
+              {/* Visual No-Code Property Inspector Panel */}
+              <VisualPropertyInspector
+                selectedNode={selectedNode}
+                onUpdateNode={handleUpdateInspectorNode}
+              />
             </div>
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground/50 space-y-4">
