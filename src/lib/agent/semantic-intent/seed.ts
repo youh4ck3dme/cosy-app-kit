@@ -35,6 +35,9 @@ HARD RULES for this turn:
 6. After edits, the app should feel complete for a demo — not leave TODO placeholders if you can implement them.`;
 }
 
+/** In-memory lock per threadId to prevent TOCTOU seed race conditions across concurrent requests */
+const activeSeeds = new Set<string>();
+
 /**
  * Detect intent and insert a single-file skeleton artifact when the thread is empty.
  * Fail-open: returns null on any skip/error (never blocks Build stream).
@@ -48,6 +51,10 @@ export async function seedInstantProductSkeleton(
 
   const detected = detectSemanticIntent(prompt);
   if (!shouldSeedSkeleton(detected)) return null;
+
+  // Prevent concurrent duplicate seeds for the same threadId
+  if (activeSeeds.has(args.threadId)) return null;
+  activeSeeds.add(args.threadId);
 
   try {
     const { count, error: countErr } = await args.supabase
@@ -114,5 +121,7 @@ export async function seedInstantProductSkeleton(
   } catch (err) {
     console.warn("[semantic-intent] seed failed", err);
     return null;
+  } finally {
+    activeSeeds.delete(args.threadId);
   }
 }
