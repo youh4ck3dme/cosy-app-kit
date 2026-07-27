@@ -1,9 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { generateObject } from "ai";
 import { z } from "zod";
-import { createMistralProvider } from "@/lib/ai-gateway.server";
+import {
+  createMistralProvider,
+  formatAiGatewayError,
+  mistralKeyRotator,
+} from "@/lib/ai-gateway.server";
 import type { RawNode } from "./types";
-import { applyScopedPromptHeuristic } from "./scopedEdit";
 
 const nodeTypeSchema = z.enum(["input", "button", "text", "box", "list"]);
 const inputTypeSchema = z.enum(["text", "email", "password", "number"]).optional();
@@ -21,8 +24,8 @@ const rawNodeUpdateSchema = z.object({
 });
 
 /**
- * Scoped LLM edit: only the target node JSON is sent — not the full AST.
- * Falls back to deterministic heuristics when Mistral is unavailable.
+ * Scoped LLM edit via **Mistral only** (no local / heuristic / mock AI).
+ * Only the target node JSON is sent — not the full AST.
  */
 export const applyScopedNodeEdit = createServerFn({ method: "POST" })
   .validator(
@@ -32,22 +35,19 @@ export const applyScopedNodeEdit = createServerFn({ method: "POST" })
       userPrompt: string;
     }) => data,
   )
-  .handler(
-    async ({
-      data,
-    }): Promise<{ node: RawNode; source: "mistral" | "heuristic" }> => {
-      const mistralKey = (process.env.MISTRAL_API_KEY ?? process.env.MISTRAL_KEY ?? "").trim();
+  .handler(async ({ data }): Promise<{ node: RawNode; source: "mistral" }> => {
+    if (mistralKeyRotator.keyCount === 0) {
+      throw new Error(
+        "Missing MISTRAL_API_KEY. Scoped edits require Mistral — no local AI. Set MISTRAL_API_KEY (or MISTRAL_API_KEYS) in server env / Lovable Cloud Secrets.",
+      );
+    }
 
-      if (!mistralKey) {
-        const node = applyScopedPromptHeuristic(data.targetNode, data.userPrompt);
-        return { node, source: "heuristic" };
-      }
-
-      try {
-        const mistral = createMistralProvider(mistralKey);
+    try {
+      const { object } = await mistralKeyRotator.executeWithRetry(async (apiKey) => {
+        const mistral = createMistralProvider(apiKey);
         const model = mistral("mistral-small-latest");
 
-        const result = await generateObject({
+        return await generateObject({
           model,
           schema: rawNodeUpdateSchema,
           messages: [
@@ -71,21 +71,29 @@ export const applyScopedNodeEdit = createServerFn({ method: "POST" })
             },
           ],
         });
+      });
 
-        return {
-          node: {
-            ...data.targetNode,
-            ...result.object,
-            id: data.targetNode.id,
-            type: data.targetNode.type,
-            children: data.targetNode.children,
-          },
-          source: "mistral",
-        };
-      } catch (error) {
-        console.error("[ScopedEdit] Mistral error, falling back to heuristic:", error);
-        const node = applyScopedPromptHeuristic(data.targetNode, data.userPrompt);
-        return { node, source: "heuristic" };
+      return {
+        node: {
+          ...data.targetNode,
+          ...object,
+          id: data.targetNode.id,
+          type: data.targetNode.type,
+          children: data.targetNode.children,
+        },
+        source: "mistral",
+      };
+    } catch (error) {
+      console.error("[ScopedEdit] Mistral error:", error);
+      const message = formatAiGatewayError(error);
+      if (
+        message.includes("Missing MISTRAL_API_KEY") ||
+        (error instanceof Error && error.message.includes("Missing MISTRAL"))
+      ) {
+        throw error instanceof Error ? error : new Error(message);
       }
-    },
-  );
+      throw new Error(
+        `Mistral scoped edit failed: ${message.slice(0, 240)}. Check MISTRAL_API_KEY and console.mistral.ai.`,
+      );
+    }
+  });

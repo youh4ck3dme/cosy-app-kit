@@ -25,15 +25,20 @@ describe("Scoped edit pipeline (Canvas Select → Delta)", () => {
     },
   ];
 
-  it("extract → heuristic color edit → applyASTDelta only touches target", async () => {
+  const testEdit = (scoped: { targetNode: RawNode }, prompt: string) =>
+    applyScopedPromptHeuristic(scoped.targetNode, prompt);
+
+  it("extract → test editor color edit → applyASTDelta only touches target", async () => {
     const result = await runScopedEditPipeline({
       fullAST,
       targetNodeId: "cta",
       userPrompt: "Zmeň toto tlačidlo na červené",
+      source: "test",
+      editNode: testEdit,
     });
 
     expect(result).not.toBeNull();
-    expect(result!.source).toBe("heuristic");
+    expect(result!.source).toBe("test");
     expect(result!.scoped.parentPath).toEqual(["root", "cta"]);
     expect(result!.scoped.minimalPromptContext).toContain("Buy Now");
     expect(result!.updatedNode.className).toContain("bg-red-500");
@@ -53,27 +58,26 @@ describe("Scoped edit pipeline (Canvas Select → Delta)", () => {
     const fullSize = JSON.stringify(fullAST).length;
     const scopedSize = scoped!.minimalPromptContext.length;
     expect(scopedSize).toBeLessThan(fullSize);
-    // For this tree, scoped payload should be clearly smaller
     expect(scopedSize / fullSize).toBeLessThan(0.9);
   });
 
-  it("injectable editNode supports mock LLM path", async () => {
+  it("injectable editNode supports test stub path", async () => {
     const result = await runScopedEditPipeline({
       fullAST,
       targetNodeId: "title",
       userPrompt: "anything",
-      source: "mock",
+      source: "test",
       editNode: async (scoped) => ({
         ...scoped.targetNode,
-        text: "Hello from mock LLM",
+        text: "Hello from test stub",
         className: "text-2xl font-bold",
       }),
     });
 
-    expect(result?.source).toBe("mock");
-    expect(result?.updatedNode.text).toBe("Hello from mock LLM");
+    expect(result?.source).toBe("test");
+    expect(result?.updatedNode.text).toBe("Hello from test stub");
     const title = result!.updatedAST[0].children!.find((c) => c.id === "title");
-    expect(title?.text).toBe("Hello from mock LLM");
+    expect(title?.text).toBe("Hello from test stub");
   });
 
   it("returns null when selection id is unknown", async () => {
@@ -81,11 +85,13 @@ describe("Scoped edit pipeline (Canvas Select → Delta)", () => {
       fullAST,
       targetNodeId: "missing",
       userPrompt: "make red",
+      source: "test",
+      editNode: testEdit,
     });
     expect(result).toBeNull();
   });
 
-  it("heuristic renames button text", () => {
+  it("test helper renames button text", () => {
     const node: RawNode = { id: "b1", type: "button", text: "Old", className: "bg-blue-500" };
     const next = applyScopedPromptHeuristic(node, 'change text to "Purchase"');
     expect(next.text).toBe("Purchase");
@@ -96,6 +102,8 @@ describe("Scoped edit pipeline (Canvas Select → Delta)", () => {
       fullAST,
       targetNodeId: "cta",
       userPrompt: "make it green",
+      source: "test",
+      editNode: testEdit,
     });
     expect(first).not.toBeNull();
 
@@ -103,6 +111,8 @@ describe("Scoped edit pipeline (Canvas Select → Delta)", () => {
       fullAST: first!.updatedAST,
       targetNodeId: "cta",
       userPrompt: "make it purple",
+      source: "test",
+      editNode: testEdit,
     });
     expect(second!.updatedNode.className).toContain("bg-purple-500");
     expect(second!.updatedNode.className).not.toContain("bg-emerald-500");

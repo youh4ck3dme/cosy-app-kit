@@ -96,6 +96,10 @@ export interface FigmaNode {
   characters?: string;
   style?: Record<string, unknown>;
   layoutMode?: "HORIZONTAL" | "VERTICAL" | "NONE";
+  /** Figma REST: "ABSOLUTE" for freeform positioning within auto-layout parents */
+  layoutPositioning?: "AUTO" | "ABSOLUTE";
+  /** Convenience flag used by some Figma export bridges */
+  isAbsolute?: boolean;
   itemSpacing?: number;
   paddingLeft?: number;
   paddingRight?: number;

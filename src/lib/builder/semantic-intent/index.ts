@@ -34,3 +34,4 @@ export {
   runScopedEditPipeline,
 } from "./scopedEdit";
 export type { ScopedEditPipelineResult } from "./scopedEdit";
+export { FigmaAdapterEngine } from "./FigmaAdapterEngine";
