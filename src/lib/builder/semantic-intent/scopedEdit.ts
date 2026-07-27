@@ -5,12 +5,14 @@ export interface ScopedEditPipelineResult {
   updatedAST: RawNode[];
   updatedNode: RawNode;
   scoped: ScopedContextResult;
-  source: "heuristic" | "mistral" | "mock";
+  /** Production path is always Mistral; other sources exist only in unit tests. */
+  source: "mistral" | "test";
 }
 
 /**
- * Offline / deterministic edits for common visual prompts (EN + SK).
- * Used as mock fallback and for unit tests without network.
+ * Deterministic class/text rewrites for **unit tests only**.
+ * Production scoped edits must go through Mistral (`applyScopedNodeEdit`).
+ * Not a local AI model — pure string rules for offline pipeline tests.
  */
 export function applyScopedPromptHeuristic(target: RawNode, userPrompt: string): RawNode {
   // Keep original for text renames; lowercased for keyword matching
@@ -91,13 +93,15 @@ export function applyScopedPromptHeuristic(target: RawNode, userPrompt: string):
 
 /**
  * Full pipeline: scoped extract → node edit → delta apply.
- * `editNode` is injectable so tests can use heuristics and production can use Mistral.
+ * Production must inject Mistral `editNode` (see builder.tsx + applyScopedNodeEdit).
+ * Unit tests may inject a deterministic editor; there is no default local AI.
  */
 export async function runScopedEditPipeline(options: {
   fullAST: RawNode[];
   targetNodeId: string;
   userPrompt: string;
-  editNode?: (
+  /** Required in production — Mistral server fn. Tests inject a stub. */
+  editNode: (
     scoped: ScopedContextResult,
     userPrompt: string,
   ) => RawNode | Promise<RawNode>;
@@ -107,8 +111,7 @@ export async function runScopedEditPipeline(options: {
   const scoped = spatial.extractScopedContext(options.targetNodeId, options.fullAST);
   if (!scoped) return null;
 
-  const editFn = options.editNode ?? ((s, p) => applyScopedPromptHeuristic(s.targetNode, p));
-  const updatedNode = await editFn(scoped, options.userPrompt);
+  const updatedNode = await options.editNode(scoped, options.userPrompt);
   // Preserve identity
   const safeNode: RawNode = {
     ...updatedNode,
@@ -122,7 +125,7 @@ export async function runScopedEditPipeline(options: {
     updatedAST,
     updatedNode: safeNode,
     scoped,
-    source: options.source ?? "heuristic",
+    source: options.source ?? "mistral",
   };
 }
 

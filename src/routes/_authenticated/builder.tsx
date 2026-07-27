@@ -27,9 +27,7 @@ function BuilderWorkspacePage() {
   const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(null);
   const [scopedPrompt, setScopedPrompt] = React.useState("");
   const [isScopedEditing, setIsScopedEditing] = React.useState(false);
-  const [scopedEditSource, setScopedEditSource] = React.useState<
-    "mistral" | "heuristic" | null
-  >(null);
+  const [scopedEditSource, setScopedEditSource] = React.useState<"mistral" | null>(null);
   const [scopedEditError, setScopedEditError] = React.useState<string | null>(null);
 
   const regenerateFromAST = React.useCallback((ast: RawNode[], componentName = "GeneratedForm") => {
@@ -102,7 +100,9 @@ function BuilderWorkspacePage() {
         fullAST: currentAST,
         targetNodeId: selectedNodeId,
         userPrompt: scopedPrompt.trim(),
+        source: "mistral",
         editNode: async (scoped, userPrompt) => {
+          // Mistral only — no local / heuristic AI fallback
           const res = await applyScopedNodeEdit({
             data: {
               targetNode: scoped.targetNode,
@@ -125,7 +125,12 @@ function BuilderWorkspacePage() {
       setScopedPrompt("");
     } catch (error) {
       console.error("Scoped edit failed:", error);
-      setScopedEditError(error instanceof Error ? error.message : "Scoped edit failed");
+      setScopedEditSource(null);
+      setScopedEditError(
+        error instanceof Error
+          ? error.message
+          : "Mistral scoped edit failed. Check MISTRAL_API_KEY.",
+      );
     } finally {
       setIsScopedEditing(false);
     }
@@ -225,9 +230,9 @@ function BuilderWorkspacePage() {
             </div>
             {scopedEditSource && (
               <p className="text-[11px] text-muted-foreground">
-                Last edit source:{" "}
-                <span className="font-medium text-foreground">{scopedEditSource}</span>
-                {" · "}delta re-applied, canvas re-rendered
+                Last edit:{" "}
+                <span className="font-medium text-emerald-400">Mistral API</span>
+                {" · "}scoped delta re-applied, canvas re-rendered
               </p>
             )}
             {scopedEditError && (
