@@ -92,7 +92,11 @@ export async function seedInstantProductSkeleton(
       .single();
 
     if (error || !data) {
-      console.warn("[semantic-intent] skeleton insert failed", error?.message);
+      if (error?.code === "23505" || error?.message?.includes("unique")) {
+        console.info("[semantic-intent] duplicate seed blocked by DB unique constraint");
+      } else {
+        console.warn("[semantic-intent] skeleton insert failed", error?.message);
+      }
       return null;
     }
 
