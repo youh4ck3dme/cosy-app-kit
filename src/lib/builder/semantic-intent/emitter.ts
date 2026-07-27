@@ -29,7 +29,19 @@ ${componentBody}
   }
 
   private emitForm(nodes: SmartNode[]): { stateStr: string; bodyStr: string } {
-    const inputNodes = nodes.filter((n) => n.type === "input" && n.stateKey);
+    const flattenSmartNodes = (items: SmartNode[]): SmartNode[] => {
+      const result: SmartNode[] = [];
+      for (const item of items) {
+        result.push(item);
+        if (item.children && item.children.length > 0) {
+          result.push(...flattenSmartNodes(item.children));
+        }
+      }
+      return result;
+    };
+
+    const allNodes = flattenSmartNodes(nodes);
+    const inputNodes = allNodes.filter((n) => n.type === "input" && n.stateKey);
     const stateFields = inputNodes.map((n) => `    ${n.stateKey}: ''`).join(",\n");
 
     const stateStr = `  const [formData, setFormData] = useState({
@@ -43,10 +55,10 @@ ${stateFields}
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Form submitted:', formData);
-    // TODO: Přidej API volání
+    // TODO: Add API call
   };`;
 
-    const jsxElements = nodes
+    const jsxElements = allNodes
       .map((node) => {
         if (node.type === "input") {
           const rawClass = node.className ? ` ${node.className}` : "";
@@ -73,6 +85,7 @@ ${stateFields}
         }
         return "";
       })
+      .filter(Boolean)
       .join("\n\n");
 
     const bodyStr = `  return (
