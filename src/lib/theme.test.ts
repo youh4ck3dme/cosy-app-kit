@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  resolveTheme,
-  isDarkResolved,
-  THEME_BOOTSTRAP_SCRIPT,
-} from "./theme";
+import { resolveTheme, isDarkResolved, THEME_BOOTSTRAP_SCRIPT } from "./theme";
 
 describe("theme", () => {
   it("explicit themes resolve to themselves", () => {

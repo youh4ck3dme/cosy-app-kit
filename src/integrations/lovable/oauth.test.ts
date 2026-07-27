@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  decodeOAuthState,
-  encodeOAuthState,
-  isLocalDevReturnUrl,
-} from "@/integrations/lovable";
+import { decodeOAuthState, encodeOAuthState, isLocalDevReturnUrl } from "@/integrations/lovable";
 
 describe("Google OAuth helpers", () => {
   it("accepts loopback and private LAN return URLs", () => {

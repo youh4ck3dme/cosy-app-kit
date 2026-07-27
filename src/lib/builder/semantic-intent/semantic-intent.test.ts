@@ -55,9 +55,7 @@ describe("SemanticIntentEngine", () => {
     expect(result.code).not.toContain("useState");
     // data-node-id for canvas selection + mobile auto-fixer text overflow classes
     expect(result.code).toContain('data-node-id="1"');
-    expect(result.code).toContain(
-      'className="text-2xl font-bold break-words overflow-hidden"',
-    );
+    expect(result.code).toContain('className="text-2xl font-bold break-words overflow-hidden"');
     expect(result.code).toContain("Hello World");
     expect(result.code).toContain('data-node-id="2"');
     expect(result.code).toContain("This is a static block of text.");

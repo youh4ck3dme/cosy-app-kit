@@ -44,10 +44,7 @@ function ThemeToggle({ className }: { className?: string }) {
     <button
       type="button"
       onClick={() => setTheme(next)}
-      className={cn(
-        className,
-        theme === "cosy" && "text-accent-primary hover:text-accent-glow",
-      )}
+      className={cn(className, theme === "cosy" && "text-accent-primary hover:text-accent-glow")}
       aria-label={`${label} — switch to ${THEME_META[next].label}`}
       title={`${label} (next: ${THEME_META[next].label})`}
     >

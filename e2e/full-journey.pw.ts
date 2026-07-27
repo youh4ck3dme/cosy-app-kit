@@ -4,7 +4,6 @@ import { test, expect, type Page } from "@playwright/test";
 const MISSING_PUBLIC_ID = "00000000-0000-4000-8000-000000000001";
 const TEMPLATE_SLUG = "saas-landing";
 
-
 /** Clear Supabase session (localStorage) so public gates stay unauthenticated. */
 async function clearBrowserSession(page: Page) {
   await page.context().clearCookies();
@@ -30,7 +29,6 @@ async function clearBrowserSession(page: Page) {
     /* no page yet */
   }
 }
-
 
 test.describe("Full app journey (public surface)", () => {
   test("1 · landing hero, how-it-works, features, footer", async ({ page }) => {
@@ -114,9 +112,12 @@ test.describe("Full app journey (public surface)", () => {
     const useBtn = page.getByRole("button", { name: /use template/i });
     await expect(useBtn).toBeEnabled();
     await Promise.all([
-      page.waitForURL((url) => url.pathname.startsWith("/auth") || url.pathname.startsWith("/chat"), {
-        timeout: 25_000,
-      }),
+      page.waitForURL(
+        (url) => url.pathname.startsWith("/auth") || url.pathname.startsWith("/chat"),
+        {
+          timeout: 25_000,
+        },
+      ),
       useBtn.click(),
     ]);
     // Unauthenticated: auth. With residual session: chat (then still OK if gated).
@@ -170,7 +171,12 @@ test.describe("Full app journey (public surface)", () => {
   });
 
   test("8 · PWA assets respond", async ({ request }) => {
-    for (const path of ["/manifest.webmanifest", "/sw.js", "/offline.html", "/icons/icon-192.png"]) {
+    for (const path of [
+      "/manifest.webmanifest",
+      "/sw.js",
+      "/offline.html",
+      "/icons/icon-192.png",
+    ]) {
       expect((await request.get(path)).status(), path).toBe(200);
     }
   });
@@ -205,10 +211,16 @@ test.describe("Full app journey (public surface)", () => {
   test("12 · Deep links: header Templates + Sign in from landing", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByTestId("landing-hero")).toBeVisible({ timeout: 20_000 });
-    await page.locator("header").getByRole("link", { name: /^templates$/i }).click();
+    await page
+      .locator("header")
+      .getByRole("link", { name: /^templates$/i })
+      .click();
     await page.waitForURL(/\/templates/, { timeout: 15_000 });
     await expect(page.getByRole("heading", { level: 1, name: /^templates$/i })).toBeVisible();
-    await page.getByRole("link", { name: /sign in/i }).first().click();
+    await page
+      .getByRole("link", { name: /sign in/i })
+      .first()
+      .click();
     await page.waitForURL(/\/auth/, { timeout: 15_000 });
     await expect(page.getByTestId("auth-sign-in")).toBeVisible({ timeout: 20_000 });
   });

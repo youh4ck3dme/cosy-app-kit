@@ -172,9 +172,22 @@ export class HTMLAdapterEngine {
       } else if (["ul", "ol", "nav"].includes(tagName)) {
         type = "list";
       } else if (
-        ["h1", "h2", "h3", "h4", "h5", "h6", "p", "span", "a", "label", "b", "strong", "em", "i"].includes(
-          tagName,
-        )
+        [
+          "h1",
+          "h2",
+          "h3",
+          "h4",
+          "h5",
+          "h6",
+          "p",
+          "span",
+          "a",
+          "label",
+          "b",
+          "strong",
+          "em",
+          "i",
+        ].includes(tagName)
       ) {
         type = "text";
       }

@@ -5,26 +5,26 @@
 
 ## Concepts (SVG)
 
-| # | Name | File | Use |
-|---|------|------|-----|
-| 1 | Spatial AST Node Mark | `concept-1-spatial-ast-lockup.svg` | Primary header / marketing lockup |
-| 2 | Precision Viewport Monogram | `concept-2-viewport-monogram.svg`, `favicon.svg` | PWA / browser favicon / app icon |
-| 3 | Minimalist Mono Emblem | `concept-3-mono-emblem.svg` | Print, GitHub, docs, high-contrast |
+| #   | Name                        | File                                             | Use                                |
+| --- | --------------------------- | ------------------------------------------------ | ---------------------------------- |
+| 1   | Spatial AST Node Mark       | `concept-1-spatial-ast-lockup.svg`               | Primary header / marketing lockup  |
+| 2   | Precision Viewport Monogram | `concept-2-viewport-monogram.svg`, `favicon.svg` | PWA / browser favicon / app icon   |
+| 3   | Minimalist Mono Emblem      | `concept-3-mono-emblem.svg`                      | Print, GitHub, docs, high-contrast |
 
 ## Design tokens (Tailwind v4)
 
 Mapped in `src/styles.css` `@theme inline`:
 
-| Token | Hex | Utility |
-|-------|-----|---------|
-| brand-obsidian | `#0A0A0C` | `bg-brand-obsidian` |
-| brand-zinc | `#18181B` | `bg-brand-zinc` |
-| brand-border | `#27272A` | `border-brand-border` |
-| brand-muted | `#71717A` | `text-brand-muted` |
-| brand-indigo | `#6366F1` | `text-brand-indigo` |
-| brand-cyan | `#38BDF8` | `text-brand-cyan` |
-| brand-purple | `#818CF8` | `text-brand-purple` |
-| font-brand | Inter / SF Pro | `font-brand` |
+| Token          | Hex            | Utility               |
+| -------------- | -------------- | --------------------- |
+| brand-obsidian | `#0A0A0C`      | `bg-brand-obsidian`   |
+| brand-zinc     | `#18181B`      | `bg-brand-zinc`       |
+| brand-border   | `#27272A`      | `border-brand-border` |
+| brand-muted    | `#71717A`      | `text-brand-muted`    |
+| brand-indigo   | `#6366F1`      | `text-brand-indigo`   |
+| brand-cyan     | `#38BDF8`      | `text-brand-cyan`     |
+| brand-purple   | `#818CF8`      | `text-brand-purple`   |
+| font-brand     | Inter / SF Pro | `font-brand`          |
 
 ## React
 

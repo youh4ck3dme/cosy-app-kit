@@ -34,10 +34,7 @@ export class SemanticIntentEngine {
 export * from "./types";
 export { AISpatialContextEngine } from "./spatialEngine";
 export type { ScopedContextResult } from "./spatialEngine";
-export {
-  applyScopedPromptHeuristic,
-  runScopedEditPipeline,
-} from "./scopedEdit";
+export { applyScopedPromptHeuristic, runScopedEditPipeline } from "./scopedEdit";
 export type { ScopedEditPipelineResult } from "./scopedEdit";
 export { FigmaAdapterEngine } from "./FigmaAdapterEngine";
 export { IPhone17AirAdapter } from "../mobile/iPhone17AirAdapter";

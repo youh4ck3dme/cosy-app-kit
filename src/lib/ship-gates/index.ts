@@ -4,8 +4,7 @@
  */
 
 /** Bare script CDN hosts that preview CSP blocks. */
-export const BARE_SCRIPT_CDN_HOSTS =
-  /cdn\.jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com/gi;
+export const BARE_SCRIPT_CDN_HOSTS = /cdn\.jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com/gi;
 
 /** Nearby phrasing that marks a CDN mention as a prohibition, not a recommendation. */
 export const CDN_BAN_CONTEXT =
