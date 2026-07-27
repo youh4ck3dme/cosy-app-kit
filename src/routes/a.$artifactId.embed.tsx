@@ -57,7 +57,7 @@ export const Route = createFileRoute("/a/$artifactId/embed")({
     ],
   }),
   notFoundComponent: () => (
-    <div className="flex min-h-[240px] items-center justify-center bg-background text-sm text-muted-foreground">
+    <div className="flex min-h-60 items-center justify-center rounded-2xl border border-dashed border-border-subtle bg-surface/50 p-6 text-sm text-muted-foreground">
       Not found
     </div>
   ),

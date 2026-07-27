@@ -1,8 +1,12 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { TEMPLATES, TEMPLATE_CATEGORIES } from "@/lib/templates.seed";
 import { cn } from "@/lib/utils";
 
+/**
+ * /templates layout: index list lives here; /templates/$slug renders via <Outlet />.
+ * (TanStack nests templates.$slug under this route — without Outlet, detail never paints.)
+ */
 export const Route = createFileRoute("/templates")({
   head: () => ({
     meta: [
@@ -14,8 +18,17 @@ export const Route = createFileRoute("/templates")({
       },
     ],
   }),
-  component: TemplatesIndexPage,
+  component: TemplatesRoute,
 });
+
+function TemplatesRoute() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isIndex = pathname === "/templates" || pathname === "/templates/";
+  if (!isIndex) {
+    return <Outlet />;
+  }
+  return <TemplatesIndexPage />;
+}
 
 function TemplatesIndexPage() {
   const [cat, setCat] = useState<string>("All");
