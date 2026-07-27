@@ -1,12 +1,15 @@
 import { test, expect, type Page } from "@playwright/test";
+import { E2E_AUTH_FILE, loadE2eAuthFromFile } from "./load-e2e-auth";
 
 /**
  * Authenticated workspace. Runs ONLY with credentials:
  *
  *   E2E_EMAIL=… E2E_PASSWORD=… bun run test:e2e -- e2e/authenticated.pw.ts
+ *   # or fill gitignored e2e/e2e:authenticated.md (see e2e:authenticated.md.example)
  *
  * Never sends AI messages.
  */
+loadE2eAuthFromFile();
 const EMAIL = process.env.E2E_EMAIL;
 const PASSWORD = process.env.E2E_PASSWORD;
 const hasCreds = Boolean(EMAIL && PASSWORD);
@@ -29,7 +32,10 @@ async function openChatWorkspace(page: Page) {
 }
 
 test.describe("Authenticated workspace", () => {
-  test.skip(!hasCreds, "E2E_EMAIL / E2E_PASSWORD not set — skipping authenticated flow");
+  test.skip(
+    !hasCreds,
+    `E2E_EMAIL / E2E_PASSWORD not set — fill ${E2E_AUTH_FILE} or export env vars`,
+  );
 
   test.beforeEach(async ({ page }) => {
     // Avoid sticky Supabase/OAuth session leaving /auth on AuthPendingShell forever in workers.
