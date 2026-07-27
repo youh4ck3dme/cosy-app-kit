@@ -120,7 +120,7 @@ export const ImageDropZoneCanvas: React.FC<ImageDropZoneCanvasProps> = ({
   return (
     <div
       data-testid="vision-image-dropzone"
-      className="relative w-full h-full min-h-[300px]"
+      className="relative w-full h-full min-h-75"
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
