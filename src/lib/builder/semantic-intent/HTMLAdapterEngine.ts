@@ -9,10 +9,17 @@ export class HTMLAdapterEngine {
       return [];
     }
 
-    // In Browser or DOMParser environment
-    if (typeof window !== "undefined" && typeof window.DOMParser !== "undefined") {
+    // Prefer global DOMParser when available (browser / happy-dom)
+    const ParserCtor =
+      typeof DOMParser !== "undefined"
+        ? DOMParser
+        : typeof window !== "undefined" && typeof window.DOMParser !== "undefined"
+          ? window.DOMParser
+          : null;
+
+    if (ParserCtor) {
       try {
-        const parser = new DOMParser();
+        const parser = new ParserCtor();
         const doc = parser.parseFromString(htmlString, "text/html");
         const nodes: RawNode[] = [];
 
@@ -129,44 +136,82 @@ export class HTMLAdapterEngine {
   }
 
   private fallbackParse(htmlString: string): RawNode[] {
-    // Regex-based simple fallback for Node environment tests
+    // Regex fallback for Node/Bun without DOMParser ([\s\S] crosses newlines)
     const cleanHTML = htmlString.replace(/```html|```/g, "").trim();
-    const tagMatches = cleanHTML.match(/<([a-z1-6]+)([^>]*)>(.*?)<\/\1>/gi);
+    return this.parseTopLevelTags(cleanHTML);
+  }
 
-    if (!tagMatches) {
+  /** Parse top-level tags only so nested trees become children, not siblings. */
+  private parseTopLevelTags(html: string): RawNode[] {
+    const nodes: RawNode[] = [];
+    const tagRe = /<([a-z][a-z0-9]*)\b([^>]*)>([\s\S]*?)<\/\1\s*>/gi;
+    let match: RegExpExecArray | null;
+    let cursor = 0;
+
+    while ((match = tagRe.exec(html)) !== null) {
+      // Skip matches nested inside a previous top-level match
+      if (match.index < cursor) continue;
+
+      const [full, tag, attrs, innerContent] = match;
+      const classMatch = attrs.match(/class\s*=\s*["']([^"']+)["']/i);
+      const className = classMatch ? classMatch[1] : undefined;
+      const tagName = tag.toLowerCase();
+
+      let type: NodeType = "box";
+      let inputType: InputType | undefined;
+      let action: ActionType | undefined;
+
+      if (tagName === "button") {
+        type = "button";
+        action = /type\s*=\s*["']submit["']/i.test(attrs) ? "submit" : "navigate";
+      } else if (tagName === "input") {
+        type = "input";
+        const raw = (attrs.match(/type\s*=\s*["']([^"']+)["']/i)?.[1] || "text").toLowerCase();
+        inputType =
+          raw === "email" || raw === "password" || raw === "number" ? (raw as InputType) : "text";
+      } else if (["ul", "ol", "nav"].includes(tagName)) {
+        type = "list";
+      } else if (
+        ["h1", "h2", "h3", "h4", "h5", "h6", "p", "span", "a", "label", "b", "strong", "em", "i"].includes(
+          tagName,
+        )
+      ) {
+        type = "text";
+      }
+
+      const childNodes = this.parseTopLevelTags(innerContent.trim());
+      const textOnly =
+        childNodes.length === 0
+          ? innerContent.replace(/<[^>]+>/g, "").trim() || undefined
+          : undefined;
+
+      nodes.push({
+        id: `node_${nodes.length}_${Math.random().toString(36).substring(2, 7)}`,
+        type,
+        text: textOnly,
+        className,
+        inputType,
+        action,
+        children: childNodes.length > 0 ? childNodes : undefined,
+        meta: { tagName },
+      });
+
+      cursor = match.index + full.length;
+      // Continue search after this top-level element
+      tagRe.lastIndex = cursor;
+    }
+
+    if (nodes.length === 0 && html.trim()) {
       return [
         {
           id: `node_${Math.random().toString(36).substring(2, 7)}`,
           type: "box",
-          text: cleanHTML,
+          text: html.replace(/<[^>]+>/g, "").trim() || html.trim(),
           className: "p-4",
         },
       ];
     }
 
-    return tagMatches.map((match, idx) => {
-      const tagMatch = match.match(/<([a-z1-6]+)([^>]*)>(.*?)<\/\1>/i);
-      if (!tagMatch) {
-        return { id: `node_${idx}`, type: "box", text: match };
-      }
-
-      const [, tag, attrs, innerContent] = tagMatch;
-      const classMatch = attrs.match(/class=["']([^"']+)["']/i);
-      const className = classMatch ? classMatch[1] : undefined;
-
-      const tagName = tag.toLowerCase();
-      let type: NodeType = "box";
-      if (tagName === "button") type = "button";
-      else if (tagName === "input") type = "input";
-      else if (["ul", "ol", "nav"].includes(tagName)) type = "list";
-      else if (["h1", "h2", "h3", "p", "span", "a"].includes(tagName)) type = "text";
-
-      return {
-        id: `node_${idx}_${Math.random().toString(36).substring(2, 7)}`,
-        type,
-        text: innerContent.replace(/<[^>]+>/g, "").trim() || undefined,
-        className,
-      };
-    });
+    return nodes;
   }
 }

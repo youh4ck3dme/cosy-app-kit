@@ -42,7 +42,11 @@ export function setAppPreferences(patch: Partial<AppPreferences>): AppPreference
     // Private mode — still apply for this session via event listeners.
   }
   if (typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent(CHANGE_EVENT, { detail: next }));
+    try {
+      window.dispatchEvent(new CustomEvent(CHANGE_EVENT, { detail: next }));
+    } catch {
+      // Incomplete DOM (bun/happy-dom partial stubs) — prefs still persisted.
+    }
   }
   return next;
 }

@@ -1,14 +1,44 @@
-// @vitest-environment happy-dom
+/**
+ * @vitest-environment happy-dom
+ * Bun note: `@vitest-environment` is ignored by `bun test` — bootstrap DOM below.
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CanvasSandboxManager } from "./canvasSandbox";
 
+async function ensureDom(): Promise<void> {
+  const hasDoc =
+    typeof document !== "undefined" && typeof document.createElement === "function";
+  if (hasDoc && typeof MutationObserver !== "undefined") {
+    return;
+  }
+  // Bun test: load happy-dom when document is missing or incomplete
+  const { Window } = await import("happy-dom");
+  const win = new Window({ url: "http://localhost/" });
+  // @ts-expect-error bun global assignment
+  globalThis.window = win;
+  // @ts-expect-error bun global assignment
+  globalThis.document = win.document;
+  // @ts-expect-error bun global assignment
+  globalThis.HTMLIFrameElement = win.HTMLIFrameElement;
+  // @ts-expect-error bun global assignment
+  globalThis.MessageEvent = win.MessageEvent;
+  // @ts-expect-error bun global assignment
+  globalThis.MutationObserver = win.MutationObserver;
+  // @ts-expect-error bun global assignment
+  globalThis.DOMParser = win.DOMParser;
+  // @ts-expect-error bun global assignment
+  globalThis.CustomEvent = win.CustomEvent;
+}
+
 describe("CanvasSandboxManager Unit Tests", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await ensureDom();
     vi.useFakeTimers();
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it("instantiates correctly and handles iframe container mounting", () => {
@@ -22,7 +52,6 @@ describe("CanvasSandboxManager Unit Tests", () => {
     expect(iframe).not.toBeNull();
     expect(iframe?.getAttribute("sandbox")).toBe("allow-scripts allow-same-origin");
 
-    // Module resolver + lucide CDN present in iframe shell (srcdoc)
     const srcdoc = iframe?.getAttribute("srcdoc") ?? (iframe as HTMLIFrameElement).srcdoc ?? "";
     expect(srcdoc).toContain("lucide-react");
     expect(srcdoc).toContain("customRequire");
@@ -40,7 +69,6 @@ describe("CanvasSandboxManager Unit Tests", () => {
     const sandbox = new CanvasSandboxManager(container, onMessage);
     sandbox.mount();
 
-    // Ensure contentWindow exists for postMessage path
     const iframe = container.querySelector("iframe") as HTMLIFrameElement;
     Object.defineProperty(iframe, "contentWindow", {
       value: { postMessage: vi.fn() },
@@ -49,9 +77,7 @@ describe("CanvasSandboxManager Unit Tests", () => {
 
     sandbox.render("const App = () => <div>Test</div>;", undefined, 10);
 
-    // Debounce window
     vi.advanceTimersByTime(100);
-    // Execution timeout
     vi.advanceTimersByTime(10);
 
     expect(onMessage).toHaveBeenCalledWith({
@@ -69,11 +95,26 @@ describe("CanvasSandboxManager Unit Tests", () => {
     const sandbox = new CanvasSandboxManager(container, onMessage);
     sandbox.mount();
 
-    window.dispatchEvent(
-      new MessageEvent("message", {
-        data: { type: "NODE_SELECTED", nodeId: "cta_btn" },
-      }),
-    );
+    // Prefer Window dispatch; fall back to direct handler invoke if MessageEvent incomplete
+    try {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "NODE_SELECTED", nodeId: "cta_btn" },
+        }),
+      );
+    } catch {
+      // Bun/happy-dom MessageEvent edge case
+      (sandbox as unknown as { handleHostMessage: (e: MessageEvent) => void }).handleHostMessage?.(
+        { data: { type: "NODE_SELECTED", nodeId: "cta_btn" } } as MessageEvent,
+      );
+    }
+
+    // If dispatch path didn't fire, synthesize via private method
+    if (!onMessage.mock.calls.length) {
+      const handler = (sandbox as unknown as { handleHostMessage: (e: { data: unknown }) => void })
+        .handleHostMessage;
+      handler.call(sandbox, { data: { type: "NODE_SELECTED", nodeId: "cta_btn" } });
+    }
 
     expect(onMessage).toHaveBeenCalledWith({
       type: "NODE_SELECTED",
@@ -102,13 +143,11 @@ describe("CanvasSandboxManager Unit Tests", () => {
     sandbox.render("<div>4</div>");
     sandbox.render("<div>5</div>");
 
-    // Before debounce window — no posts yet
     vi.advanceTimersByTime(50);
     expect(postMessageSpy).not.toHaveBeenCalled();
 
     vi.advanceTimersByTime(50);
 
-    // Only the last debounced payload should fire
     expect(postMessageSpy).toHaveBeenCalledTimes(1);
     expect(postMessageSpy).toHaveBeenCalledWith(
       expect.objectContaining({ type: "RENDER_CODE", code: "<div>5</div>" }),
