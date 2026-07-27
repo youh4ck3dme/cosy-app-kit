@@ -271,7 +271,7 @@ export const Route = createFileRoute("/api/chat")({
               .eq("id", thread.id);
           };
 
-          const provider = createMistralProvider(mistralKey);
+          const provider = createMistralProvider();
           const originalMessages = body.messages as UIMessage[];
 
           // Wrap stream so we can emit transient data-* parts for Cursor toasts/canvas.
