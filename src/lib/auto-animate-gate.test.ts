@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { shouldEnableAutoAnimate } from "./auto-animate-gate";
+import { shouldEnableAutoAnimate } from "./auto-animate-gate-core";
 
 describe("shouldEnableAutoAnimate", () => {
   it("enables when the user has no reduced-motion preference and Speed mode is off", () => {

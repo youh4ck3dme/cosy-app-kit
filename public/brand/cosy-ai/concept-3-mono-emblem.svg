@@ -1,0 +1,6 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="COSY monochrome emblem">
+  <!-- Concept 3: Minimalist Monochromatic Emblem (C mark) -->
+  <rect width="200" height="200" rx="32" fill="#FFFFFF"/>
+  <path d="M50 50H150V70H70V130H150V150H50V50Z" fill="#09090B"/>
+  <rect x="120" y="90" width="30" height="20" rx="4" fill="#09090B"/>
+</svg>

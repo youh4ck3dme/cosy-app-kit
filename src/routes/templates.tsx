@@ -50,7 +50,7 @@ function TemplatesIndexPage() {
             </Link>
             <Link
               to="/auth"
-              search={{ next: "", oauth_stage: "", lr: "", provider: "" }}
+              search={{ next: "" }}
               className="hover:text-foreground"
             >
               Sign in

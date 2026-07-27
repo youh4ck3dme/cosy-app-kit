@@ -21,11 +21,11 @@ export class CanvasSandboxManager {
       <!DOCTYPE html>
       <html>
         <head>
-          <script src="https://unpkg.com/react@18/umd/react.production.min.js"><\/script>
-          <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"><\/script>
-          <script src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script>
-          <script src="https://unpkg.com/lucide-react@0.460.0/dist/umd/lucide-react.min.js"><\/script>
-          <script src="https://cdn.tailwindcss.com"><\/script>
+          <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+          <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+          <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+          <script src="https://unpkg.com/lucide-react@0.460.0/dist/umd/lucide-react.min.js"></script>
+          <script src="https://cdn.tailwindcss.com"></script>
           <style>
             body { margin: 0; padding: 0; background: transparent; font-family: sans-serif; overflow-x: hidden; }
             [data-node-id] { cursor: pointer; transition: outline 0.12s ease, box-shadow 0.12s ease; }
@@ -39,7 +39,7 @@ export class CanvasSandboxManager {
               outline-offset: 2px;
               box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
             }
-          <\/style>
+          </style>
         </head>
         <body>
           <div id="root"></div>
@@ -157,7 +157,7 @@ export class CanvasSandboxManager {
               }
             });
             window.parent.postMessage({ type: 'SANDBOX_READY' }, '*');
-          <\/script>
+          </script>
         </body>
       </html>
     `;

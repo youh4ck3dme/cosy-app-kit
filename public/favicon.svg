@@ -1,0 +1,21 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- COSY.AI PWA / browser favicon — Concept 2 Viewport Monogram -->
+  <rect width="512" height="512" rx="112" fill="#09090B"/>
+  <rect x="8" y="8" width="496" height="496" rx="104" stroke="#27272A" stroke-width="4"/>
+
+  <g transform="translate(106, 106)">
+    <path d="M220 80H120C80 80 50 110 50 150V150C50 190 80 220 120 220H220"
+          stroke="url(#cosy_indigo_gradient)" stroke-width="36" stroke-linecap="round"/>
+    <path d="M220 80V220" stroke="#38BDF8" stroke-width="36" stroke-linecap="round" opacity="0.3"/>
+    <circle cx="220" cy="80" r="22" fill="#818CF8"/>
+    <circle cx="220" cy="220" r="22" fill="#38BDF8"/>
+    <circle cx="50" cy="150" r="18" fill="#FFFFFF"/>
+  </g>
+
+  <defs>
+    <linearGradient id="cosy_indigo_gradient" x1="50" y1="80" x2="220" y2="220" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#38BDF8"/>
+    </linearGradient>
+  </defs>
+</svg>

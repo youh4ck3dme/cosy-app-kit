@@ -48,8 +48,8 @@ describe("exportArtifactDownload", () => {
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("downloads a single file from content fallback as index.html", async () => {

@@ -102,8 +102,17 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       );
     }
 
-    const zipBuffer = await zip.generateAsync({ type: "uint8array" });
-    return new Blob([zipBuffer.buffer as ArrayBuffer], { type: "application/zip" });
+    // Prefer blob; fall back to uint8array→Blob for runtimes with incomplete Blob zip support
+    try {
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      if (zipBlob && typeof zipBlob.size === "number" && zipBlob.size > 32) {
+        return zipBlob;
+      }
+    } catch {
+      // continue to uint8array path
+    }
+    const bytes = await zip.generateAsync({ type: "uint8array" });
+    return new Blob([bytes.buffer as ArrayBuffer], { type: "application/zip" });
   }
 
   /**

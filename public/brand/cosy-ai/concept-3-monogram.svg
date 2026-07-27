@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none" role="img" aria-label="COSY monogram C">
+  <!-- Concept 3: Elite monogram emblem — open C as viewport corner architecture -->
+  <rect width="128" height="128" rx="28" fill="#0A0A0C"/>
+  <!-- C constructed from precision strokes (not a type glyph) -->
+  <path
+    d="M88 40
+       C78 28 58 26 46 36
+       C32 48 30 70 42 84
+       C54 98 76 98 90 86"
+    stroke="#FFFFFF"
+    stroke-width="9"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <!-- Spatial node + alignment tick (code / canvas precision) -->
+  <rect x="78" y="58" width="18" height="18" rx="3.5" stroke="#FFFFFF" stroke-width="2.5"/>
+  <circle cx="87" cy="67" r="2.5" fill="#2563EB"/>
+</svg>

@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, vi } from "vitest";
+import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import {
   DEFAULT_APP_PREFERENCES,
   getAppPreferences,
@@ -8,9 +8,11 @@ import {
 
 describe("app-preferences", () => {
   const store: Record<string, string> = {};
+  const toggleAttribute = vi.fn();
 
   beforeEach(() => {
     Object.keys(store).forEach((k) => delete store[k]);
+    toggleAttribute.mockReset();
     vi.stubGlobal("localStorage", {
       getItem: (k: string) => store[k] ?? null,
       setItem: (k: string, v: string) => {
@@ -23,13 +25,27 @@ describe("app-preferences", () => {
         Object.keys(store).forEach((k) => delete store[k]);
       },
     });
-    vi.stubGlobal("document", {
-      documentElement: {
-        toggleAttribute: vi.fn(),
-        removeAttribute: vi.fn(),
-        hasAttribute: vi.fn(() => false),
-      },
-    });
+    // Partial document stub — do NOT replace createElement used by other suites under bun
+    const doc = typeof document !== "undefined" ? document : undefined;
+    if (doc?.documentElement) {
+      vi.spyOn(doc.documentElement, "toggleAttribute").mockImplementation(toggleAttribute);
+    } else {
+      vi.stubGlobal("document", {
+        documentElement: {
+          toggleAttribute,
+          removeAttribute: vi.fn(),
+          hasAttribute: vi.fn(() => false),
+        },
+        createElement: (tag: string) => {
+          throw new Error(`unexpected createElement(${tag}) in app-preferences test`);
+        },
+      });
+    }
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("returns defaults when storage is empty", () => {
@@ -47,10 +63,7 @@ describe("app-preferences", () => {
   });
 
   it("syncs speed mode attribute on html", () => {
-    const el = document.documentElement as unknown as {
-      toggleAttribute: ReturnType<typeof vi.fn>;
-    };
     syncSpeedModeDom(true);
-    expect(el.toggleAttribute).toHaveBeenCalledWith("data-speed", true);
+    expect(toggleAttribute).toHaveBeenCalledWith("data-speed", true);
   });
 });
