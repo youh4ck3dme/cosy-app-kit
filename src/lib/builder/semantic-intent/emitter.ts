@@ -62,11 +62,12 @@ ${stateFields}
       .map((node) => {
         if (node.type === "input") {
           const rawClass = node.className ? ` ${node.className}` : "";
-          return `      <div className="flex flex-col gap-1">
+          return `      <div className="flex flex-col gap-1" data-node-id="${node.id}">
         <label className="text-sm font-medium text-gray-700">${node.label || "Field"}</label>
         <input 
           type="${node.inputType || "text"}" 
           name="${node.name}"
+          data-node-id="${node.id}"
           value={formData.${node.stateKey}}
           onChange={handleChange}
           className="px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none transition-all${rawClass}"
@@ -78,6 +79,7 @@ ${stateFields}
           const rawClass = node.className ? ` ${node.className}` : "";
           return `      <button 
         type="${node.action === "submit" ? "submit" : "button"}" 
+        data-node-id="${node.id}"
         className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition-colors mt-2${rawClass}"
       >
         ${node.text || "Submit"}
@@ -102,7 +104,14 @@ ${jsxElements}
     const jsxElements = nodes
       .map((node) => {
         if (node.type === "text") {
-          return `      <p className="${node.className || "text-gray-700"}">${node.text}</p>`;
+          return `      <p data-node-id="${node.id}" className="${node.className || "text-gray-700"}">${node.text}</p>`;
+        }
+        if (node.type === "button") {
+          const rawClass = node.className ? ` ${node.className}` : "";
+          return `      <button data-node-id="${node.id}" type="button" className="px-4 py-2 rounded-md bg-blue-600 text-white${rawClass}">${node.text || "Button"}</button>`;
+        }
+        if (node.type === "box") {
+          return `      <div data-node-id="${node.id}" className="${node.className || "p-2"}">${node.text || ""}</div>`;
         }
         return "";
       })

@@ -2,13 +2,17 @@ import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { VisionUploader } from "@/components/builder/VisionUploader";
 import { parseVisionImage } from "@/lib/builder/vision/mistralVisionModel.server";
-import { SemanticIntentEngine } from "@/lib/builder/semantic-intent";
-import type { EngineResult } from "@/lib/builder/semantic-intent/types";
+import {
+  SemanticIntentEngine,
+  AISpatialContextEngine,
+  runScopedEditPipeline,
+} from "@/lib/builder/semantic-intent";
+import type { EngineResult, RawNode } from "@/lib/builder/semantic-intent/types";
+import { applyScopedNodeEdit } from "@/lib/builder/semantic-intent/scopedEdit.server";
 
 import { ZipExporterEngine } from "@/lib/builder/export/zipExporter";
 import { LiveCanvasPreview } from "@/components/builder/LiveCanvasPreview";
 import { haptic } from "@/lib/haptics";
-import type { RawNode } from "@/lib/builder/semantic-intent/types";
 
 export const Route = createFileRoute("/_authenticated/builder")({
   component: BuilderWorkspacePage,
@@ -17,8 +21,25 @@ export const Route = createFileRoute("/_authenticated/builder")({
 function BuilderWorkspacePage() {
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [engineResult, setEngineResult] = React.useState<EngineResult | null>(null);
+  const [currentAST, setCurrentAST] = React.useState<RawNode[] | null>(null);
   const [imagePreview, setImagePreview] = React.useState<string | null>(null);
   const [sourceUsed, setSourceUsed] = React.useState<"mistral" | "mock">("mock");
+  const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(null);
+  const [scopedPrompt, setScopedPrompt] = React.useState("");
+  const [isScopedEditing, setIsScopedEditing] = React.useState(false);
+  const [scopedEditSource, setScopedEditSource] = React.useState<
+    "mistral" | "heuristic" | null
+  >(null);
+  const [scopedEditError, setScopedEditError] = React.useState<string | null>(null);
+
+  const regenerateFromAST = React.useCallback((ast: RawNode[], componentName = "GeneratedForm") => {
+    const engine = new SemanticIntentEngine();
+    // autoFix runs inside generateCode; avoid double-fix side effects on stored AST
+    // by storing the user-facing AST separately from emit-time transforms.
+    const result = engine.generateCode(componentName, ast);
+    setEngineResult(result);
+    return result;
+  }, []);
 
   const handleExportZip = React.useCallback(async () => {
     if (!engineResult) return;
@@ -32,30 +53,83 @@ function BuilderWorkspacePage() {
     exporter.downloadBlob(blob, `${engineResult.componentName.toLowerCase()}-project.zip`);
   }, [engineResult]);
 
-  const handleImageProcess = React.useCallback(async (base64: string) => {
-    setIsProcessing(true);
-    setImagePreview(base64);
+  const handleImageProcess = React.useCallback(
+    async (base64: string) => {
+      setIsProcessing(true);
+      setImagePreview(base64);
+      setSelectedNodeId(null);
+      setScopedPrompt("");
+      setScopedEditSource(null);
+      setScopedEditError(null);
+
+      try {
+        const res = await parseVisionImage({ data: { imageBase64: base64 } });
+        const { node: rawNodeTree, source } = res as {
+          node: RawNode;
+          source: "mistral" | "mock";
+        };
+        setSourceUsed(source);
+
+        // Store responsive-healed AST for subsequent scoped edits
+        const spatial = new AISpatialContextEngine();
+        const ast = spatial.autoFixMobileResponsive([rawNodeTree]);
+        setCurrentAST(ast);
+        regenerateFromAST(ast);
+      } catch (error) {
+        console.error("Failed to process image:", error);
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    [regenerateFromAST],
+  );
+
+  const handleNodeSelected = React.useCallback((nodeId: string) => {
+    setSelectedNodeId(nodeId);
+    setScopedEditError(null);
+    haptic(8);
+  }, []);
+
+  const handleScopedEdit = React.useCallback(async () => {
+    if (!currentAST || !selectedNodeId || !scopedPrompt.trim()) return;
+
+    setIsScopedEditing(true);
+    setScopedEditError(null);
+    haptic(12);
 
     try {
-      // 1. Process Image through Mistral Pixtral Vision API (Server Function) -> returns RawNode AST
-      const res = await parseVisionImage({ data: { imageBase64: base64 } });
-      const { node: rawNodeTree, source } = res as {
-        node: RawNode;
-        source: "mistral" | "mock";
-      };
-      setSourceUsed(source);
+      const pipeline = await runScopedEditPipeline({
+        fullAST: currentAST,
+        targetNodeId: selectedNodeId,
+        userPrompt: scopedPrompt.trim(),
+        editNode: async (scoped, userPrompt) => {
+          const res = await applyScopedNodeEdit({
+            data: {
+              targetNode: scoped.targetNode,
+              minimalPromptContext: scoped.minimalPromptContext,
+              userPrompt,
+            },
+          });
+          setScopedEditSource(res.source);
+          return res.node;
+        },
+      });
 
-      // 2. Pass AST through Semantic Intent Engine to detect interactivity and generate Smart Code
-      const engine = new SemanticIntentEngine();
-      const result = engine.generateCode("GeneratedForm", [rawNodeTree]);
+      if (!pipeline) {
+        setScopedEditError(`Node "${selectedNodeId}" was not found in the current AST.`);
+        return;
+      }
 
-      setEngineResult(result);
+      setCurrentAST(pipeline.updatedAST);
+      regenerateFromAST(pipeline.updatedAST, engineResult?.componentName ?? "GeneratedForm");
+      setScopedPrompt("");
     } catch (error) {
-      console.error("Failed to process image:", error);
+      console.error("Scoped edit failed:", error);
+      setScopedEditError(error instanceof Error ? error.message : "Scoped edit failed");
     } finally {
-      setIsProcessing(false);
+      setIsScopedEditing(false);
     }
-  }, []);
+  }, [currentAST, selectedNodeId, scopedPrompt, regenerateFromAST, engineResult?.componentName]);
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-background text-foreground flex flex-col md:flex-row overflow-hidden">
@@ -64,8 +138,8 @@ function BuilderWorkspacePage() {
         <div className="mb-8">
           <h1 className="text-2xl font-bold tracking-tight mb-2">Vision Builder Workspace</h1>
           <p className="text-muted-foreground text-sm">
-            Upload a design screenshot. Our Semantic Intent Engine will analyze the layout and turn
-            it into a smart React component.
+            Upload a design screenshot. Click a live canvas element, then apply a scoped edit —
+            only the selected sub-tree is sent to the AI.
           </p>
         </div>
 
@@ -92,6 +166,10 @@ function BuilderWorkspacePage() {
                   onClick={() => {
                     setImagePreview(null);
                     setEngineResult(null);
+                    setCurrentAST(null);
+                    setSelectedNodeId(null);
+                    setScopedPrompt("");
+                    setScopedEditSource(null);
                   }}
                   className="absolute top-4 right-4 bg-background/80 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-medium border border-border hover:bg-surface transition-colors opacity-0 group-hover:opacity-100"
                 >
@@ -101,6 +179,62 @@ function BuilderWorkspacePage() {
             </div>
           )}
         </div>
+
+        {/* Scoped edit composer */}
+        {engineResult && (
+          <div className="mt-6 rounded-xl border border-border-subtle bg-surface/60 p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-medium">Scoped AI Edit</h3>
+              {selectedNodeId ? (
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 truncate max-w-48">
+                  {selectedNodeId}
+                </span>
+              ) : (
+                <span className="text-[11px] text-muted-foreground">
+                  Click an element in the live canvas
+                </span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={scopedPrompt}
+                onChange={(e) => setScopedPrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    void handleScopedEdit();
+                  }
+                }}
+                disabled={!selectedNodeId || isScopedEditing}
+                placeholder={
+                  selectedNodeId
+                    ? 'e.g. "Zmeň farbu na červenú"'
+                    : "Select a node first…"
+                }
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent-primary/40 disabled:opacity-50"
+              />
+              <button
+                type="button"
+                onClick={() => void handleScopedEdit()}
+                disabled={!selectedNodeId || !scopedPrompt.trim() || isScopedEditing}
+                className="px-3 py-2 rounded-lg text-sm font-medium bg-accent-primary/20 hover:bg-accent-primary/30 text-accent-primary border border-accent-primary/30 disabled:opacity-40 transition-colors"
+              >
+                {isScopedEditing ? "Applying…" : "Apply"}
+              </button>
+            </div>
+            {scopedEditSource && (
+              <p className="text-[11px] text-muted-foreground">
+                Last edit source:{" "}
+                <span className="font-medium text-foreground">{scopedEditSource}</span>
+                {" · "}delta re-applied, canvas re-rendered
+              </p>
+            )}
+            {scopedEditError && (
+              <p className="text-[11px] text-rose-400 font-mono">{scopedEditError}</p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* RIGHT PANEL - Engine Output (Smart Code) */}
@@ -116,7 +250,7 @@ function BuilderWorkspacePage() {
             <div className="space-y-6 animate-in-fade">
               <div className="space-y-2">
                 <h3 className="text-sm font-medium text-foreground">Detected Intent & Model:</h3>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="px-2.5 py-1 rounded-md bg-accent-primary/10 border border-accent-primary/20 text-accent-primary text-xs font-medium">
                     {engineResult.intent}
                   </span>
@@ -159,7 +293,12 @@ function BuilderWorkspacePage() {
 
                 <div className="space-y-2 h-140">
                   <h3 className="text-sm font-medium text-foreground">Live Interactive Canvas:</h3>
-                  <LiveCanvasPreview code={engineResult.code} css={engineResult.css} />
+                  <LiveCanvasPreview
+                    code={engineResult.code}
+                    css={engineResult.css}
+                    selectedNodeId={selectedNodeId}
+                    onNodeSelected={handleNodeSelected}
+                  />
                 </div>
               </div>
             </div>

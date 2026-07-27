@@ -36,4 +36,25 @@ describe("CanvasSandboxManager Unit Tests", () => {
 
     sandbox.destroy();
   });
+
+  it("forwards NODE_SELECTED postMessage events to the host handler", () => {
+    const container = document.createElement("div");
+    const onMessage = vi.fn();
+
+    const sandbox = new CanvasSandboxManager(container, onMessage);
+    sandbox.mount();
+
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { type: "NODE_SELECTED", nodeId: "cta_btn" },
+      }),
+    );
+
+    expect(onMessage).toHaveBeenCalledWith({
+      type: "NODE_SELECTED",
+      nodeId: "cta_btn",
+    });
+
+    sandbox.destroy();
+  });
 });

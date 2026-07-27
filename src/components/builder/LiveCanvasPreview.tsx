@@ -6,12 +6,16 @@ interface LiveCanvasPreviewProps {
   code: string;
   css?: string;
   isMobileViewport?: boolean;
+  selectedNodeId?: string | null;
+  onNodeSelected?: (nodeId: string) => void;
 }
 
 export const LiveCanvasPreview: React.FC<LiveCanvasPreviewProps> = ({
   code,
   css,
   isMobileViewport = true,
+  selectedNodeId = null,
+  onNodeSelected,
 }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const managerRef = React.useRef<CanvasSandboxManager | null>(null);
@@ -19,6 +23,9 @@ export const LiveCanvasPreview: React.FC<LiveCanvasPreviewProps> = ({
     "ready" | "rendering" | "success" | "error" | "timeout"
   >("ready");
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+
+  const onNodeSelectedRef = React.useRef(onNodeSelected);
+  onNodeSelectedRef.current = onNodeSelected;
 
   const handleMessage = React.useCallback((msg: SandboxRPCMessage) => {
     if (msg.type === "SANDBOX_READY") {
@@ -32,6 +39,8 @@ export const LiveCanvasPreview: React.FC<LiveCanvasPreviewProps> = ({
     } else if (msg.type === "EXECUTION_TIMEOUT") {
       setStatus("timeout");
       setErrorMessage(`Execution timed out after ${msg.timeoutMs}ms.`);
+    } else if (msg.type === "NODE_SELECTED") {
+      onNodeSelectedRef.current?.(msg.nodeId);
     }
   }, []);
 
@@ -68,6 +77,14 @@ export const LiveCanvasPreview: React.FC<LiveCanvasPreviewProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {selectedNodeId && (
+            <span
+              className="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 max-w-36 truncate"
+              title={selectedNodeId}
+            >
+              sel: {selectedNodeId}
+            </span>
+          )}
           {status === "rendering" && (
             <span className="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
               Rendering
