@@ -46,7 +46,9 @@ export const RawNodeSchema: z.ZodType<RawNode> = z.lazy(
       action: z.enum(["submit", "cancel", "navigate"]).optional(),
       className: z.string().optional(),
       children: z.array(RawNodeSchema).optional(),
-      meta: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
+      meta: z
+        .record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()]))
+        .optional(),
     }) as z.ZodType<RawNode>,
 );
 
