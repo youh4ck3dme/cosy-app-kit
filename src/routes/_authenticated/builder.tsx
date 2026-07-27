@@ -5,6 +5,10 @@ import { parseVisionImage } from "@/lib/builder/vision/mistralVisionModel.server
 import { SemanticIntentEngine } from "@/lib/builder/semantic-intent";
 import type { EngineResult } from "@/lib/builder/semantic-intent/types";
 
+import { ZipExporterEngine } from "@/lib/builder/export/zipExporter";
+import { haptic } from "@/lib/haptics";
+import type { RawNode } from "@/lib/builder/semantic-intent/types";
+
 export const Route = createFileRoute("/_authenticated/builder")({
   component: BuilderWorkspacePage,
 });
@@ -15,15 +19,29 @@ function BuilderWorkspacePage() {
   const [imagePreview, setImagePreview] = React.useState<string | null>(null);
   const [sourceUsed, setSourceUsed] = React.useState<"mistral" | "mock">("mock");
 
+  const handleExportZip = React.useCallback(async () => {
+    if (!engineResult) return;
+    haptic(15);
+    const exporter = new ZipExporterEngine();
+    const blob = await exporter.generateZipArchive({
+      componentName: engineResult.componentName,
+      code: engineResult.code,
+      framework: "vite",
+    });
+    exporter.downloadBlob(blob, `${engineResult.componentName.toLowerCase()}-project.zip`);
+  }, [engineResult]);
+
   const handleImageProcess = React.useCallback(async (base64: string) => {
     setIsProcessing(true);
     setImagePreview(base64);
 
     try {
       // 1. Process Image through Mistral Pixtral Vision API (Server Function) -> returns RawNode AST
-      const { node: rawNodeTree, source } = await parseVisionImage({
-        data: { imageBase64: base64 },
-      });
+      const res = await parseVisionImage({ data: { imageBase64: base64 } });
+      const { node: rawNodeTree, source } = res as {
+        node: RawNode;
+        source: "mistral" | "mock";
+      };
       setSourceUsed(source);
 
       // 2. Pass AST through Semantic Intent Engine to detect interactivity and generate Smart Code
@@ -119,9 +137,17 @@ function BuilderWorkspacePage() {
                     <span className="text-xs font-mono text-muted-foreground">
                       GeneratedForm.tsx
                     </span>
-                    <button className="text-xs text-accent-primary hover:text-accent-glow transition-colors">
-                      Copy
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={handleExportZip}
+                        className="text-xs px-2.5 py-1 rounded-md bg-accent-primary/20 hover:bg-accent-primary/30 text-accent-primary border border-accent-primary/30 font-medium transition-all flex items-center gap-1.5"
+                      >
+                        Export Project (.zip)
+                      </button>
+                      <button className="text-xs text-accent-primary hover:text-accent-glow transition-colors">
+                        Copy
+                      </button>
+                    </div>
                   </div>
                   <pre className="p-4 text-xs font-mono leading-relaxed text-foreground overflow-x-auto">
                     <code>{engineResult.code}</code>

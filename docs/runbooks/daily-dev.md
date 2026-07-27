@@ -9,10 +9,12 @@ bun install
 bun run test:e2e:install   # once per machine
 ```
 
-Optional authenticated e2e inside ship:
+Optional authenticated e2e inside ship — either export env vars or fill the gitignored local file:
 
 ```bash
 export E2E_EMAIL=… E2E_PASSWORD=…
+# or:
+cp e2e/e2e:authenticated.md.example e2e/e2e:authenticated.md   # then edit
 ```
 
 ## Loop

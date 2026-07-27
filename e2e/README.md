@@ -36,7 +36,7 @@ PLAYWRIGHT_BASE_URL=http://127.0.0.1:5173 PLAYWRIGHT_WEB_SERVER=0 bun run test:e
 | `share-public.pw.ts`  | templates + 404 public artifact                                                                                                                |
 | `palette.pw.ts`       | Cmd+K when logged in (soft-pass on `/auth`)                                                                                                    |
 | `mobile-shell.pw.ts`  | 390px viewport overflow + chat entry                                                                                                           |
-| `authenticated.pw.ts` | Real sign-in → chat workspace, palette, theme toggle persistence. Skipped unless `E2E_EMAIL`/`E2E_PASSWORD` are set (use a throwaway account). |
+| `authenticated.pw.ts` | Real sign-in → chat workspace, palette, theme toggle. Skipped unless `E2E_EMAIL`/`E2E_PASSWORD` are set **or** `e2e/e2e:authenticated.md` exists (gitignored; copy from `e2e:authenticated.md.example`). |
 
 Vitest does **not** pick up `*.pw.ts` (only `src/**/*.test.ts`).
 
