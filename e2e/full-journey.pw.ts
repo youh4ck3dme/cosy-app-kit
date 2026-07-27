@@ -61,12 +61,17 @@ test.describe("Full app journey (public surface)", () => {
   });
 
   test("2 · Open Builder CTA gates unauthenticated users", async ({ page }) => {
-    await page.context().clearCookies();
+    test.setTimeout(90_000);
+    await clearBrowserSession(page);
     await page.goto("/");
     await expect(page.getByTestId("landing-hero")).toBeVisible({ timeout: 20_000 });
     await page.getByRole("link", { name: /open builder/i }).click();
-    await page.waitForURL(/\/auth/, { timeout: 30_000 });
-    await expect(page.getByTestId("auth-sign-in")).toBeVisible({ timeout: 20_000 });
+    // /chat is ssr:false — may land briefly then bounce to /auth
+    await page.waitForURL(/\/(auth|chat)/, { timeout: 30_000 });
+    if (!page.url().includes("/auth")) {
+      await page.waitForURL(/\/auth/, { timeout: 30_000 });
+    }
+    await expect(page.getByTestId("auth-sign-in")).toBeVisible({ timeout: 25_000 });
   });
 
   test("3 · Browse templates → open detail", async ({ page }) => {
@@ -123,9 +128,11 @@ test.describe("Full app journey (public surface)", () => {
   });
 
   test("5 · Auth form renders email/password + Google + mode toggle", async ({ page }) => {
+    test.setTimeout(90_000);
     await clearBrowserSession(page);
     await page.goto("/auth");
-    await expect(page.getByTestId("auth-sign-in")).toBeVisible({ timeout: 25_000 });
+    // Bridge shell can take up to ~12s fail-open
+    await expect(page.getByTestId("auth-sign-in")).toBeVisible({ timeout: 30_000 });
     await expect(page.getByRole("heading", { name: /sign in to builder/i })).toBeVisible();
     await expect(page.getByPlaceholder(/you@/i)).toBeVisible();
     await expect(page.getByPlaceholder(/password/i)).toBeVisible();

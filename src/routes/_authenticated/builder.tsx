@@ -1,7 +1,7 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { VisionUploader } from "@/components/builder/VisionUploader";
-import { parseImageToRawNode } from "@/lib/builder/vision/mockVisionModel";
+import { parseVisionImage } from "@/lib/builder/vision/mistralVisionModel.server";
 import { SemanticIntentEngine } from "@/lib/builder/semantic-intent";
 import type { EngineResult } from "@/lib/builder/semantic-intent/types";
 
@@ -13,14 +13,16 @@ function BuilderWorkspacePage() {
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [engineResult, setEngineResult] = React.useState<EngineResult | null>(null);
   const [imagePreview, setImagePreview] = React.useState<string | null>(null);
+  const [sourceUsed, setSourceUsed] = React.useState<"mistral" | "mock">("mock");
 
   const handleImageProcess = React.useCallback(async (base64: string) => {
     setIsProcessing(true);
     setImagePreview(base64);
-    
+
     try {
-      // 1. Process Image through Vision API (Mock) -> returns RawNode AST
-      const rawNodeTree = await parseImageToRawNode(base64);
+      // 1. Process Image through Mistral Pixtral Vision API (Server Function) -> returns RawNode AST
+      const { node: rawNodeTree, source } = await parseVisionImage({ data: { imageBase64: base64 } });
+      setSourceUsed(source);
       
       // 2. Pass AST through Semantic Intent Engine to detect interactivity and generate Smart Code
       const engine = new SemanticIntentEngine();
@@ -87,10 +89,13 @@ function BuilderWorkspacePage() {
             <div className="space-y-6 animate-in-fade">
               
               <div className="space-y-2">
-                <h3 className="text-sm font-medium text-foreground">Detected Intent:</h3>
+                <h3 className="text-sm font-medium text-foreground">Detected Intent & Model:</h3>
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-1 rounded-md bg-accent-primary/10 border border-accent-primary/20 text-accent-primary text-xs font-medium">
                     {engineResult.intent}
+                  </span>
+                  <span className={`px-2.5 py-1 rounded-md border text-xs font-medium ${sourceUsed === "mistral" ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-amber-500/10 border-amber-500/20 text-amber-400"}`}>
+                    {sourceUsed === "mistral" ? "Mistral Pixtral Vision" : "Simulated Mock (Offline)"}
                   </span>
                   <span className="text-xs text-muted-foreground">Confidence: 98%</span>
                 </div>

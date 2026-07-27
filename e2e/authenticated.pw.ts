@@ -1,4 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 /**
  * Authenticated workspace. Runs ONLY with credentials:
@@ -11,18 +13,102 @@ const EMAIL = process.env.E2E_EMAIL;
 const PASSWORD = process.env.E2E_PASSWORD;
 const hasCreds = Boolean(EMAIL && PASSWORD);
 
+// #region agent log
+function debugLog(
+  hypothesisId: string,
+  location: string,
+  message: string,
+  data: Record<string, unknown>,
+) {
+  const payload = {
+    sessionId: "5d5b64",
+    runId: process.env.E2E_DEBUG_RUN ?? "auth-e2e-pre",
+    hypothesisId,
+    location,
+    message,
+    data,
+    timestamp: Date.now(),
+  };
+  fetch("http://127.0.0.1:7902/ingest/0243bef4-d50a-482b-b552-d96902be1642", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "5d5b64" },
+    body: JSON.stringify(payload),
+  }).catch(() => undefined);
+}
+(() => {
+  const envLocal = resolve(process.cwd(), ".env.local");
+  const envFile = resolve(process.cwd(), ".env");
+  const readKeys = (p: string) => {
+    if (!existsSync(p)) return { exists: false, hasEmailKey: false, hasPasswordKey: false };
+    const raw = readFileSync(p, "utf8");
+    return {
+      exists: true,
+      hasEmailKey: /^E2E_EMAIL=/m.test(raw),
+      hasPasswordKey: /^E2E_PASSWORD=/m.test(raw),
+    };
+  };
+  debugLog("H1", "authenticated.pw.ts:module", "creds gate", {
+    hasCreds,
+    emailSet: Boolean(EMAIL),
+    passwordSet: Boolean(PASSWORD),
+    emailLen: EMAIL?.length ?? 0,
+    passwordLen: PASSWORD?.length ?? 0,
+  });
+  debugLog("H2", "authenticated.pw.ts:module", "dotenv file keys (no values)", {
+    envLocal: readKeys(envLocal),
+    env: readKeys(envFile),
+    playwrightLoadsDotenv: false,
+  });
+})();
+// #endregion
+
 async function signIn(page: Page) {
   await page.goto("/auth");
   await page.waitForLoadState("domcontentloaded");
+  // #region agent log
+  const signInVisible = await page
+    .getByTestId("auth-sign-in")
+    .isVisible()
+    .catch(() => false);
+  const youPlaceholder = await page
+    .getByPlaceholder(/you@/i)
+    .count()
+    .catch(() => 0);
+  debugLog("H3", "authenticated.pw.ts:signIn", "auth page selectors", {
+    path: new URL(page.url()).pathname,
+    signInVisible,
+    youPlaceholderCount: youPlaceholder,
+  });
+  // #endregion
   await expect(page.getByTestId("auth-sign-in")).toBeVisible({ timeout: 25_000 });
   await page.getByPlaceholder(/you@/i).fill(EMAIL!);
   await page.getByPlaceholder(/password/i).fill(PASSWORD!);
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await page.waitForURL((url) => !url.pathname.startsWith("/auth"), { timeout: 30_000 });
+  // #region agent log
+  debugLog("H4", "authenticated.pw.ts:signIn", "after sign-in navigation", {
+    path: new URL(page.url()).pathname,
+  });
+  // #endregion
 }
 
 async function openChatWorkspace(page: Page) {
   await page.goto("/chat");
+  // #region agent log
+  const composerVisible = await page
+    .getByTestId("chat-composer")
+    .isVisible()
+    .catch(() => false);
+  const previewToggle = await page
+    .getByTestId("chat-preview-toggle")
+    .isVisible()
+    .catch(() => false);
+  debugLog("H4", "authenticated.pw.ts:openChatWorkspace", "chat shell", {
+    path: new URL(page.url()).pathname,
+    composerVisible,
+    previewToggleVisible: previewToggle,
+  });
+  // #endregion
   await expect(page.getByTestId("chat-composer")).toBeVisible({ timeout: 40_000 });
 }
 
@@ -72,6 +158,12 @@ test.describe("Authenticated workspace", () => {
     await signIn(page);
     await openChatWorkspace(page);
     await expect(page.getByTestId("chat-preview-toggle")).toBeVisible();
+    // #region agent log
+    const vp = page.viewportSize();
+    debugLog("H5", "authenticated.pw.ts:preview-toggle", "viewport before toggle", {
+      viewport: vp,
+    });
+    // #endregion
     await page.getByRole("button", { name: /show preview canvas/i }).click();
     await expect(page.getByRole("button", { name: /show preview canvas/i })).toHaveAttribute(
       "aria-pressed",
@@ -84,4 +176,24 @@ test.describe("Authenticated workspace", () => {
       "true",
     );
   });
+});
+
+/** Always runs — probes /auth selectors without credentials (H3). */
+test("auth page exposes sign-in testid (no secrets)", async ({ page }) => {
+  await page.goto("/auth");
+  await page.waitForLoadState("domcontentloaded");
+  const signInVisible = await page.getByTestId("auth-sign-in").isVisible({ timeout: 25_000 });
+  const emailCount = await page.getByPlaceholder(/you@/i).count();
+  const passwordCount = await page.getByPlaceholder(/password/i).count();
+  // #region agent log
+  debugLog("H3", "authenticated.pw.ts:probe", "public auth probe", {
+    signInVisible,
+    emailCount,
+    passwordCount,
+    path: new URL(page.url()).pathname,
+  });
+  // #endregion
+  expect(signInVisible).toBe(true);
+  expect(emailCount).toBeGreaterThan(0);
+  expect(passwordCount).toBeGreaterThan(0);
 });

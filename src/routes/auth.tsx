@@ -90,7 +90,14 @@ function AuthPage() {
     setMounted(true);
     setLocalHint(isLocalHost());
 
+    // Fail-open if getUser/getSession hang (offline, flaky network, e2e).
+    const BRIDGE_TIMEOUT_MS = 12_000;
+    const bridgeTimer = window.setTimeout(() => {
+      if (!cancelled) setBridging(false);
+    }, BRIDGE_TIMEOUT_MS);
+
     (async () => {
+      try {
       // #region agent log
       fetch("http://127.0.0.1:7902/ingest/0243bef4-d50a-482b-b552-d96902be1642", {
         method: "POST",
@@ -289,10 +296,14 @@ function AuthPage() {
       }
 
       setBridging(false);
+      } finally {
+        window.clearTimeout(bridgeTimer);
+      }
     })();
 
     return () => {
       cancelled = true;
+      window.clearTimeout(bridgeTimer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- OAuth bootstrap once per landing
   }, []);
