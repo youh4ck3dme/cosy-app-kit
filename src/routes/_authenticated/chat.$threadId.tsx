@@ -11,9 +11,11 @@ import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 import {
   createThread,
   getThread,
+  setArtifactPublic,
   truncateThreadMessagesAfter,
   updateThreadModel,
 } from "@/lib/threads.functions";
+import { publicArtifactUrl, publicEmbedUrl } from "@/lib/public-artifact-url";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/app-shell/Header";
 import { ThreadList } from "@/components/app-shell/ThreadList";
@@ -23,7 +25,7 @@ import {
   type BuilderMode,
   type ComposerFillRequest,
 } from "@/components/app-shell/Composer";
-import { MessageList } from "@/components/app-shell/MessageList";
+import { MessageList, type MessageListProps } from "@/components/app-shell/MessageList";
 import { AppDialog } from "@/components/app-shell/AppDialog";
 import { AgentSettingsPanel } from "@/components/app-shell/AgentSettingsPanel";
 import { CommandPalette, ShortcutsHelp } from "@/components/app-shell/CommandPalette";
@@ -107,6 +109,7 @@ function ChatPage() {
   const updateModel = useServerFn(updateThreadModel);
   const create = useServerFn(createThread);
   const truncateMessages = useServerFn(truncateThreadMessagesAfter);
+  const publishArtifact = useServerFn(setArtifactPublic);
   useAppViewportLock(true);
 
   const isOptimisticId = threadId.startsWith("optimistic-");
@@ -317,6 +320,41 @@ function ChatPage() {
     toast.success("Model updated for this chat");
   };
 
+  const [publishing, setPublishing] = useState(false);
+  /** Header Publish → set is_public + production URL for live HTML. */
+  const handlePublish = useCallback(async () => {
+    if (!activeArtifact?.id) {
+      toast.error("No artifact to publish", {
+        description: "Generate a page in chat first, then Publish.",
+      });
+      return;
+    }
+    setPublishing(true);
+    try {
+      await publishArtifact({ data: { artifactId: activeArtifact.id, isPublic: true } });
+      await qc.invalidateQueries({ queryKey: ["thread", threadId] });
+      await qc.invalidateQueries({ queryKey: ["user-artifacts"] });
+      const url = publicArtifactUrl(activeArtifact.id);
+      const embed = publicEmbedUrl(activeArtifact.id);
+      await navigator.clipboard.writeText(url).catch(() => {});
+      toast.success("Published live HTML", {
+        description: url,
+        duration: 10_000,
+        action: {
+          label: "Open",
+          onClick: () => window.open(url, "_blank", "noopener,noreferrer"),
+        },
+      });
+      // Open production page so user sees the real public HTML immediately
+      window.open(url, "_blank", "noopener,noreferrer");
+      console.info("[publish]", { artifactId: activeArtifact.id, url, embed });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Publish failed");
+    } finally {
+      setPublishing(false);
+    }
+  }, [activeArtifact?.id, publishArtifact, qc, threadId]);
+
   const streaming = status === "submitted" || status === "streaming";
 
   const sendText = useCallback(
@@ -480,6 +518,9 @@ function ChatPage() {
         onOpenSettings={() => setShowSettings(true)}
         view={view}
         onViewChange={setView}
+        onPublish={() => void handlePublish()}
+        publishDisabled={!activeArtifact}
+        publishBusy={publishing}
       />
 
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
@@ -523,19 +564,23 @@ function ChatPage() {
                 </div>
               ) : (
                 <MessageList
-                  messages={messages}
-                  status={status}
-                  onRegenerate={() => regenerate()}
-                  onRetryFrom={onRetryFrom}
-                  onEditUserMessage={onEditUserMessage}
-                  errorBanner={chatError?.message}
-                  onPickPrompt={(p) => fillComposer(p, "replace")}
-                  onFillComposer={(p) => fillComposer(p, "replace")}
-                  onQuote={(text) => fillComposer(text, "quote")}
-                  onFocusCanvas={() => {
-                    setView("preview");
-                    if (artifacts[0]) setActiveArtifactId(artifacts[0].id);
-                  }}
+                  {...({
+                    messages,
+                    status,
+                    onRegenerate: () => {
+                      void regenerate();
+                    },
+                    onRetryFrom,
+                    onEditUserMessage,
+                    errorBanner: chatError?.message,
+                    onPickPrompt: (p: string) => fillComposer(p, "replace"),
+                    onFillComposer: (p: string) => fillComposer(p, "replace"),
+                    onQuote: (text: string) => fillComposer(text, "quote"),
+                    onFocusCanvas: () => {
+                      setView("preview");
+                      if (artifacts[0]) setActiveArtifactId(artifacts[0].id);
+                    },
+                  } satisfies MessageListProps)}
                 />
               )}
             </StickToBottom.Content>

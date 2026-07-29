@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, Zap } from "lucide-react";
+import { buildEmailRedirectTo } from "@/lib/auth-redirect";
 
 /**
  * Shared shell for auth pending/loading states.
@@ -88,14 +89,16 @@ function AuthPage() {
     setLoading(true);
     try {
       if (mode === "signup") {
-        const redirectPath = next || "/chat";
+        // Must land on /auth so hash tokens (email confirm) are applied via setSession.
+        // Never send confirm links to bare /chat or a wrong Site URL fallback.
+        const emailRedirectTo = buildEmailRedirectTo(window.location.origin, next || "/chat");
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${window.location.origin}${redirectPath}` },
+          options: { emailRedirectTo },
         });
         if (error) throw error;
-        toast.success("Account created. You can sign in now.");
+        toast.success("Check your email to confirm, or sign in if confirmation is off.");
         setMode("signin");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });

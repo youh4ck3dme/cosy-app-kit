@@ -1,14 +1,17 @@
 /**
  * Production smoke — no browser required.
  *
- *   bun run prod-smoke
- *   SMOKE_BASE_URL=https://cosy-app-kit.lovable.app bun run prod-smoke
+ *   SMOKE_BASE_URL=https://your-prod-domain bun run prod-smoke
  *
- * Checks live URL contracts and detects when main is merged but Lovable Cloud Publish is pending.
+ * Checks live URL contracts against the deployed build's fingerprint.
  */
-import { BUILD_MARKER, PROD_ORIGIN, SHELL_REV } from "../src/lib/deploy-rev";
+import { BUILD_MARKER, SHELL_REV } from "../src/lib/deploy-rev";
 
-const BASE = (process.env.SMOKE_BASE_URL ?? PROD_ORIGIN).replace(/\/$/, "");
+if (!process.env.SMOKE_BASE_URL) {
+  console.error("SMOKE_BASE_URL is required, e.g. SMOKE_BASE_URL=https://your-prod-domain bun run prod-smoke");
+  process.exit(1);
+}
+const BASE = process.env.SMOKE_BASE_URL.replace(/\/$/, "");
 
 let failures = 0;
 
@@ -50,11 +53,9 @@ async function main() {
     if (status.shellRev !== SHELL_REV) {
       isLatestDeploy = false;
       console.log(
-        `\n⚠️  Merge is in main (SHELL_REV=${SHELL_REV}), but live production is running older build (shellRev=${status.shellRev ?? "missing"}).`,
+        `\n⚠️  Local build expects SHELL_REV=${SHELL_REV}, but live production is running an older build (shellRev=${status.shellRev ?? "missing"}).`,
       );
-      console.log(
-        "   Lovable Editor → Publish / Update is pending. Deferring live contract checks until Publish.\n",
-      );
+      console.log("   Deploy is pending. Deferring live contract checks until the new build is live.\n");
     } else {
       check(
         status.shellRev === SHELL_REV,
@@ -69,7 +70,7 @@ async function main() {
 
   // If live server is running older build before Publish, exit gracefully after reporting pending state
   if (!isLatestDeploy) {
-    console.log("ℹ️  Prod smoke finished: Pending Lovable Cloud Publish.");
+    console.log("ℹ️  Prod smoke finished: pending deploy.");
     process.exit(0);
   }
 

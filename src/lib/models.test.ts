@@ -3,10 +3,13 @@ import {
   AVAILABLE_MODELS,
   BUILD_CODE_MODEL,
   DEFAULT_MODEL,
+  DEFAULT_SYSTEM_PROMPT,
+  DEFAULT_TEMPERATURE,
   isMistralModelId,
   resolveKnownModelId,
   resolveModelForMode,
 } from "./models";
+import { composeSystem, PROMPT_REV } from "./agent/prompts";
 
 describe("resolveKnownModelId", () => {
   it("passes through known Mistral catalog ids", () => {
@@ -63,5 +66,30 @@ describe("resolveModelForMode", () => {
     expect(resolveModelForMode("mistral-large-latest", "plan")).toBe(DEFAULT_MODEL);
     expect(resolveModelForMode("codestral-latest", "plan")).toBe(DEFAULT_MODEL);
     expect(resolveModelForMode("mistral-small-latest", "plan")).toBe("mistral-small-latest");
+  });
+});
+
+/** Gear-wheel Agent Settings defaults must stay stable (DB seed + panel reset). */
+describe("Agent settings defaults (gear wheel)", () => {
+  it("keeps DEFAULT_SYSTEM_PROMPT and temperature for Settings panel", () => {
+    expect(DEFAULT_SYSTEM_PROMPT.length).toBeGreaterThan(200);
+    expect(DEFAULT_SYSTEM_PROMPT).toMatch(/Builder/i);
+    expect(DEFAULT_SYSTEM_PROMPT).toMatch(/mobile-first/i);
+    expect(DEFAULT_TEMPERATURE).toBe(0.7);
+    expect(DEFAULT_MODEL).toBe("mistral-large-latest");
+  });
+
+  it("composeSystem preserves custom gear-wheel system prompt as base", () => {
+    const custom = "You are a custom brand designer. Prefer coral palettes.";
+    const sys = composeSystem("build", custom, "");
+    expect(sys.startsWith(custom)).toBe(true);
+    expect(sys).toContain(PROMPT_REV);
+    expect(sys).toMatch(/Build mode/i);
+  });
+
+  it("composeSystem falls back to DEFAULT_SYSTEM_PROMPT when base empty", () => {
+    const sys = composeSystem("build", "   ", "");
+    expect(sys).toContain("You are Builder");
+    expect(sys).toContain(PROMPT_REV);
   });
 });

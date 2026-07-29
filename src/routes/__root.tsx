@@ -18,6 +18,7 @@ import { getAppPreferences, syncSpeedModeDom } from "../lib/app-preferences";
 import { scheduleIdle } from "../lib/performance-contract";
 import { THEME_BOOTSTRAP_SCRIPT, useTheme } from "../lib/theme";
 import { supabase } from "@/integrations/supabase/client";
+import { authHashRecoveryLocation } from "@/lib/auth-redirect";
 
 /** Client-only: avoid sonner hooks during SSR (duplicate-React / invalid-hook crash). */
 function ClientToaster(props: React.ComponentProps<typeof Toaster>) {
@@ -176,6 +177,23 @@ function RootComponent() {
   }, []);
 
   useEffect(() => {
+    // Email confirm / magic-link often returns to Site URL + #access_token=…
+    // If that is not /auth (e.g. / or wrong port still has tokens), hop to /auth
+    // preserving the hash so setSession can run.
+    try {
+      const dest = authHashRecoveryLocation({
+        pathname: window.location.pathname,
+        search: window.location.search,
+        hash: window.location.hash,
+      });
+      if (dest) {
+        window.location.replace(dest);
+        return;
+      }
+    } catch {
+      /* ignore */
+    }
+
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") {
         // Defer past current React commit so router.invalidate does not hit

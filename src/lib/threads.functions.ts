@@ -205,6 +205,31 @@ export const setArtifactPublic = createServerFn({ method: "POST" })
     return { ok: true, isPublic: data.isPublic };
   });
 
+/** Recent artifacts across the signed-in user's threads (for Dashboard). */
+export const listUserArtifacts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        limit: z.number().int().min(1).max(50).optional(),
+        publicOnly: z.boolean().optional(),
+      })
+      .optional()
+      .parse(input ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const limit = data?.limit ?? 20;
+    let q = context.supabase
+      .from("artifacts")
+      .select("id,thread_id,kind,title,entry_path,is_public,created_at")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (data?.publicOnly) q = q.eq("is_public", true);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    return toPlainJson(rows ?? []);
+  });
+
 export const listThreadMemory = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ threadId: z.uuid() }).parse(input))

@@ -13,7 +13,6 @@ import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as PrivacyRouteImport } from './routes/privacy'
-import { Route as McpRouteImport } from './routes/mcp'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -22,15 +21,12 @@ import { Route as DevBuilderPlaygroundRouteImport } from './routes/dev.builder-p
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiAiStatusRouteImport } from './routes/api/ai-status'
 import { Route as AArtifactIdRouteImport } from './routes/a.$artifactId'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedBuilderRouteImport } from './routes/_authenticated/builder'
-import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
-import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat.index'
 import { Route as PreviewArtifactIdSplatRouteImport } from './routes/preview.$artifactId.$'
 import { Route as AArtifactIdEmbedRouteImport } from './routes/a.$artifactId.embed'
 import { Route as AuthenticatedChatThreadIdRouteImport } from './routes/_authenticated/chat.$threadId'
-import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
-import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as PreviewArtifactIdChar126TokenSplatRouteImport } from './routes/preview.$artifactId.~.$token.$'
 import { Route as ApiProjectsArtifactIdFilesSplatRouteImport } from './routes/api/projects.$artifactId.files.$'
 
@@ -52,11 +48,6 @@ const SupportRoute = SupportRouteImport.update({
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const McpRoute = McpRouteImport.update({
-  id: '/mcp',
-  path: '/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -98,23 +89,16 @@ const AArtifactIdRoute = AArtifactIdRouteImport.update({
   path: '/a/$artifactId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedBuilderRoute = AuthenticatedBuilderRouteImport.update({
   id: '/builder',
   path: '/builder',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const Char91DotwellKnownChar93OauthProtectedResourceRoute =
-  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
-    id: '/.well-known/oauth-protected-resource',
-    path: '/.well-known/oauth-protected-resource',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const Char91DotmcpChar93ListToolsRoute =
-  Char91DotmcpChar93ListToolsRouteImport.update({
-    id: '/.mcp/list-tools',
-    path: '/.mcp/list-tools',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const AuthenticatedChatIndexRoute = AuthenticatedChatIndexRouteImport.update({
   id: '/chat/',
   path: '/chat/',
@@ -136,17 +120,6 @@ const AuthenticatedChatThreadIdRoute =
     path: '/chat/$threadId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const Char91DotmcpChar93InvokeToolToolRoute =
-  Char91DotmcpChar93InvokeToolToolRouteImport.update({
-    id: '/.mcp/invoke-tool/$tool',
-    path: '/.mcp/invoke-tool/$tool',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
-  id: '/.lovable/oauth/consent',
-  path: '/.lovable/oauth/consent',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const PreviewArtifactIdChar126TokenSplatRoute =
   PreviewArtifactIdChar126TokenSplatRouteImport.update({
     id: '/preview/$artifactId/~/$token/$',
@@ -163,21 +136,17 @@ const ApiProjectsArtifactIdFilesSplatRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/mcp': typeof McpRoute
   '/privacy': typeof PrivacyRoute
   '/support': typeof SupportRoute
   '/templates': typeof TemplatesRouteWithChildren
   '/terms': typeof TermsRoute
-  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
-  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/builder': typeof AuthenticatedBuilderRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
   '/a/$artifactId': typeof AArtifactIdRouteWithChildren
   '/api/ai-status': typeof ApiAiStatusRoute
   '/api/chat': typeof ApiChatRoute
   '/dev/builder-playground': typeof DevBuilderPlaygroundRoute
   '/templates/$slug': typeof TemplatesSlugRoute
-  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
-  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/a/$artifactId/embed': typeof AArtifactIdEmbedRoute
   '/preview/$artifactId/$': typeof PreviewArtifactIdSplatRoute
@@ -188,21 +157,17 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/mcp': typeof McpRoute
   '/privacy': typeof PrivacyRoute
   '/support': typeof SupportRoute
   '/templates': typeof TemplatesRouteWithChildren
   '/terms': typeof TermsRoute
-  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
-  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/builder': typeof AuthenticatedBuilderRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
   '/a/$artifactId': typeof AArtifactIdRouteWithChildren
   '/api/ai-status': typeof ApiAiStatusRoute
   '/api/chat': typeof ApiChatRoute
   '/dev/builder-playground': typeof DevBuilderPlaygroundRoute
   '/templates/$slug': typeof TemplatesSlugRoute
-  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
-  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/a/$artifactId/embed': typeof AArtifactIdEmbedRoute
   '/preview/$artifactId/$': typeof PreviewArtifactIdSplatRoute
@@ -215,21 +180,17 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
-  '/mcp': typeof McpRoute
   '/privacy': typeof PrivacyRoute
   '/support': typeof SupportRoute
   '/templates': typeof TemplatesRouteWithChildren
   '/terms': typeof TermsRoute
-  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
-  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/builder': typeof AuthenticatedBuilderRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/a/$artifactId': typeof AArtifactIdRouteWithChildren
   '/api/ai-status': typeof ApiAiStatusRoute
   '/api/chat': typeof ApiChatRoute
   '/dev/builder-playground': typeof DevBuilderPlaygroundRoute
   '/templates/$slug': typeof TemplatesSlugRoute
-  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
-  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/a/$artifactId/embed': typeof AArtifactIdEmbedRoute
   '/preview/$artifactId/$': typeof PreviewArtifactIdSplatRoute
@@ -242,21 +203,17 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
-    | '/mcp'
     | '/privacy'
     | '/support'
     | '/templates'
     | '/terms'
-    | '/.mcp/list-tools'
-    | '/.well-known/oauth-protected-resource'
     | '/builder'
+    | '/dashboard'
     | '/a/$artifactId'
     | '/api/ai-status'
     | '/api/chat'
     | '/dev/builder-playground'
     | '/templates/$slug'
-    | '/.lovable/oauth/consent'
-    | '/.mcp/invoke-tool/$tool'
     | '/chat/$threadId'
     | '/a/$artifactId/embed'
     | '/preview/$artifactId/$'
@@ -267,21 +224,17 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
-    | '/mcp'
     | '/privacy'
     | '/support'
     | '/templates'
     | '/terms'
-    | '/.mcp/list-tools'
-    | '/.well-known/oauth-protected-resource'
     | '/builder'
+    | '/dashboard'
     | '/a/$artifactId'
     | '/api/ai-status'
     | '/api/chat'
     | '/dev/builder-playground'
     | '/templates/$slug'
-    | '/.lovable/oauth/consent'
-    | '/.mcp/invoke-tool/$tool'
     | '/chat/$threadId'
     | '/a/$artifactId/embed'
     | '/preview/$artifactId/$'
@@ -293,21 +246,17 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
-    | '/mcp'
     | '/privacy'
     | '/support'
     | '/templates'
     | '/terms'
-    | '/.mcp/list-tools'
-    | '/.well-known/oauth-protected-resource'
     | '/_authenticated/builder'
+    | '/_authenticated/dashboard'
     | '/a/$artifactId'
     | '/api/ai-status'
     | '/api/chat'
     | '/dev/builder-playground'
     | '/templates/$slug'
-    | '/.lovable/oauth/consent'
-    | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/chat/$threadId'
     | '/a/$artifactId/embed'
     | '/preview/$artifactId/$'
@@ -320,19 +269,14 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
-  McpRoute: typeof McpRoute
   PrivacyRoute: typeof PrivacyRoute
   SupportRoute: typeof SupportRoute
   TemplatesRoute: typeof TemplatesRouteWithChildren
   TermsRoute: typeof TermsRoute
-  Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
-  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   AArtifactIdRoute: typeof AArtifactIdRouteWithChildren
   ApiAiStatusRoute: typeof ApiAiStatusRoute
   ApiChatRoute: typeof ApiChatRoute
   DevBuilderPlaygroundRoute: typeof DevBuilderPlaygroundRoute
-  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
-  Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   PreviewArtifactIdSplatRoute: typeof PreviewArtifactIdSplatRoute
   ApiProjectsArtifactIdFilesSplatRoute: typeof ApiProjectsArtifactIdFilesSplatRoute
   PreviewArtifactIdChar126TokenSplatRoute: typeof PreviewArtifactIdChar126TokenSplatRoute
@@ -366,13 +310,6 @@ declare module '@tanstack/react-router' {
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mcp': {
-      id: '/mcp'
-      path: '/mcp'
-      fullPath: '/mcp'
-      preLoaderRoute: typeof McpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -431,26 +368,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AArtifactIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/builder': {
       id: '/_authenticated/builder'
       path: '/builder'
       fullPath: '/builder'
       preLoaderRoute: typeof AuthenticatedBuilderRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/.well-known/oauth-protected-resource': {
-      id: '/.well-known/oauth-protected-resource'
-      path: '/.well-known/oauth-protected-resource'
-      fullPath: '/.well-known/oauth-protected-resource'
-      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/.mcp/list-tools': {
-      id: '/.mcp/list-tools'
-      path: '/.mcp/list-tools'
-      fullPath: '/.mcp/list-tools'
-      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/chat/': {
       id: '/_authenticated/chat/'
@@ -480,20 +410,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChatThreadIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/.mcp/invoke-tool/$tool': {
-      id: '/.mcp/invoke-tool/$tool'
-      path: '/.mcp/invoke-tool/$tool'
-      fullPath: '/.mcp/invoke-tool/$tool'
-      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/.lovable/oauth/consent': {
-      id: '/.lovable/oauth/consent'
-      path: '/.lovable/oauth/consent'
-      fullPath: '/.lovable/oauth/consent'
-      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/preview/$artifactId/~/$token/$': {
       id: '/preview/$artifactId/~/$token/$'
       path: '/preview/$artifactId/~/$token/$'
@@ -513,12 +429,14 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedBuilderRoute: typeof AuthenticatedBuilderRoute
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedChatThreadIdRoute: typeof AuthenticatedChatThreadIdRoute
   AuthenticatedChatIndexRoute: typeof AuthenticatedChatIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBuilderRoute: AuthenticatedBuilderRoute,
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedChatThreadIdRoute: AuthenticatedChatThreadIdRoute,
   AuthenticatedChatIndexRoute: AuthenticatedChatIndexRoute,
 }
@@ -554,20 +472,14 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
-  McpRoute: McpRoute,
   PrivacyRoute: PrivacyRoute,
   SupportRoute: SupportRoute,
   TemplatesRoute: TemplatesRouteWithChildren,
   TermsRoute: TermsRoute,
-  Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
-  Char91DotwellKnownChar93OauthProtectedResourceRoute:
-    Char91DotwellKnownChar93OauthProtectedResourceRoute,
   AArtifactIdRoute: AArtifactIdRouteWithChildren,
   ApiAiStatusRoute: ApiAiStatusRoute,
   ApiChatRoute: ApiChatRoute,
   DevBuilderPlaygroundRoute: DevBuilderPlaygroundRoute,
-  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
-  Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   PreviewArtifactIdSplatRoute: PreviewArtifactIdSplatRoute,
   ApiProjectsArtifactIdFilesSplatRoute: ApiProjectsArtifactIdFilesSplatRoute,
   PreviewArtifactIdChar126TokenSplatRoute:

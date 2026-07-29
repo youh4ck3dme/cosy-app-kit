@@ -108,6 +108,14 @@ export function CommandPalette({
           >
             Open agent settings
           </CommandItem>
+          <CommandItem
+            onSelect={() => {
+              close();
+              navigate({ to: "/dashboard" });
+            }}
+          >
+            Go to Dashboard
+          </CommandItem>
           {onToggleSidebar && (
             <CommandItem
               onSelect={() => {

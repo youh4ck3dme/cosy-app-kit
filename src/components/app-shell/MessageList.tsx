@@ -323,18 +323,7 @@ function ThinkingWorkPanel({
   );
 }
 
-export function MessageList({
-  messages,
-  status,
-  onRegenerate,
-  onRetryFrom,
-  onEditUserMessage,
-  onFocusCanvas,
-  onPickPrompt,
-  onQuote,
-  onFillComposer,
-  errorBanner,
-}: {
+export type MessageListProps = {
   messages: UIMessage[];
   status: "ready" | "submitted" | "streaming" | "error";
   onRegenerate?: () => void;
@@ -346,7 +335,20 @@ export function MessageList({
   onQuote?: (text: string) => void;
   onFillComposer?: (text: string) => void;
   errorBanner?: string | null;
-}) {
+};
+
+export function MessageList({
+  messages,
+  status,
+  onRegenerate,
+  onRetryFrom,
+  onEditUserMessage,
+  onFocusCanvas,
+  onPickPrompt,
+  onQuote,
+  onFillComposer,
+  errorBanner,
+}: MessageListProps) {
   const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
   const lastAssistantId = lastAssistant?.id;
   const isStreaming = status === "streaming";

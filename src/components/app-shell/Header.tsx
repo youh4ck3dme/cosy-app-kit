@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Settings,
   Menu,
@@ -9,20 +9,18 @@ import {
   Sun,
   Moon,
   Monitor,
-  Hexagon,
+  LayoutDashboard,
 } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { authSearch } from "@/integrations/lovable";
 import { AVAILABLE_MODELS, resolveKnownModelId } from "@/lib/models";
 import { useTheme, type Theme } from "@/lib/theme";
-import { AppDialog } from "./AppDialog";
 import { ThreadList } from "./ThreadList";
-import { CosyLogo } from "@/components/brand/CosyLogo";
+import { Logo } from "./Logo";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-/** Cycle: system → light → dark → cosy (COSY AI brand) → system */
 const THEME_CYCLE: Record<Theme, Theme> = {
   system: "light",
   light: "dark",
@@ -32,28 +30,22 @@ const THEME_CYCLE: Record<Theme, Theme> = {
 const THEME_META: Record<Theme, { Icon: typeof Sun; label: string }> = {
   light: { Icon: Sun, label: "Theme: light" },
   dark: { Icon: Moon, label: "Theme: dark" },
-  cosy: { Icon: Hexagon, label: "Theme: COSY AI" },
+  cosy: { Icon: Monitor, label: "Theme: cosy" },
   system: { Icon: Monitor, label: "Theme: system" },
 };
 
 function ThemeToggle({ className }: { className?: string }) {
   const { theme, setTheme } = useTheme();
   const { Icon, label } = THEME_META[theme];
-  const next = THEME_CYCLE[theme];
   return (
     <button
       type="button"
-      onClick={() => setTheme(next)}
-      className={cn(className, theme === "cosy" && "text-accent-primary hover:text-accent-glow")}
-      aria-label={`${label} — switch to ${THEME_META[next].label}`}
-      title={`${label} (next: ${THEME_META[next].label})`}
+      onClick={() => setTheme(THEME_CYCLE[theme])}
+      className={className}
+      aria-label={`${label} — switch to ${THEME_CYCLE[theme]}`}
+      title={label}
     >
       <Icon className="h-4 w-4" />
-      {theme === "cosy" && (
-        <span className="ml-1 hidden text-[10px] font-semibold tracking-wider uppercase sm:inline">
-          COSY
-        </span>
-      )}
     </button>
   );
 }
@@ -65,17 +57,40 @@ export function Header({
   onOpenSettings,
   view,
   onViewChange,
+  surface = "chat",
+  onPublish,
+  publishDisabled,
+  publishBusy,
 }: {
   activeThreadId?: string;
   activeModel?: string;
   onModelChange?: (model: string) => void;
   onOpenSettings: () => void;
-  view: "chat" | "preview";
-  onViewChange: (v: "chat" | "preview") => void;
+  view?: "chat" | "preview";
+  onViewChange?: (v: "chat" | "preview") => void;
+  /** chat = Builder workspace; dashboard = /dashboard shell */
+  surface?: "chat" | "dashboard";
+  /** Publish active artifact HTML to a public production URL */
+  onPublish?: () => void | Promise<void>;
+  publishDisabled?: boolean;
+  publishBusy?: boolean;
 }) {
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const onDashboard = surface === "dashboard" || pathname.startsWith("/dashboard");
   const [modelOpen, setModelOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+
+  const runPublish = async () => {
+    if (!onPublish || publishDisabled || publishing || publishBusy) return;
+    setPublishing(true);
+    try {
+      await onPublish();
+    } finally {
+      setPublishing(false);
+    }
+  };
   const resolvedModel = resolveKnownModelId(activeModel);
   const activeLabel =
     AVAILABLE_MODELS.find((m) => m.id === resolvedModel)?.label ?? "Mistral Large";
@@ -91,44 +106,79 @@ export function Header({
       <header className="z-40 min-w-0 flex-none border-b border-border-subtle glass-strong pt-[env(safe-area-inset-top)]">
         <div className="flex h-14 min-w-0 items-center justify-between gap-2 px-2 sm:px-4">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <Link to="/chat" className="group flex shrink-0 items-center gap-2">
-              <CosyLogo
-                size={30}
-                showWordmark
-                showSubtitle={false}
-                className="max-sm:[&>div]:hidden"
-              />
+            <Link to="/chat" className="group flex shrink-0 items-center gap-2.5">
+              <Logo size={30} />
+              <span className="hidden font-mono text-[13px] font-semibold tracking-tight sm:inline">
+                Builder
+              </span>
             </Link>
             <div className="hidden h-5 w-px shrink-0 bg-border-subtle sm:block" />
-            {/* Always visible — mobile must reach Preview after artifact without opening the menu */}
+            {/* Chat | Dashboard workspace switch */}
             <div
-              data-testid="chat-preview-toggle"
               className="flex shrink-0 items-center rounded-lg border border-border-subtle bg-surface-1/70 p-0.5 text-[11px] font-mono font-medium"
               role="group"
-              aria-label="Chat or preview"
+              aria-label="Workspace"
             >
-              {(["chat", "preview"] as const).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => onViewChange(v)}
-                  aria-label={v === "chat" ? "Show chat view" : "Show preview canvas"}
-                  aria-pressed={view === v}
-                  className={cn(
-                    "min-h-9 rounded-md px-2 py-1 uppercase tracking-wider transition-all sm:px-3",
-                    view === v
-                      ? "bg-surface-3 text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {v}
-                </button>
-              ))}
+              <Link
+                to="/chat"
+                aria-label="Chat"
+                className={cn(
+                  "min-h-9 rounded-md px-2 py-1 uppercase tracking-wider transition-all sm:px-3",
+                  !onDashboard
+                    ? "bg-surface-3 text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Chat
+              </Link>
+              <Link
+                to="/dashboard"
+                aria-label="Dashboard"
+                className={cn(
+                  "inline-flex min-h-9 items-center gap-1 rounded-md px-2 py-1 uppercase tracking-wider transition-all sm:px-3",
+                  onDashboard
+                    ? "bg-surface-3 text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <LayoutDashboard className="hidden h-3 w-3 sm:inline" />
+                Dashboard
+              </Link>
             </div>
+            {/* Chat | Preview — only on chat surface */}
+            {!onDashboard && view && onViewChange && (
+              <>
+                <div className="hidden h-5 w-px shrink-0 bg-border-subtle sm:block" />
+                <div
+                  data-testid="chat-preview-toggle"
+                  className="flex shrink-0 items-center rounded-lg border border-border-subtle bg-surface-1/70 p-0.5 text-[11px] font-mono font-medium"
+                  role="group"
+                  aria-label="Chat or preview"
+                >
+                  {(["chat", "preview"] as const).map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => onViewChange(v)}
+                      aria-label={v === "chat" ? "Show chat view" : "Show preview canvas"}
+                      aria-pressed={view === v}
+                      className={cn(
+                        "min-h-9 rounded-md px-2 py-1 uppercase tracking-wider transition-all sm:px-3",
+                        view === v
+                          ? "bg-surface-3 text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {v === "chat" ? "Pane" : "Preview"}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-            {activeThreadId && activeModel && (
+            {!onDashboard && activeThreadId && activeModel && (
               <div className="relative hidden md:block">
                 <button
                   type="button"
@@ -181,16 +231,23 @@ export function Header({
             >
               <Settings className="h-4 w-4" />
             </button>
-            <button
-              type="button"
-              onClick={() => toast.info("Publish is a preview-only affordance in this build.")}
-              aria-label="Publish"
-              className="hidden items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary-foreground shadow-[0_0_24px_-6px_color-mix(in_oklab,white_60%,transparent)] transition-all hover:scale-[1.03] hover:shadow-[0_0_32px_-4px_color-mix(in_oklab,white_70%,transparent)] md:inline-flex"
-            >
-              <Rocket className="h-3 w-3" />
-              Publish
-            </button>
-            {/* Right-side hamburger on mobile */}
+            {!onDashboard && (
+              <button
+                type="button"
+                onClick={() => void runPublish()}
+                disabled={!onPublish || publishDisabled || publishing || publishBusy}
+                aria-label="Publish artifact HTML to public URL"
+                title={
+                  !onPublish || publishDisabled
+                    ? "Generate an artifact first, then Publish"
+                    : "Make artifact public and copy production URL"
+                }
+                className="hidden items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary-foreground shadow-[0_0_24px_-6px_color-mix(in_oklab,white_60%,transparent)] transition-all hover:scale-[1.03] hover:shadow-[0_0_32px_-4px_color-mix(in_oklab,white_70%,transparent)] disabled:pointer-events-none disabled:opacity-40 md:inline-flex"
+              >
+                <Rocket className="h-3 w-3" />
+                {publishing || publishBusy ? "Publishing…" : "Publish"}
+              </button>
+            )}
             <button
               onClick={() => setMobileOpen(true)}
               className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground md:hidden"
@@ -202,10 +259,9 @@ export function Header({
         </div>
       </header>
 
-      {/* Mobile full-screen menu */}
       {mobileOpen && (
-        <div className="app-shell-fixed z-50 flex flex-col bg-background md:hidden">
-          <div className="flex h-14 flex-none items-center justify-between border-b border-border-subtle px-4 pt-[env(safe-area-inset-top)]">
+        <div className="fixed inset-0 z-50 flex flex-col bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] md:hidden animate-in-fade">
+          <div className="flex h-14 flex-none items-center justify-between border-b border-border-subtle px-4">
             <button
               onClick={() => setMobileOpen(false)}
               className="rounded-md p-2 text-muted-foreground hover:bg-surface-2 hover:text-foreground"
@@ -214,40 +270,63 @@ export function Header({
               <X className="h-5 w-5" />
             </button>
             <div className="flex items-center gap-2">
-              <CosyLogo size={26} showWordmark showSubtitle={false} />
+              <Logo size={26} />
+              <span className="font-mono text-sm font-semibold">Builder</span>
             </div>
             <div className="w-9" />
           </div>
           <div className="flex-1 overflow-y-auto overscroll-y-contain stagger">
             <div className="p-3">
-              <div
-                data-testid="chat-preview-toggle"
-                className="mb-2 flex gap-1 rounded-lg border border-border-subtle bg-surface-1/60 p-0.5"
-                role="group"
-                aria-label="Chat or preview"
-              >
-                {(["chat", "preview"] as const).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => {
-                      onViewChange(v);
-                      setMobileOpen(false);
-                    }}
-                    aria-label={v === "chat" ? "Show chat view" : "Show preview canvas"}
-                    aria-pressed={view === v}
-                    className={cn(
-                      "min-h-11 flex-1 rounded-md px-3 py-2 text-xs font-mono uppercase tracking-wider transition-all",
-                      view === v
-                        ? "bg-surface-3 text-foreground shadow-sm"
-                        : "text-muted-foreground",
-                    )}
-                  >
-                    {v}
-                  </button>
-                ))}
+              <div className="mb-2 flex gap-1 rounded-lg border border-border-subtle bg-surface-1/60 p-0.5">
+                <Link
+                  to="/chat"
+                  onClick={() => setMobileOpen(false)}
+                  className={cn(
+                    "min-h-11 flex-1 rounded-md px-3 py-2 text-center text-xs font-mono uppercase tracking-wider",
+                    !onDashboard
+                      ? "bg-surface-3 text-foreground shadow-sm"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  Chat
+                </Link>
+                <Link
+                  to="/dashboard"
+                  onClick={() => setMobileOpen(false)}
+                  className={cn(
+                    "min-h-11 flex-1 rounded-md px-3 py-2 text-center text-xs font-mono uppercase tracking-wider",
+                    onDashboard
+                      ? "bg-surface-3 text-foreground shadow-sm"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  Dashboard
+                </Link>
               </div>
-              {activeThreadId && activeModel && onModelChange && (
+              {!onDashboard && view && onViewChange && (
+                <div className="mb-2 flex gap-1 rounded-lg border border-border-subtle bg-surface-1/60 p-0.5">
+                  {(["chat", "preview"] as const).map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => {
+                        onViewChange(v);
+                        setMobileOpen(false);
+                      }}
+                      aria-pressed={view === v}
+                      className={cn(
+                        "min-h-11 flex-1 rounded-md px-3 py-2 text-xs font-mono uppercase tracking-wider transition-all",
+                        view === v
+                          ? "bg-surface-3 text-foreground shadow-sm"
+                          : "text-muted-foreground",
+                      )}
+                    >
+                      {v === "chat" ? "Pane" : "Preview"}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {!onDashboard && activeThreadId && activeModel && onModelChange && (
                 <div className="mb-3 rounded-xl border border-border-subtle bg-surface-1/40 p-2">
                   <p className="mb-1.5 px-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
                     Model
@@ -280,9 +359,25 @@ export function Header({
                 </div>
               )}
             </div>
-            <ThreadList activeThreadId={activeThreadId} onNavigate={() => setMobileOpen(false)} />
+            {!onDashboard && (
+              <ThreadList activeThreadId={activeThreadId} onNavigate={() => setMobileOpen(false)} />
+            )}
           </div>
-          <div className="native-sheet flex-none space-y-2 border-t border-border-subtle p-3">
+          <div className="flex-none space-y-2 border-t border-border-subtle p-3">
+            {!onDashboard && onPublish && (
+              <button
+                type="button"
+                disabled={publishDisabled || publishing || publishBusy}
+                onClick={() => {
+                  setMobileOpen(false);
+                  void runPublish();
+                }}
+                className="flex min-h-11 w-full items-center gap-3 rounded-lg bg-primary px-3 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-40"
+              >
+                <Rocket className="h-4 w-4" />
+                {publishing || publishBusy ? "Publishing…" : "Publish to production URL"}
+              </button>
+            )}
             <ThemeToggle className="flex min-h-11 w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm text-muted-foreground hover:bg-surface-2 hover:text-foreground" />
             <button
               onClick={() => {
@@ -305,6 +400,3 @@ export function Header({
     </>
   );
 }
-
-// Re-export for lazy use.
-export { AppDialog };

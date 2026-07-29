@@ -56,3 +56,4 @@ playwright/.cache/
 # Local authenticated e2e credentials (see e2e/e2e:authenticated.md.example)
 e2e/e2e:authenticated.md
 .vercel
+.nexify-forge-local/
