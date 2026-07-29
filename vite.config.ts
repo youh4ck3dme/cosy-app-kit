@@ -9,8 +9,9 @@
 // injects vite-tsconfig-paths (peer), which triggers a warnOnce. We strip that plugin after
 // the Lovable config resolves and enable the native option instead.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
-import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
 import type { ConfigEnv, PluginOption, UserConfig } from "vite";
+import { VitePWA } from "vite-plugin-pwa";
+import { PWA_MANIFEST } from "./src/lib/pwa-manifest";
 
 function isTsconfigPathsPlugin(p: PluginOption): boolean {
   return (
@@ -36,25 +37,30 @@ const lovableConfig = defineConfig({
     server: { entry: "server" },
   },
   vite: {
-    plugins: [mcpPlugin()],
+    plugins: [
+      VitePWA({
+        registerType: "autoUpdate",
+        manifest: PWA_MANIFEST,
+        devOptions: {
+          enabled: true,
+        },
+      }),
+    ],
     resolve: {
       tsconfigPaths: true,
+      dedupe: ["react", "react-dom"],
     },
-    // Expose SUPABASE_* as well as VITE_* so Lovable Cloud secrets without VITE_ prefix work.
+    // Expose SUPABASE_* as well as VITE_* so secrets without the VITE_ prefix still work.
     envPrefix: ["VITE_", "SUPABASE_"],
     server: {
+      // Supabase OAuth redirect URL allowlists match on exact host/port —
+      // bind explicitly so Vite always prints http://127.0.0.1:8080.
+      host: "127.0.0.1",
+      port: 8080,
+      strictPort: true, // never silently fall over to :8081 (breaks OAuth allowlist)
       watch: {
         // Debug NDJSON ingest must not trigger Vite HMR (render↔log feedback loop).
         ignored: ["**/.cursor/**"],
-      },
-      // Optional: if something still hits relative /~oauth/* on localhost,
-      // proxy to the published app (Google OAuth client lives there).
-      proxy: {
-        "/~oauth": {
-          target: "https://cosy-app-kit.lovable.app",
-          changeOrigin: true,
-          secure: true,
-        },
       },
     },
   },
@@ -67,6 +73,14 @@ export default async (env: ConfigEnv): Promise<UserConfig> => {
     resolve: {
       ...cfg.resolve,
       tsconfigPaths: true,
+      dedupe: [...new Set([...(cfg.resolve?.dedupe ?? []), "react", "react-dom"])],
+    },
+    // Force after Lovable wrapper merge (sandbox detection may rewrite host).
+    server: {
+      ...cfg.server,
+      host: "127.0.0.1",
+      port: 8080,
+      strictPort: true,
     },
     plugins: stripTsconfigPathsPlugins(cfg.plugins as PluginOption[] | undefined),
   };

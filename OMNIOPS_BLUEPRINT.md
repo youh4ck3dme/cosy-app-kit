@@ -1,7 +1,8 @@
 # OmniOps Blueprint — cosy-app-kit / AI Builder
 
 **Status:** ACTIVE · **Owner:** youh4ck3dme · **Product:** AI Builder (cosy-app-kit)  
-**Effective:** 2026-07-20 · **Default AI role from now:** OmniOps Developer (professional)
+**Effective:** 2026-07-29 · **Default AI role:** OmniOps Developer  
+**Post-cleanup:** Lovable MCP + cloud-auth OAuth broker + hardcoded prod origin **REMOVED**
 
 This is the **operating system** for humans and AI agents working on this repo.  
 If a rule here conflicts with a casual prompt, **this file wins** unless the owner explicitly overrides it in that message.
@@ -12,33 +13,60 @@ If a rule here conflicts with a casual prompt, **this file wins** unless the own
 
 Ship a **stable** Builder product:
 
-- Chat + live canvas + artifacts  
-- **Mistral-only** inference (no OpenAI / ChatGPT / Lovable AI Gateway for app chat)  
-- Supabase Auth/DB (RLS)  
-- Remote MCP for tools  
-- Fast iteration **without** breaking production  
+- Chat + live canvas + artifacts
+- **Mistral-only** inference (no OpenAI / ChatGPT / Lovable AI Gateway for app chat)
+- Supabase Auth/DB (RLS)
+- Fast iteration **without** breaking production
+- Clean stack: **no product MCP**, no Lovable OAuth consent routes
 
 **Speed is a feature. Stability of `main` is a hard requirement.**
 
 ---
 
-## 1) System map
+## 1) System map (source of truth)
 
-| Layer | What | Where |
-|-------|------|--------|
-| Product UI | Builder chat, canvas, settings | `src/routes`, `src/components/app-shell` |
-| Chat API | Stream + persist messages/artifacts | `src/routes/api/chat.ts` |
-| AI | **Mistral API only** | `src/lib/ai-gateway.server.ts`, `src/lib/models.ts` |
-| Auth | Supabase + Lovable OAuth broker | `src/integrations/supabase`, `src/integrations/lovable` |
-| DB | threads, messages, artifacts, agent_settings | Supabase **cosy-app-kit** · `magqgwqyijuuaoovyjps` · **eu-west-1** |
-| MCP | list/get/create threads & artifacts | `src/routes/mcp.ts`, `src/lib/mcp` |
-| Hosting | Lovable Cloud → Cloudflare Worker | https://cosy-app-kit.lovable.app |
-| Vercel | optional deploys | team `h4ck3d` · project `cosy-app-kit` |
-| GitHub | `youh4ck3dme/cosy-app-kit` | `main` locked, work on `developeredit` |
+| Layer        | What                                      | Where                                                                 |
+| ------------ | ----------------------------------------- | --------------------------------------------------------------------- |
+| Product UI   | Studio chat, canvas, settings             | `src/routes`, `src/components/studio`, `src/components/app-shell`     |
+| Chat API     | Stream + persist messages/artifacts       | `src/routes/api/chat.ts`                                              |
+| AI           | **Mistral API only** (+ key rotator)      | `src/lib/ai-gateway.server.ts`, `src/lib/models.ts`, `MistralKeyRotator` |
+| Auth         | Supabase Auth (email; Google via Supabase) | `src/integrations/supabase`, helpers in `src/integrations/lovable` (no-op broker stubs) |
+| DB           | threads, messages, artifacts, settings    | Supabase project **`uotvcsjoriamsagfprbq`** (see `public-config.ts`)  |
+| ~~MCP~~      | **REMOVED**                               | do **not** re-add `src/routes/mcp.ts` / `@lovable.dev/mcp-js`         |
+| Hosting      | Deploy target (Cloudflare/Lovable Worker) | set via env; **no** hardcoded `PROD_ORIGIN` in app code               |
+| GitHub       | `youh4ck3dme/cosy-app-kit`                | `main` locked · work on **`developeredit`**                           |
+
+### Explicit non-goals (after cleanup)
+
+| Do not restore                         | Why                                              |
+| -------------------------------------- | ------------------------------------------------ |
+| `@lovable.dev/mcp-js` + `/mcp` routes  | Lovable-specific; product does not ship MCP      |
+| `@lovable.dev/cloud-auth-js`           | Unused after OAuth consent removal               |
+| `vite` proxy → `*.lovable.app/~oauth`  | Local OAuth proxy removed                        |
+| Hardcoded `PROD_ORIGIN`                | Prod smoke uses `SMOKE_BASE_URL` only            |
+| Lovable AI Gateway / `LOVABLE_API_KEY` | Product chat is Mistral-direct only              |
 
 ---
 
-## 2) Branch & release model (non-negotiable)
+## 2) Canonical workspace (hard)
+
+| Path                                           | Role                                      |
+| ---------------------------------------------- | ----------------------------------------- |
+| `/Users/erikbabcan/lovable-builder-cosyapp`    | **ONLY** real application + git worktree  |
+| `/Users/erikbabcan/Pictures/cosy-app-kit`      | Optional **copy / backup** — **not** app  |
+| `/Users/erikbabcan/lovable-builder-k.d`        | MCP notes only — **not** the app          |
+
+### Forbidden “rescue” patterns
+
+1. **Do not** `git init` a new repo under `Pictures/cosy-app-kit` and push as a second source of truth.
+2. **Do not** create a brand-new GitHub repo when `origin` already points at `youh4ck3dme/cosy-app-kit`.
+3. **Do not** work product code only in Pictures and expect production to update.
+
+**Correct path:** edit → commit → push **`developeredit`** → PR → `main` when green + owner intent.
+
+---
+
+## 3) Branch & release model (non-negotiable)
 
 ```
 main            = production source of truth (LOCKED)
@@ -46,250 +74,218 @@ developeredit   = default working branch for humans + AI
 feature/*       = optional short-lived branches
 ```
 
-### Rules
-
-| Action | Allowed? |
-|--------|----------|
-| `git push origin main` | **NO** (branch protection + enforce admins) |
-| Force-push `main` | **NO** |
-| Work / push `developeredit` | **YES** |
-| Open PR → `main` | **YES** |
-| Merge PR to `main` | **ONLY owner**, after green CI + explicit intent |
-| `gh pr merge` by AI | **ONLY if owner says “merge PR #N” in that turn** |
+| Action                      | Allowed?                                          |
+| --------------------------- | ------------------------------------------------- |
+| `git push origin main`      | **NO**                                            |
+| Force-push `main`           | **NO**                                            |
+| Work / push `developeredit` | **YES**                                           |
+| Open PR → `main`            | **YES**                                           |
+| Merge PR to `main`          | Owner explicit order **or** auto-merge after **green CI** when owner requested “merge when green” |
+| `gh pr merge` by AI         | Only with owner intent in that turn               |
 
 ### Happy path
 
 ```bash
+cd /Users/erikbabcan/lovable-builder-cosyapp
 git checkout developeredit
 git pull origin developeredit
 # … implement …
+bun install
+bun run verify          # typecheck + unit + lint:gate + smoke
+# optional CI parity:
+bun run test:ship-gates && bun run build
 git add -A && git commit -m "…"
-git push origin developeredit
+git push -u origin developeredit
 gh pr create --base main --head developeredit --title "…" --body "…"
-# Owner: review → merge when CI green
-# Lovable: Publish / wait for sync → hard refresh prod
+# when owner wants auto green merge:
+gh pr merge --auto --squash
 ```
 
 ### After merge to `main`
 
 1. Confirm CI on `main` green  
-2. Lovable **Publish / Update** if frontend still old  
+2. Publish/deploy host if frontend still stale  
 3. Smoke: `/api/ai-status`, `/chat`, one Mistral prompt  
-4. Continue work back on `developeredit` (branch from updated `main` when needed)
+4. Continue on `developeredit` (rebase/merge from updated `main` when needed)
 
 ---
 
-## 3) Environments & secrets
+## 4) Environments & secrets
 
 ### Local (`/Users/erikbabcan/lovable-builder-cosyapp`)
 
-| File | Commit? | Contents |
-|------|---------|----------|
-| `.env` | **NO** (gitignored) | Supabase public URL + publishable key (+ VITE_*) |
-| `.env.local` | **NO** | `MISTRAL_API_KEY` |
-| `.env.example` | **YES** | placeholders only |
+| File           | Commit?             | Contents                                           |
+| -------------- | ------------------- | -------------------------------------------------- |
+| `.env`         | **NO**              | Supabase public URL + publishable key (+ VITE\_\*) |
+| `.env.local`   | **NO**              | `MISTRAL_API_KEY`                                  |
+| `.env.example` | **YES**             | placeholders only                                  |
 
 ```bash
 cd /Users/erikbabcan/lovable-builder-cosyapp
 bun install
-bun dev    # http://localhost:8080
+bun dev    # http://127.0.0.1:8080
 ```
 
-### Lovable Cloud (production / preview)
+### Deploy secrets (host UI / CI)
 
-**Supabase project (canonical):**
+- `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`
+- `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_PROJECT_ID`
+- `MISTRAL_API_KEY`
+- Optional: `MISTRAL_API_KEYS` (comma list for rotator), `SEARCH_API_KEY` / `TAVILY_API_KEY`
 
-| | |
-|--|--|
-| Name | `cosy-app-kit` |
-| Project ref / ID | `magqgwqyijuuaoovyjps` |
-| Region | `eu-west-1` (West EU / Ireland) |
-| URL | `https://magqgwqyijuuaoovyjps.supabase.co` |
-
-**Secrets (Cloud UI / Vercel h4ck3d)** — set explicitly:
-
-- `SUPABASE_URL=https://magqgwqyijuuaoovyjps.supabase.co`  
-- `SUPABASE_PUBLISHABLE_KEY` (publishable / anon)  
-- `SUPABASE_PROJECT_ID=magqgwqyijuuaoovyjps`  
-- `VITE_SUPABASE_URL` (same URL)  
-- `VITE_SUPABASE_PUBLISHABLE_KEY`  
-- `VITE_SUPABASE_PROJECT_ID=magqgwqyijuuaoovyjps`  
-- `MISTRAL_API_KEY`  
-
-**Code safety net:**  
-`src/integrations/supabase/public-config.ts` holds **public** URL/project id/publishable key fallbacks so the client still boots if Cloud forgets to inject env.  
-This is **not** service_role. RLS remains the real security boundary.
-
-### GitHub Actions
-
-- Use **repo Secrets**, never hardcode JWTs in workflows  
-- CI job name (branch protection): `Install · test · typecheck · build`
+**Code safety net:** `src/integrations/supabase/public-config.ts` public anon fallbacks.  
+**Not** service_role. RLS is the security boundary.
 
 ### Forbidden in git
 
-- `MISTRAL_API_KEY`  
-- `service_role` / secret keys  
-- Real tokens in README / issues / commits  
-
-GitGuardian failing = **stop and fix**, do not bypass with force.
+- `MISTRAL_API_KEY`, `service_role`, real tokens  
+- GitGuardian fail = stop and fix
 
 ---
 
-## 4) AI policy (product)
+## 5) AI policy (product)
 
-| Rule | Detail |
-|------|--------|
-| Provider | **Mistral only** for app chat |
-| Gateway | **No** Lovable AI Gateway / `LOVABLE_API_KEY` for chat |
-| Models UI | Only entries in `src/lib/models.ts` |
-| Default | `mistral-large-latest` |
-| Legacy IDs | `openai/*`, `google/*` → remap via `resolveKnownModelId` |
-| Errors | Human-readable (credits, 401, rate limit) — never silent generic if we control `onError` |
+| Rule       | Detail                                                                                   |
+| ---------- | ---------------------------------------------------------------------------------------- |
+| Provider   | **Mistral only** for app chat                                                            |
+| Gateway    | **No** Lovable AI Gateway / `LOVABLE_API_KEY`                                            |
+| Models UI  | Only `src/lib/models.ts`                                                                 |
+| Default    | `mistral-large-latest`                                                                   |
+| Build mode | Prefers `codestral-latest` via `resolveModelForMode`                                     |
+| Legacy IDs | `openai/*`, `google/*` → remap via `resolveKnownModelId`                                 |
+| Errors     | Human-readable (credits, 401, rate limit)                                                |
 
 ---
 
-## 5) Product surface map
+## 6) Product surface map
 
-| Route | Role |
-|-------|------|
-| `/auth` | Email + Google (local Google = full-page broker bridge, no popup required) |
-| `/chat` | Thread list + open latest/create |
-| `/chat/:id` | Chat + canvas + model chip |
-| `POST /api/chat` | Stream + save user/assistant + extract artifacts |
-| `/api/ai-status` | Deploy probe: provider, key present, buildMarker |
-| `/mcp` | MCP (401 without token) |
-| `/.well-known/oauth-protected-resource` | MCP OAuth metadata |
+| Route                | Role                                                        |
+| -------------------- | ----------------------------------------------------------- |
+| `/auth`              | Email (+ Google via Supabase when configured)               |
+| `/chat`              | Thread list                                                 |
+| `/chat/:id`          | Studio chat + canvas                                        |
+| `POST /api/chat`     | Stream + save + tools + artifacts                           |
+| `/api/ai-status`     | Deploy probe (provider, key present, markers) — no secrets  |
+| `/builder`           | Vision / semantic-intent surface (not full Kernel editor)   |
+| `/a/:artifactId`     | Public artifact share                                       |
+| ~~`/mcp`~~           | **gone**                                                    |
+| ~~`/.well-known/…`~~ | **gone** (MCP OAuth metadata)                               |
 
-### Agent settings
-
-- Mistral model chips only  
-- Temperature + system prompt  
-- Tools toggles (product flags)
-
-### Artifact loop (user value)
+### Artifact loop
 
 ```
-User prompt → Mistral stream → assistant message in DB
-           → fenced ```html → artifact → live canvas → download index.html
+User prompt → Mistral stream → DB message
+           → create_artifact / fenced html → canvas → download / share
 ```
 
-Target: **first usable mock in ~30s**.
+Target: first usable mock in ~30s.
+
+### Builder Kernel note
+
+`src/lib/builder` is a **platform library** (document/commands/history/tests).  
+Product chat runtime is **HTML multi-file artifacts + canvas**, not live `BuilderKernel` document editing. Do not claim “kernel is the live editor” without wiring.
 
 ---
 
-## 6) Definition of Done (every change)
+## 7) Definition of Done (every change)
 
-Before asking for merge:
+- [ ] Worked on `developeredit` in **lovable-builder-cosyapp**
+- [ ] No secrets in diff
+- [ ] `bun run verify` green (or CI equivalent)
+- [ ] If chat/auth touched: smoke `/api/ai-status` + one chat path
+- [ ] PR: what / why / how to test
+- [ ] CI green before merge
 
-- [ ] Works on `developeredit` locally (`bun dev`) when relevant  
-- [ ] No secrets in diff  
-- [ ] Typecheck/build not worse without reason  
-- [ ] If chat/auth/MCP touched: smoke steps below  
-- [ ] PR description says **what / why / how to test**  
-- [ ] CI green on PR  
-
-### Smoke (production after deploy)
+### Local verify (daily)
 
 ```bash
-curl -s https://cosy-app-kit.lovable.app/api/ai-status | jq .
-# expect: provider=mistral, mistralKeyPresent=true, buildMarker present
-
-# Browser:
-# /auth → login → /chat → one short prompt → stream + no "Missing Supabase"
+bun run ship     # preferred full local gate if defined
+# or:
+bun run verify && bun run test:ship-gates && bun run build
 ```
 
-### Smoke (MCP)
+### Prod smoke (after deploy)
 
 ```bash
-# no token → 401
-curl -s -o /dev/null -w "%{http_code}\n" -X POST https://cosy-app-kit.lovable.app/mcp \
-  -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+SMOKE_BASE_URL=https://<your-prod-domain> bun run prod-smoke
+# or:
+curl -s https://<your-prod-domain>/api/ai-status | jq .
+# expect: provider=mistral, mistralKeyPresent=true, lovableGatewayDisabled=true
 ```
 
 ---
 
-## 7) OmniOps AI agent contract (from now)
-
-You are **OmniOps Developer** for this repo unless the owner renames the role.
+## 8) OmniOps agent contract
 
 ### Always
 
-1. Default branch for edits: **`developeredit`**  
-2. Never push `main` directly  
-3. Never commit secrets  
-4. Prefer small, reviewable commits  
-5. After risky deploys, remind **Lovable Publish** + hard refresh  
-6. Speak clearly (Slovak OK if owner writes Slovak); no fake “done” without verify  
+1. Default branch: **`developeredit`**
+2. Never push `main` directly
+3. Never commit secrets
+4. Prefer small, reviewable commits (cleanup PRs separate from feature dumps when possible)
+5. Speak clearly (Slovak OK); no fake “done” without verify
+6. After cleanup, do not reintroduce Lovable MCP / cloud-auth / PROD_ORIGIN
 
 ### Never
 
-1. `git push --force` to `main`  
-2. Put API keys in source “just to make CI green” without owner OK  
-3. Reintroduce OpenAI/Gemini as default product models  
-4. Merge PRs without explicit owner instruction  
-5. Confuse **`lovable-builder-k.d`** (MCP notes only) with **`lovable-builder-cosyapp`** (real app)
-
-### Workspace paths
-
-| Path | Role |
-|------|------|
-| `/Users/erikbabcan/lovable-builder-cosyapp` | **ONLY** real application workspace |
-| `/Users/erikbabcan/lovable-builder-k.d` | MCP helpers / notes — **not** the app |
+1. Force-push `main`
+2. `git init` + new GitHub repo from Pictures copy
+3. Put API keys in source “to make CI green”
+4. Reintroduce OpenAI/Gemini as default product models
+5. Confuse Pictures copy or `lovable-builder-k.d` with the real app
 
 ---
 
-## 8) Incident playbook (quick)
+## 9) Incident playbook (quick)
 
-| Symptom | Likely cause | Action |
-|---------|--------------|--------|
-| Missing SUPABASE_URL in browser | Old frontend bundle / env | Confirm `public-config` on main; Lovable Publish; hard refresh |
-| Chat “An error occurred.” | AI path / key / old deploy | `/api/ai-status`; check MISTRAL secret; stream `/api/chat` |
-| Missing MISTRAL_API_KEY | Secret not on Cloud | Lovable Secrets → set key → redeploy |
-| GitGuardian fail | Secret in commit | Rewrite branch / remove key; never force-ignore |
-| Worker hung on `/mcp` | CF Worker timeout / stream | Check Cloud Logs; fix MCP handler (separate track) |
-| Google on localhost 404 `/~oauth` | Broker only on published host | Full-page bridge (already in lovable integration) |
-| Direct push to main rejected | Protection working | Use PR |
-
----
-
-## 9) Roadmap tracks (priority)
-
-| P | Track | Notes |
-|---|--------|--------|
-| P0 | Keep prod green | secrets + publish + smoke |
-| P0 | Mistral-only product surface | no regression to GPT UI |
-| P1 | MCP reliability | Worker hung after oauth.verify.ok |
-| P1 | Artifact quality loop | system prompt: self-contained CSS, mobile, real interactivity |
-| P2 | CI hygiene | secrets in GH Actions; no placeholders that hide failures |
-| P2 | E2E suite | keep Lovable E2E + optional GH Playwright later |
+| Symptom                         | Likely cause              | Action                                      |
+| ------------------------------- | ------------------------- | ------------------------------------------- |
+| Missing SUPABASE in browser     | Old bundle / env          | Check `public-config`; redeploy; hard refresh |
+| Chat generic error              | Key / deploy              | `/api/ai-status`; MISTRAL secret            |
+| Missing MISTRAL_API_KEY         | Secret not on host        | Set server env → redeploy                   |
+| GitGuardian fail                | Secret in commit          | Remove key; rewrite if needed               |
+| Direct push to main rejected    | Protection working        | Use PR                                      |
+| “New repo from Pictures” idea   | Wrong workspace           | Stay on existing `cosy-app-kit` remote      |
 
 ---
 
-## 10) Owner checklist (you)
+## 10) Roadmap tracks (priority)
 
-Daily / when shipping:
-
-1. Work on **`developeredit`**  
-2. Push branch, open PR when ready  
-3. Merge only when **you** choose  
-4. After merge → Lovable **Publish** if UI still old  
-5. One real prompt in prod (30s dashboard flex still counts as success)  
+| P  | Track                         | Notes                                              |
+| -- | ----------------------------- | -------------------------------------------------- |
+| P0 | Keep prod green               | secrets + deploy + smoke                           |
+| P0 | Mistral-only product surface  | no GPT/Lovable gateway regression                  |
+| P0 | Git hygiene                   | one remote truth; no second repo from Pictures     |
+| P1 | Commit/push cleanup + green CI| land post-Lovable cleanup on `main`                |
+| P1 | Artifact quality loop         | mobile-first, self-contained, tools                |
+| P2 | Kernel ↔ product wiring       | optional; do not fake integration                  |
+| P2 | E2E ship suite                | Playwright when local auth fixtures exist          |
 
 ---
 
-## 11) References
+## 11) Two-agent ship protocol (post-cleanup)
 
-| Doc | Purpose |
-|-----|---------|
-| `AGENTS.md` | Lovable git rules + main lock pointer |
-| `.github/BRANCH_PROTECTION.md` | How main is locked |
-| `WORKSPACE.md` | Local paths & AI policy notes |
-| `README.md` | Product overview |
-| `src/lib/models.ts` | Allowed Mistral models |
-| `src/integrations/supabase/public-config.ts` | Public client fallback |
+See:
+
+- `docs/product/AGENT_A_SHIP_CLEANUP.md`
+- `docs/product/AGENT_B_HARDEN_VERIFY.md`
+
+**Rule:** Agent A lands cleanup + green CI first. Agent B only after A’s PR is merged or stacked on A’s branch tip.
+
+---
+
+## 12) References
+
+| Doc                                          | Purpose                        |
+| -------------------------------------------- | ------------------------------ |
+| `AGENTS.md`                                  | Hard rules summary             |
+| `.github/BRANCH_PROTECTION.md`               | Main lock                      |
+| `WORKSPACE.md`                               | Local paths                    |
+| `src/lib/models.ts`                          | Allowed Mistral models         |
+| `src/integrations/supabase/public-config.ts` | Public client fallback         |
+| `docs/runbooks/daily-dev.md`                 | Daily ship                     |
 
 ---
 
 **OmniOps pledge:**  
-Ship fast on `developeredit`, protect `main`, never leak secrets, Mistral only, verify before claiming done.
+Ship fast on `developeredit`, protect `main`, never leak secrets, Mistral only, one git truth, verify before claiming done.
