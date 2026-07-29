@@ -28,6 +28,20 @@ async function signIn(page: Page) {
 
 async function openChatWorkspace(page: Page) {
   await page.goto("/chat");
+  // Fresh profiles clear storage in beforeEach — mark tour done so it cannot trap the shell
+  // (Escape previously did nothing; overlay blocks Chat|Preview on phones).
+  await page.evaluate(() => {
+    try {
+      localStorage.setItem("builder:tour-done", "1");
+    } catch {
+      /* ignore */
+    }
+  });
+  const tour = page.getByRole("dialog", { name: "Builder tour" });
+  if (await tour.isVisible().catch(() => false)) {
+    await page.getByRole("button", { name: /^skip$/i }).click();
+    await expect(tour).toBeHidden({ timeout: 5_000 });
+  }
   await expect(page.getByTestId("chat-composer")).toBeVisible({ timeout: 40_000 });
 }
 
@@ -45,6 +59,8 @@ test.describe("Authenticated workspace", () => {
       try {
         localStorage.clear();
         sessionStorage.clear();
+        // Prevent Builder tour from trapping the shell on first chat paint (phones + e2e).
+        localStorage.setItem("builder:tour-done", "1");
       } catch {
         /* ignore */
       }
@@ -62,10 +78,11 @@ test.describe("Authenticated workspace", () => {
     await signIn(page);
     await openChatWorkspace(page);
     await page.keyboard.press("ControlOrMeta+K");
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible({ timeout: 5_000 });
+    // Do not use bare getByRole("dialog") — Builder tour shares that role.
+    const palette = page.getByPlaceholder(/type a command or search/i);
+    await expect(palette).toBeVisible({ timeout: 5_000 });
     await page.keyboard.press("Escape");
-    await expect(dialog).toBeHidden({ timeout: 5_000 });
+    await expect(palette).toBeHidden({ timeout: 5_000 });
   });
 
   test("theme toggle flips the dark class and persists", async ({ page }) => {
@@ -128,4 +145,6 @@ test("auth page exposes sign-in testid (no secrets)", async ({ page }) => {
   const passwordCount = await page.getByPlaceholder(/password/i).count();
   expect(emailCount).toBeGreaterThan(0);
   expect(passwordCount).toBeGreaterThan(0);
+  // Local/LAN builds expose one-tap developer entry (credentials from VITE_DEV_*).
+  await expect(page.getByTestId("auth-developer-entry")).toBeVisible();
 });

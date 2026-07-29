@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { TOUR_DONE_STORAGE_KEY } from "@/lib/templates.seed";
 
 const STEPS = [
@@ -32,24 +32,41 @@ export function Tour({ enabled }: { enabled: boolean }) {
     setOpen(true);
   }, [enabled]);
 
-  const finish = () => {
+  const finish = useCallback(() => {
     try {
       localStorage.setItem(TOUR_DONE_STORAGE_KEY, "1");
     } catch {
       /* ignore */
     }
     setOpen(false);
-  };
+  }, []);
+
+  // Escape must dismiss — otherwise the tour traps the shell on phones (Pro Max / Air)
+  // and steals getByRole("dialog") from the command palette in e2e.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      finish();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [open, finish]);
 
   if (!open) return null;
   const current = STEPS[step]!;
 
   return (
     <div
-      className="fixed inset-0 z-80 flex items-end justify-center bg-black/45 p-4 backdrop-blur-sm sm:items-center"
+      className="fixed inset-0 z-80 flex items-end justify-center bg-black/45 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-sm sm:items-center"
       role="dialog"
       aria-modal
       aria-label="Builder tour"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) finish();
+      }}
     >
       <div className="w-full max-w-md rounded-2xl border border-border-subtle bg-panel p-5 shadow-elevated">
         <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
