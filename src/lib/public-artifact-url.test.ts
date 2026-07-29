@@ -16,17 +16,18 @@ describe("publicArtifactUrl", () => {
     expect(publicEmbedPath("abc-123")).toBe("/a/abc-123/embed");
   });
 
-  it("prefers production origin when browser is localhost", () => {
+  it("prefers PUBLISHED_ORIGIN when browser is localhost", () => {
     vi.stubGlobal("window", {
       location: { origin: "http://localhost:8080", hostname: "localhost" },
     });
-    expect(publicArtifactUrl("id-1")).toBe("https://cosy-app-kit.lovable.app/a/id-1");
-    expect(publicEmbedUrl("id-1")).toBe("https://cosy-app-kit.lovable.app/a/id-1/embed");
+    // Without VITE_PUBLIC_ORIGIN, PUBLISHED_ORIGIN falls back to local dev origin.
+    expect(publicArtifactUrl("id-1")).toBe("http://127.0.0.1:8080/a/id-1");
+    expect(publicEmbedUrl("id-1")).toBe("http://127.0.0.1:8080/a/id-1/embed");
   });
 
   it("uses current origin on production-like hosts", () => {
-    expect(publicArtifactUrl("id-2", { origin: "https://cosy-app-kit.lovable.app" })).toBe(
-      "https://cosy-app-kit.lovable.app/a/id-2",
+    expect(publicArtifactUrl("id-2", { origin: "https://example.com" })).toBe(
+      "https://example.com/a/id-2",
     );
   });
 

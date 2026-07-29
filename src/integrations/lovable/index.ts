@@ -89,3 +89,11 @@ export const lovable = {
     },
   },
 };
+
+/** Public site origin for absolute artifact URLs (no Lovable broker). */
+export const PUBLISHED_ORIGIN = (
+  (typeof process !== "undefined" &&
+    (process.env.VITE_PUBLIC_ORIGIN || process.env.PUBLIC_ORIGIN)) ||
+  (typeof window !== "undefined" ? window.location.origin : "")
+).replace(/\/$/, "") || "http://127.0.0.1:8080";
+

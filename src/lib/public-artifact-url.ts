@@ -11,8 +11,7 @@ export function publicEmbedPath(artifactId: string): string {
 
 /**
  * Absolute URL for published HTML.
- * - On localhost/LAN → prefer production host so the link works for others
- *   (requires Lovable/prod secrets pointing at the same Supabase).
+ * - On localhost/LAN → prefer PUBLISHED_ORIGIN (set VITE_PUBLIC_ORIGIN in prod)
  * - On a real deploy → use current origin.
  */
 export function publicArtifactUrl(

@@ -21,6 +21,7 @@ import { Route as DevBuilderPlaygroundRouteImport } from './routes/dev.builder-p
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiAiStatusRouteImport } from './routes/api/ai-status'
 import { Route as AArtifactIdRouteImport } from './routes/a.$artifactId'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedBuilderRouteImport } from './routes/_authenticated/builder'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat.index'
 import { Route as PreviewArtifactIdSplatRouteImport } from './routes/preview.$artifactId.$'
@@ -88,6 +89,11 @@ const AArtifactIdRoute = AArtifactIdRouteImport.update({
   path: '/a/$artifactId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedBuilderRoute = AuthenticatedBuilderRouteImport.update({
   id: '/builder',
   path: '/builder',
@@ -135,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/templates': typeof TemplatesRouteWithChildren
   '/terms': typeof TermsRoute
   '/builder': typeof AuthenticatedBuilderRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
   '/a/$artifactId': typeof AArtifactIdRouteWithChildren
   '/api/ai-status': typeof ApiAiStatusRoute
   '/api/chat': typeof ApiChatRoute
@@ -155,6 +162,7 @@ export interface FileRoutesByTo {
   '/templates': typeof TemplatesRouteWithChildren
   '/terms': typeof TermsRoute
   '/builder': typeof AuthenticatedBuilderRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
   '/a/$artifactId': typeof AArtifactIdRouteWithChildren
   '/api/ai-status': typeof ApiAiStatusRoute
   '/api/chat': typeof ApiChatRoute
@@ -177,6 +185,7 @@ export interface FileRoutesById {
   '/templates': typeof TemplatesRouteWithChildren
   '/terms': typeof TermsRoute
   '/_authenticated/builder': typeof AuthenticatedBuilderRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/a/$artifactId': typeof AArtifactIdRouteWithChildren
   '/api/ai-status': typeof ApiAiStatusRoute
   '/api/chat': typeof ApiChatRoute
@@ -199,6 +208,7 @@ export interface FileRouteTypes {
     | '/templates'
     | '/terms'
     | '/builder'
+    | '/dashboard'
     | '/a/$artifactId'
     | '/api/ai-status'
     | '/api/chat'
@@ -219,6 +229,7 @@ export interface FileRouteTypes {
     | '/templates'
     | '/terms'
     | '/builder'
+    | '/dashboard'
     | '/a/$artifactId'
     | '/api/ai-status'
     | '/api/chat'
@@ -240,6 +251,7 @@ export interface FileRouteTypes {
     | '/templates'
     | '/terms'
     | '/_authenticated/builder'
+    | '/_authenticated/dashboard'
     | '/a/$artifactId'
     | '/api/ai-status'
     | '/api/chat'
@@ -356,6 +368,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AArtifactIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/builder': {
       id: '/_authenticated/builder'
       path: '/builder'
@@ -410,12 +429,14 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedBuilderRoute: typeof AuthenticatedBuilderRoute
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedChatThreadIdRoute: typeof AuthenticatedChatThreadIdRoute
   AuthenticatedChatIndexRoute: typeof AuthenticatedChatIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBuilderRoute: AuthenticatedBuilderRoute,
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedChatThreadIdRoute: AuthenticatedChatThreadIdRoute,
   AuthenticatedChatIndexRoute: AuthenticatedChatIndexRoute,
 }

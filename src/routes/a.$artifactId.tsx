@@ -113,16 +113,16 @@ function PublicArtifactPage() {
   }, [artifact]);
 
   const entryPath =
-    (artifact?.entry_path && files.some((f) => f.path === artifact.entry_path)
+    (artifact?.entry_path && files.some((f: { path: string }) => f.path === artifact.entry_path)
       ? artifact.entry_path
       : null) ??
-    files.find((f) => /\.html?$/i.test(f.path))?.path ??
+    files.find((f: { path: string }) => /\.html?$/i.test(f.path))?.path ??
     files[0]?.path ??
     null;
 
   const entry = useMemo(() => {
     if (!entryPath) return null;
-    return files.find((f) => f.path === entryPath) ?? null;
+    return files.find((f: { path: string }) => f.path === entryPath) ?? null;
   }, [files, entryPath]);
 
   const isHtml = Boolean(

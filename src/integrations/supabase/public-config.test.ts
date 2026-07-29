@@ -8,11 +8,11 @@ import {
 } from "./public-config";
 
 describe("public Supabase config (cosy-app-kit)", () => {
-  it("points at magqgwqyijuuaoovyjps in eu-west-1", () => {
+  it("points at uotvcsjoriamsagfprbq public project", () => {
     expect(PUBLIC_SUPABASE_PROJECT_NAME).toBe("cosy-app-kit");
-    expect(PUBLIC_SUPABASE_PROJECT_ID).toBe("magqgwqyijuuaoovyjps");
+    expect(PUBLIC_SUPABASE_PROJECT_ID).toBe("uotvcsjoriamsagfprbq");
     expect(PUBLIC_SUPABASE_REGION).toBe("eu-west-1");
-    expect(PUBLIC_SUPABASE_URL).toBe("https://magqgwqyijuuaoovyjps.supabase.co");
+    expect(PUBLIC_SUPABASE_URL).toBe("https://uotvcsjoriamsagfprbq.supabase.co");
   });
 
   it("uses publishable key format (never service_role)", () => {
