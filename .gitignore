@@ -16,6 +16,11 @@ dist-ssr
 .nitro
 *.local
 
+# Local secret notes — never commit real keys (*.local does NOT match *.local.md)
+*.local.md
+secrets/**/*.local.md
+secrets/**/*.local.*
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
@@ -36,6 +41,10 @@ dist-ssr
 .env.*
 !.env.example
 
+# Private local secret notes (templates like *.example are OK)
+secrets/*.local.md
+!secrets/*.local.md.example
+
 # Local agent IDE settings
 .claude/
 
@@ -44,4 +53,7 @@ test-results/
 playwright-report/
 blob-report/
 playwright/.cache/
+# Local authenticated e2e credentials (see e2e/e2e:authenticated.md.example)
+e2e/e2e:authenticated.md
 .vercel
+.nexify-forge-local/

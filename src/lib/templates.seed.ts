@@ -23,15 +23,15 @@ export const TEMPLATES: TemplateSeed[] = [
     category: "Landing",
     blurb: "Hero, features, pricing teaser — distinctive, not purple.",
     prompt:
-      "Build a distinctive self-contained HTML landing page for a B2B analytics SaaS called Northline. Hero, 3 features, pricing teaser, footer. Not purple. Mobile hamburger. Chart.js sparkline optional.",
+      "Build a distinctive self-contained HTML landing page for a B2B analytics SaaS called Northline. Hero, 3 features, pricing teaser, footer. Not purple. Mobile hamburger. Optional sparkline via inline SVG or Canvas 2D (no CDN).",
   },
   {
     slug: "ops-dashboard",
     title: "Ops dashboard",
     category: "Dashboards",
-    blurb: "Dark ops UI with KPIs and a Chart.js revenue line.",
+    blurb: "Dark ops UI with KPIs and a self-contained revenue line.",
     prompt:
-      "Build a dark ops dashboard HTML with sidebar, KPI cards, Chart.js revenue line chart with Week/Month/Year data switching, recent activity list. Responsive @media. Distinctive palette (not indigo/purple).",
+      "Build a dark ops dashboard HTML with sidebar, KPI cards, revenue line chart (Canvas 2D or SVG, or Chart.js vendored locally — no CDN) with Week/Month/Year data switching, recent activity list. Responsive @media. Distinctive palette (not indigo/purple).",
   },
   {
     slug: "todo-app",
@@ -95,7 +95,7 @@ export const TEMPLATES: TemplateSeed[] = [
     category: "Dashboards",
     blurb: "Metric cards + sparkline strip.",
     prompt:
-      "Build an analytics overview HTML: 4 metric cards, a Chart.js area sparkline, and a table of top pages. Responsive grid. Avoid indigo/purple AI defaults.",
+      "Build an analytics overview HTML: 4 metric cards, an area sparkline via Canvas 2D or inline SVG (no CDN), and a table of top pages. Responsive grid. Avoid indigo/purple AI defaults.",
   },
 ];
 

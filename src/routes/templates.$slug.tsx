@@ -5,10 +5,7 @@ import { toast } from "sonner";
 import { createThread } from "@/lib/threads.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { authSearch } from "@/integrations/lovable";
-import {
-  getTemplateBySlug,
-  TEMPLATE_PROMPT_STORAGE_KEY,
-} from "@/lib/templates.seed";
+import { getTemplateBySlug, TEMPLATE_PROMPT_STORAGE_KEY } from "@/lib/templates.seed";
 
 export const Route = createFileRoute("/templates/$slug")({
   loader: ({ params }) => {
@@ -37,8 +34,14 @@ function TemplateDetailPage() {
   const useTemplate = async () => {
     setBusy(true);
     try {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) {
+      // getSession can hang when storage/network is flaky — don't leave the CTA stuck.
+      const sessionResult = await Promise.race([
+        supabase.auth.getSession(),
+        new Promise<{ data: { session: null } }>((resolve) =>
+          setTimeout(() => resolve({ data: { session: null } }), 4_000),
+        ),
+      ]);
+      if (!sessionResult.data.session) {
         sessionStorage.setItem(TEMPLATE_PROMPT_STORAGE_KEY, t.prompt);
         navigate({ to: "/auth", search: authSearch("/chat") });
         return;

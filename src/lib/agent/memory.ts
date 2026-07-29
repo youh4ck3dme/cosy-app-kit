@@ -32,13 +32,10 @@ export async function loadThreadMemory(
 export function formatMemoryBlock(rows: MemoryRow[]): string {
   if (!rows.length) return "";
   const lines = rows.map((r) => {
-    const summary =
-      typeof r.value === "string"
-        ? r.value
-        : JSON.stringify(r.value);
+    const summary = typeof r.value === "string" ? r.value : JSON.stringify(r.value);
     return `- ${r.key}: ${summary.slice(0, 400)}`;
   });
-  return `## User preferences for this project\n${lines.join("\n")}`;
+  return `## User preferences for this thread\n${lines.join("\n")}`;
 }
 
 export async function upsertMemory(
@@ -52,7 +49,7 @@ export async function upsertMemory(
 
   const { data: existing } = await supabase
     .from("thread_memory")
-    .select("id,value")
+    .select("value")
     .eq("thread_id", threadId)
     .eq("key", trimmed)
     .maybeSingle();
@@ -64,22 +61,18 @@ export async function upsertMemory(
         : JSON.stringify(existing.value)
       : null;
 
-  if (existing?.id) {
-    const { error } = await supabase
-      .from("thread_memory")
-      .update({ value, updated_at: new Date().toISOString() })
-      .eq("id", existing.id);
-    if (error) return { ok: false, error: error.message };
-    return { ok: true, previous };
-  }
+  const { error } = await supabase.from("thread_memory").upsert(
+    {
+      thread_id: threadId,
+      key: trimmed,
+      value,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "thread_id,key" },
+  );
 
-  const { error } = await supabase.from("thread_memory").insert({
-    thread_id: threadId,
-    key: trimmed,
-    value,
-  });
   if (error) return { ok: false, error: error.message };
-  return { ok: true, previous: null };
+  return { ok: true, previous };
 }
 
 export async function deleteMemory(

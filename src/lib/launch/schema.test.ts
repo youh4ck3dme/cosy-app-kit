@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  LaunchBlueprintSchema,
-  normalizeBlueprintNav,
-  PAGE_PATHS,
-} from "./schema";
+import { LaunchBlueprintSchema, normalizeBlueprintNav, PAGE_PATHS } from "./schema";
 import { parseBlueprintJson } from "./blueprint";
 import { assembleFiles } from "./assemble";
 import { generateSharedShell, placeholderPageHtml } from "./shell";

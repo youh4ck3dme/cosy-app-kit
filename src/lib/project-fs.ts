@@ -130,8 +130,7 @@ export function resolveArtifactFile(
     byBase.set(basenamePath(n.path).toLowerCase(), { ...f, path: n.path });
   }
 
-  const hit =
-    byPath.get(norm.path) ?? byBase.get(basenamePath(norm.path).toLowerCase()) ?? null;
+  const hit = byPath.get(norm.path) ?? byBase.get(basenamePath(norm.path).toLowerCase()) ?? null;
   if (!hit) {
     return { ok: false, status: 404, reason: "not_found" };
   }
@@ -153,6 +152,8 @@ export function needsUrlPreview(files: ProjectFsFile[]): boolean {
 
 export function buildPreviewCsp(opts: { networkDisabled?: boolean }): string {
   const connect = opts.networkDisabled ? "'none'" : "'self'";
+  // Intentionally no https: CDN hosts in script-src — preview/ZIP must stay offline-safe.
+  // Product prompts must not recommend bare jsDelivr Chart.js (see src/lib/models.ts).
   return [
     "default-src 'none'",
     "base-uri 'none'",

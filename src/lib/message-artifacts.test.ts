@@ -39,8 +39,7 @@ describe("partitionAssistantText", () => {
   });
 
   it("handles complete fence then a second incomplete stream", () => {
-    const text =
-      "v1 ready\n```html\n<html>a</html>\n```\nnext pass\n```html\n<html>b";
+    const text = "v1 ready\n```html\n<html>a</html>\n```\nnext pass\n```html\n<html>b";
     const r = partitionAssistantText(text);
     expect(r.completeFenceCount).toBe(1);
     expect(r.incomplete?.lang).toBe("html");

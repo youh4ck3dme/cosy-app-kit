@@ -133,9 +133,7 @@ describe("resolveModelForMode matrix", () => {
     }
     expect(resolveModelForMode(DEFAULT_MODEL, "build")).toBe(BUILD_CODE_MODEL);
     expect(resolveModelForMode(BUILD_CODE_MODEL, "plan")).toBe(DEFAULT_MODEL);
-    expect(resolveModelForMode("pixtral-large-latest", "build")).toBe(
-      "pixtral-large-latest",
-    );
+    expect(resolveModelForMode("pixtral-large-latest", "build")).toBe("pixtral-large-latest");
   });
 });
 
@@ -153,5 +151,13 @@ describe("prompt_rev", () => {
 
   it("exports mobile polish prompt", () => {
     expect(MOBILE_FIRST_POLISH_PROMPT).toMatch(/mobile-first/i);
+  });
+
+  it("exports theme/a11y polish prompts", async () => {
+    const { THEME_TOGGLE_POLISH_PROMPT, A11Y_POLISH_PROMPT, ARTIFACT_POLISH_ACTIONS } =
+      await import("./prompts");
+    expect(THEME_TOGGLE_POLISH_PROMPT).toMatch(/theme/i);
+    expect(A11Y_POLISH_PROMPT).toMatch(/accessibility|aria-label/i);
+    expect(ARTIFACT_POLISH_ACTIONS.some((a) => a.id === "export")).toBe(true);
   });
 });

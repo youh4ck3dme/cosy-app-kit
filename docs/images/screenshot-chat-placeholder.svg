@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-label="Screenshot placeholder">
+  <rect width="960" height="540" fill="#12141a"/>
+  <rect x="40" y="40" width="880" height="460" fill="none" stroke="#3a3f4b" stroke-width="2" stroke-dasharray="8 6"/>
+  <text x="480" y="260" text-anchor="middle" fill="#9aa3b2" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22">Screenshot placeholder</text>
+  <text x="480" y="300" text-anchor="middle" fill="#6b7280" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14">Product UI capture not checked into the repository</text>
+</svg>

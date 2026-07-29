@@ -49,7 +49,9 @@ export function applySearchReplace(input: ApplySearchReplaceInput): ApplySearchR
 
 export function applyRewrite(
   content: string,
-): { ok: true; content: string; beforeSnippet: string; afterSnippet: string } | { ok: false; error: string } {
+):
+  | { ok: true; content: string; beforeSnippet: string; afterSnippet: string }
+  | { ok: false; error: string } {
   if (content.length > MAX_FILE_BYTES) {
     return { ok: false, error: `content exceeds ${MAX_FILE_BYTES} bytes` };
   }
@@ -64,7 +66,9 @@ export function applyRewrite(
 /**
  * Normalize a relative artifact path. Rejects absolute paths and `..` segments.
  */
-export function sanitizeRelativePath(raw: string): { ok: true; path: string } | { ok: false; error: string } {
+export function sanitizeRelativePath(
+  raw: string,
+): { ok: true; path: string } | { ok: false; error: string } {
   const trimmed = raw.trim().replace(/\\/g, "/");
   if (!trimmed) return { ok: false, error: "path is empty" };
   if (trimmed.startsWith("/") || /^[a-zA-Z]:/.test(trimmed)) {

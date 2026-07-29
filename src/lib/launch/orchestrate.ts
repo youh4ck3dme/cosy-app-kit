@@ -44,8 +44,7 @@ export async function runLaunchPipeline(
 ): Promise<LaunchPipelineResult> {
   const t0 = Date.now();
   const key =
-    opts.apiKey?.trim() ||
-    (process.env.MISTRAL_API_KEY ?? process.env.MISTRAL_KEY ?? "").trim();
+    opts.apiKey?.trim() || (process.env.MISTRAL_API_KEY ?? process.env.MISTRAL_KEY ?? "").trim();
   const generateText = opts.generateText ?? (key ? mistralGenerateText(key) : null);
   if (!generateText) {
     throw new Error("MISTRAL_API_KEY is required for launch_site pipeline");

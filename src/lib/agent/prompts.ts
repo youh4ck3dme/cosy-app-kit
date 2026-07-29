@@ -1,12 +1,14 @@
 import { DEFAULT_SYSTEM_PROMPT } from "@/lib/models";
 
 /** Bump when system craft rules change (logged in composeSystem). */
-export const PROMPT_REV = "2026-07-21-project-runtime";
+export const PROMPT_REV = "2026-07-27-master-craft";
 
-export const SYSTEM_SHARED_STYLE = `## Output craft
-- Prefer distinctive visual direction over generic AI dashboards.
-- Mobile-first responsive CSS; accessible controls with aria-labels.
-- Self-contained HTML with inline CSS unless the user asks otherwise.
+export const SYSTEM_SHARED_STYLE = `## Visual & UI Output craft
+- When generating NEW code from scratch: Prefer distinctive, state-of-the-art visual direction over generic white AI dashboards (e.g. rich Obsidian dark modes, glassmorphism, accent glows, modern typography).
+- When modifying or polishing EXISTING artifacts: Preserve the user's existing brand palette, theme variables, and layout structure unless explicitly asked to redesign.
+- Mobile-first responsive CSS; accessible controls with aria-labels and visible focus rings.
+- Self-contained HTML with clean CSS and DOM-safe JS.
+- Never use generic placeholder text; provide realistic sample data and clean SVG icons.
 (prompt_rev: ${PROMPT_REV})`;
 
 export const SYSTEM_BUILD = `${DEFAULT_SYSTEM_PROMPT}
@@ -66,6 +68,7 @@ Produce a crisp plan:
 End with one question inviting the user to confirm or adjust before Build.
 
 You may call plan_steps to structure the plan, and remember/read_artifact when helpful.
+When calling plan_steps: each step/risk/question must be a SHORT bullet (aim ≤200 characters, hard max ~300). Max 8 steps. Put the long narrative in your chat text, not inside the tool args.
 Optional: fetch_url / web_search when those tools are enabled for grounding.`;
 
 export const BUILD_FENCE_SUFFIX = `\n\nWhen emitting code without tools, use ONE of:
@@ -80,6 +83,93 @@ export const MOBILE_FIRST_POLISH_PROMPT = `Rewrite this artifact mobile-first fo
 4) charts and KPI cards full width under 768px
 5) keep existing colors/brand
 Use edit_file on the current artifact when possible — do not recreate from scratch unless necessary.`;
+
+/** One-tap: dark/light theme without rewriting the app. */
+export const THEME_TOGGLE_POLISH_PROMPT = `Build mode. On the CURRENT artifact (edit_file / read_artifact first — do NOT recreate from scratch):
+1) Add a dark/light theme toggle in a sensible header/settings spot
+2) Drive colors via CSS variables (e.g. data-theme="dark"|"light" on <html> or <body>)
+3) Persist preference in localStorage; default to dark if unset
+4) Keep existing brand accents and layout; do not invent a new palette from scratch
+5) Ensure contrast stays readable in both themes
+Do not change core business logic.`;
+
+/** One-tap: accessibility + a few keyboard shortcuts. */
+export const A11Y_POLISH_PROMPT = `Build mode. On the CURRENT artifact (edit_file — do NOT recreate):
+1) Every interactive control has an accessible name (label / aria-label)
+2) Visible :focus-visible rings; Escape closes modals/drawers/palettes
+3) Forms associate <label> with inputs; errors are announced (aria-live or role=alert)
+4) Add 3–5 keyboard shortcuts for common actions (document them in a small Shortcuts hint)
+5) Do not remove existing features; keep colors/brand
+Do not change core business logic.`;
+
+/** One-tap: denser visual system — spacing, type, CSS vars (not a design canvas). */
+export const VISUAL_SYSTEM_POLISH_PROMPT = `Build mode. On the CURRENT artifact (edit_file — do NOT recreate):
+1) Introduce a small design token set as CSS variables (bg, surface, border, text, accent, radius, space)
+2) Consistent spacing rhythm; cards/sections align to a simple grid/flex system
+3) Typography scale (title / body / mono meta) — no random font sizes
+4) Touch targets ≥44px where primary actions exist
+5) Keep existing brand/accent; no drag-and-drop shape editor, no fake analytics widgets
+Do not change core business logic.`;
+
+/** One-tap: practical export/share without new backends. */
+export const EXPORT_SHARE_POLISH_PROMPT = `Build mode. On the CURRENT artifact (edit_file — do NOT recreate):
+1) Add a "Download HTML" (or ZIP-of-files if multi-file) control that exports the current app state/files the user can save
+2) Add print-friendly CSS (@media print) so Print → PDF works for the main view
+3) Optional: copy-share text (booking id / deep link hash) if the app already has an ID concept
+4) No external CDN; no analytics; no Figma/Adobe integrations
+5) Keep existing flows intact
+Do not change core business logic.`;
+
+/** One-tap: background color/pattern toggle, scoped to a settings panel (not a design canvas). */
+export const BACKGROUND_POLISH_PROMPT = `Build mode. On the CURRENT artifact (edit_file — do NOT recreate):
+1) Add a background color/pattern control in an existing settings/options panel (create a minimal one only if none exists)
+2) Drive it via a CSS variable on <html> or <body>; persist the choice in localStorage
+3) Offer a small fixed set of presets (e.g. solid, subtle gradient, soft grid/dot pattern) — no image upload, no external assets
+4) Keep readable contrast against existing text/surface colors in both themes if a theme toggle exists
+5) No drag-and-drop canvas, no free-form shape/pattern editor
+Do not change core business logic.`;
+
+/** Catalog for one-tap Canvas polish actions (UI + tests). */
+export const ARTIFACT_POLISH_ACTIONS = [
+  {
+    id: "mobile-first",
+    label: "Mobile-first",
+    title: "Ask Builder to rewrite layout mobile-first",
+    prompt: MOBILE_FIRST_POLISH_PROMPT,
+  },
+  {
+    id: "theme",
+    label: "Theme",
+    title: "Ask Builder to add dark/light theme toggle",
+    prompt: THEME_TOGGLE_POLISH_PROMPT,
+  },
+  {
+    id: "a11y",
+    label: "A11y",
+    title: "Ask Builder to improve accessibility and shortcuts",
+    prompt: A11Y_POLISH_PROMPT,
+  },
+  {
+    id: "visual",
+    label: "Visual",
+    title: "Ask Builder to tighten spacing, type, and CSS tokens",
+    prompt: VISUAL_SYSTEM_POLISH_PROMPT,
+  },
+  {
+    id: "export",
+    label: "Export",
+    title: "Ask Builder to add download/print export helpers",
+    prompt: EXPORT_SHARE_POLISH_PROMPT,
+  },
+  {
+    id: "background",
+    label: "Background",
+    title: "Ask Builder to add a background color/pattern option",
+    prompt: BACKGROUND_POLISH_PROMPT,
+  },
+] as const;
+
+export type ArtifactPolishActionId = (typeof ARTIFACT_POLISH_ACTIONS)[number]["id"];
 
 /**
  * One-tap polish for multi-file project packages (FleetOps-class runtime).
@@ -120,8 +210,7 @@ export function formatClientContext(ctx?: ClientPreviewContext | null): string {
       ? ctx.previewMode.trim().slice(0, 32)
       : null;
   const active =
-    typeof ctx.activeArtifactId === "string" &&
-    /^[0-9a-f-]{36}$/i.test(ctx.activeArtifactId.trim())
+    typeof ctx.activeArtifactId === "string" && /^[0-9a-f-]{36}$/i.test(ctx.activeArtifactId.trim())
       ? ctx.activeArtifactId.trim()
       : null;
   if (w == null && !mode && !active) return "";

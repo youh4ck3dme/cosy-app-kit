@@ -40,6 +40,12 @@ jobs:
       - name: Unit tests
         run: bun run test:unit
 
+      - name: Ship gates (CDN + wow testids)
+        run: bun run test:ship-gates
+
+      - name: Lint gate
+        run: bun run lint:gate
+
       - name: Typecheck
         run: bun run typecheck
 

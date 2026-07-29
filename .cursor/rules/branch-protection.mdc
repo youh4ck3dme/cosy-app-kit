@@ -1,0 +1,19 @@
+---
+description: main is locked — PR-only, no force-push; see BRANCH_PROTECTION.md
+alwaysApply: true
+---
+
+# Branch protection (`main` locked)
+
+- Direct push to `main` is **blocked** (including admins).
+- Force-push / delete of `main` is **blocked**.
+- Required CI check name: `Install · test · typecheck · build` (includes ship-gates).
+
+Allowed path:
+
+1. `feature/*` or `developeredit`
+2. `git push -u origin <branch>`
+3. `gh pr create --base main`
+4. Human merges when CI is green
+
+Full policy: [`.github/BRANCH_PROTECTION.md`](../../.github/BRANCH_PROTECTION.md)

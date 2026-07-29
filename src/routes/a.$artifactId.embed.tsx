@@ -1,8 +1,11 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { cn } from "@/lib/utils";
+import { useReducedMotionSafe } from "@/lib/motion";
+import { Skeleton } from "@/components/ui/skeleton";
 import { buildPreviewBridgeScript } from "@/lib/preview-bridge";
 import { injectScriptIntoHtmlHead } from "@/lib/preview-storage-polyfill";
 import { needsUrlPreview } from "@/lib/project-fs";
@@ -54,7 +57,7 @@ export const Route = createFileRoute("/a/$artifactId/embed")({
     ],
   }),
   notFoundComponent: () => (
-    <div className="flex min-h-60 items-center justify-center bg-background text-sm text-muted-foreground">
+    <div className="flex min-h-60 items-center justify-center rounded-2xl border border-dashed border-border-subtle bg-surface/50 p-6 text-sm text-muted-foreground">
       Not found
     </div>
   ),
@@ -63,6 +66,8 @@ export const Route = createFileRoute("/a/$artifactId/embed")({
 
 function EmbedPage() {
   const artifact = Route.useLoaderData();
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const reducedMotion = useReducedMotionSafe();
   const bridgeTokenRef = useRef(
     typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `tok-${Date.now()}`,
   );
@@ -119,12 +124,21 @@ function EmbedPage() {
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       <div className="flex-1">
         {isHtml && (previewSrc || srcDoc) ? (
-          <iframe
-            {...(previewSrc ? { src: previewSrc } : { srcDoc: srcDoc! })}
-            sandbox="allow-scripts allow-forms"
-            className="block h-[calc(100vh-2.5rem)] w-full border-0 bg-white"
-            title={artifact.title}
-          />
+          <div className="relative h-[calc(100vh-2.5rem)] w-full">
+            {!iframeLoaded && <Skeleton aria-hidden className="absolute inset-0 rounded-none" />}
+            <iframe
+              {...(previewSrc ? { src: previewSrc } : { srcDoc: srcDoc! })}
+              sandbox="allow-scripts allow-forms"
+              onLoad={() => setIframeLoaded(true)}
+              onError={() => setIframeLoaded(true)}
+              className={cn(
+                "relative block h-full w-full border-0 bg-background",
+                !reducedMotion && "transition-opacity duration-300",
+                iframeLoaded ? "opacity-100" : "opacity-0",
+              )}
+              title={artifact.title}
+            />
+          </div>
         ) : (
           <article className="prose prose-invert prose-sm mx-auto max-w-3xl px-4 py-6">
             <h1>{artifact.title}</h1>

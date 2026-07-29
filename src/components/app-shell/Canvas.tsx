@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
   Monitor,
   Tablet,
@@ -22,17 +22,14 @@ import {
   Network,
   Scaling,
 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { cn } from "@/lib/utils";
+import { useReducedMotionSafe } from "@/lib/motion";
+import { Skeleton } from "@/components/ui/skeleton";
 import { setArtifactPublic, updateArtifactFiles } from "@/lib/threads.functions";
-import { publicArtifactUrl, publicEmbedUrl } from "@/lib/public-artifact-url";
 import { exportArtifactDownload } from "@/lib/export-artifact";
-import { MonacoEditor } from "@/components/canvas/MonacoEditor";
-import { MonacoDiff } from "@/components/canvas/MonacoDiff";
-import { NetworkPanel, type NetworkEntry } from "@/components/canvas/NetworkPanel";
-import { VersionTimeline } from "@/components/canvas/VersionTimeline";
+import type { NetworkEntry } from "@/components/canvas/NetworkPanel";
 import { latestSnippetForFile, type EditFileSnippet } from "@/lib/edit-snippets";
 import {
   computeFrame,
@@ -43,6 +40,7 @@ import {
   type PreviewMode,
 } from "@/lib/preview-frame";
 import { analyzeResponsiveHtml, type ResponsiveReport } from "@/lib/agent/responsive-gate";
+import { ARTIFACT_POLISH_ACTIONS } from "@/lib/agent/prompts";
 import {
   analyzeProjectRuntime,
   isMultiPageProject,
@@ -55,6 +53,29 @@ import { mintPreviewToken } from "@/lib/preview-token.functions";
 import { buildPreviewBridgeScript } from "@/lib/preview-bridge";
 import { resolvePreviewNavTarget } from "@/lib/preview-nav";
 import { injectScriptIntoHtmlHead } from "@/lib/preview-storage-polyfill";
+
+/** Heavy editors / docks — keep off the preview-first path (Performance Contract v0.1). */
+const MonacoEditor = lazy(() =>
+  import("@/components/canvas/MonacoEditor").then((m) => ({ default: m.MonacoEditor })),
+);
+const MonacoDiff = lazy(() =>
+  import("@/components/canvas/MonacoDiff").then((m) => ({ default: m.MonacoDiff })),
+);
+const NetworkPanel = lazy(() =>
+  import("@/components/canvas/NetworkPanel").then((m) => ({ default: m.NetworkPanel })),
+);
+const VersionTimeline = lazy(() =>
+  import("@/components/canvas/VersionTimeline").then((m) => ({ default: m.VersionTimeline })),
+);
+const ReactMarkdown = lazy(() => import("react-markdown"));
+
+function HeavyFallback({ label }: { label: string }) {
+  return (
+    <div className="flex min-h-[12rem] items-center justify-center text-xs text-muted-foreground">
+      {label}
+    </div>
+  );
+}
 
 export type ArtifactFile = { path: string; language: string; content: string };
 export type Artifact = {
@@ -153,6 +174,7 @@ export function Canvas({
   artifact,
   threadId,
   editSnippets = [],
+  onPolishPrompt,
   onPolishMobile,
   onPolishProject,
   onFixFromConsole,
@@ -161,7 +183,9 @@ export function Canvas({
   threadId?: string;
   /** From chat tool parts — enables Diff “Show model change”. */
   editSnippets?: EditFileSnippet[];
-  /** One-tap “Make mobile-first” → parent sends polish prompt (MR-40 M3). */
+  /** One-tap polish catalog → parent sends Build prompt. */
+  onPolishPrompt?: (prompt: string) => void;
+  /** @deprecated Prefer onPolishPrompt — kept for callers that only wire mobile. */
   onPolishMobile?: () => void;
   /** One-tap multi-file project runtime fix (FleetOps-class ZIP readiness). */
   onPolishProject?: () => void;
@@ -179,8 +203,13 @@ export function Canvas({
   /** Which HTML file the preview iframe is showing (multi-file nav). */
   const [previewPath, setPreviewPath] = useState<string | null>(null);
   const [key, setKey] = useState(0);
-  const [showConsole, setShowConsole] = useState(false);
-  const [showNetwork, setShowNetwork] = useState(false);
+  /** Fade the preview iframe in on load instead of a hard pop / white flash. */
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const reducedMotion = useReducedMotionSafe();
+  /** Bottom dock: Console | Network (mutually exclusive tabs, not both closed forever). */
+  const [bottomTab, setBottomTab] = useState<"console" | "network" | null>(null);
+  const showConsole = bottomTab === "console";
+  const showNetwork = bottomTab === "network";
   const [showShare, setShowShare] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [logs, setLogs] = useState<ConsoleEntry[]>([]);
@@ -197,6 +226,12 @@ export function Canvas({
   );
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const paneRef = useRef<HTMLDivElement | null>(null);
+  // `key` remounts the iframe on every refresh/edit — reset the fade-in state
+  // in lockstep so the skeleton reappears for the new load instead of staying
+  // hidden behind a stale "already loaded" flag from the previous mount.
+  useEffect(() => {
+    setIframeLoaded(false);
+  }, [key]);
   /** Per-mount token so we ignore console/network spam from other frames. */
   const bridgeTokenRef = useRef(
     typeof crypto !== "undefined" && crypto.randomUUID
@@ -382,16 +417,20 @@ export function Canvas({
     return null;
   }, [artifact, files, resolvedPreviewPath]);
 
+  // Defer scorecard analysis so iframe srcDoc paint wins the main thread.
+  const deferredEntryHtml = useDeferredValue(entryHtml);
+  const deferredFiles = useDeferredValue(files);
+
   const responsiveReport: ResponsiveReport | null = useMemo(() => {
-    if (!entryHtml) return null;
-    return analyzeResponsiveHtml(entryHtml);
-  }, [entryHtml]);
+    if (!deferredEntryHtml) return null;
+    return analyzeResponsiveHtml(deferredEntryHtml);
+  }, [deferredEntryHtml]);
 
   const projectReport: ProjectRuntimeReport | null = useMemo(() => {
-    if (!artifact || files.length < 2) return null;
-    if (!isMultiPageProject(files)) return null;
-    return analyzeProjectRuntime(files.map((f) => ({ path: f.path, content: f.content })));
-  }, [artifact, files]);
+    if (!artifact || deferredFiles.length < 2) return null;
+    if (!isMultiPageProject(deferredFiles)) return null;
+    return analyzeProjectRuntime(deferredFiles.map((f) => ({ path: f.path, content: f.content })));
+  }, [artifact, deferredFiles]);
 
   useEffect(() => {
     if (!artifact?.id || !responsiveReport || responsiveReport.ok) return;
@@ -554,27 +593,43 @@ export function Canvas({
           : [String(d.args ?? "")];
         setLogs((prev) => [...prev.slice(-199), { level, args, ts: Date.now() }]);
         // Surface real runtime failures immediately
-        if (level === "error") setShowConsole(true);
+        if (level === "error") setBottomTab("console");
       }
       if (d.__builder_network === token) {
+        const netType: "fetch" | "xhr" = d.type === "xhr" ? "xhr" : "fetch";
         if (d.phase === "start") {
           setNetwork((prev) =>
             [
               ...prev,
               {
-                id: d.id,
-                method: d.method,
-                url: d.url,
+                id: String(d.id ?? ""),
+                method: String(d.method ?? "GET").toUpperCase(),
+                url: String(d.url ?? ""),
                 status: null,
                 ms: null,
                 ts: Date.now(),
-              },
+                type: netType,
+              } satisfies NetworkEntry,
             ].slice(-100),
           );
         } else if (d.phase === "end") {
+          const status = typeof d.status === "number" ? d.status : 0;
+          const fail = status === 0 || status >= 400 || d.ok === false;
           setNetwork((prev) =>
-            prev.map((row) => (row.id === d.id ? { ...row, status: d.status, ms: d.ms } : row)),
+            prev.map((row) =>
+              row.id === d.id
+                ? {
+                    ...row,
+                    status,
+                    ms: typeof d.ms === "number" ? d.ms : row.ms,
+                    type: netType,
+                    ok: typeof d.ok === "boolean" ? d.ok : !fail,
+                    error: typeof d.error === "string" ? d.error : row.error,
+                  }
+                : row,
+            ),
           );
+          if (fail) setBottomTab("network");
         }
       }
     };
@@ -614,9 +669,9 @@ export function Canvas({
       await share({ data: { artifactId: artifact.id, isPublic: next } });
       if (next) {
         setShowShare(true);
-        const url = publicArtifactUrl(artifact.id);
+        const url = `${window.location.origin}/a/${artifact.id}`;
         await navigator.clipboard.writeText(url).catch(() => {});
-        toast.success("Published — public link copied", { description: url });
+        toast.success("Public link copied", { description: url });
       } else {
         setShowShare(false);
         toast.success("Share link disabled");
@@ -683,9 +738,11 @@ export function Canvas({
   const networkFails = network
     .filter((n) => n.status === 0 || (typeof n.status === "number" && n.status >= 400))
     .map((n) => `${n.method} ${n.url} → ${n.status ?? "?"}`);
+  const networkFailCount = networkFails.length;
 
   return (
     <div
+      data-testid="builder-canvas"
       className={cn(
         "relative flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[color-mix(in_oklab,var(--color-background)_94%,black)]",
         fullscreen && "fixed inset-0 z-50 bg-background",
@@ -834,10 +891,7 @@ export function Canvas({
             {artifact && hasLivePreview && (
               <>
                 <button
-                  onClick={() => {
-                    setShowConsole((s) => !s);
-                    if (!showConsole) setShowNetwork(false);
-                  }}
+                  onClick={() => setBottomTab((t) => (t === "console" ? null : "console"))}
                   className={cn(
                     "inline-flex min-h-9 items-center gap-1.5 rounded-md px-1.5 py-1.5 text-xs font-medium transition-colors sm:px-2",
                     showConsole
@@ -850,6 +904,7 @@ export function Canvas({
                       : "Console — live logs from sandboxed preview"
                   }
                   aria-label="Toggle console"
+                  aria-pressed={showConsole}
                 >
                   <Terminal className="h-3.5 w-3.5" />
                   <span className="hidden lg:inline">Console</span>
@@ -864,32 +919,40 @@ export function Canvas({
                   ) : null}
                 </button>
                 <button
-                  onClick={() => {
-                    setShowNetwork((s) => !s);
-                    if (!showNetwork) setShowConsole(false);
-                  }}
+                  onClick={() => setBottomTab((t) => (t === "network" ? null : "network"))}
                   className={cn(
                     "inline-flex min-h-9 items-center gap-1.5 rounded-md px-1.5 py-1.5 text-xs font-medium transition-colors sm:px-2",
                     showNetwork
                       ? "bg-surface-3 text-foreground"
                       : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
                   )}
-                  title="Network"
+                  title={
+                    networkFailCount
+                      ? `Network — ${networkFailCount} failed request(s)`
+                      : "Network — fetch/XHR from sandboxed preview"
+                  }
                   aria-label="Toggle network panel"
+                  aria-pressed={showNetwork}
                 >
                   <Network className="h-3.5 w-3.5" />
                   <span className="hidden lg:inline">Net</span>
-                  {network.length > 0 && (
+                  {networkFailCount > 0 ? (
+                    <span className="rounded-full bg-destructive/20 px-1.5 text-[10px] font-mono text-destructive tabular-nums">
+                      {networkFailCount}
+                    </span>
+                  ) : network.length > 0 ? (
                     <span className="rounded-full bg-accent-primary/20 px-1.5 text-[10px] font-mono text-accent-primary tabular-nums">
                       {network.length}
                     </span>
-                  )}
+                  ) : null}
                 </button>
               </>
             )}
             {artifact && (
               <>
-                <VersionTimeline artifactId={artifact.id} threadId={threadId} />
+                <Suspense fallback={null}>
+                  <VersionTimeline artifactId={artifact.id} threadId={threadId} />
+                </Suspense>
                 <button
                   onClick={handleExport}
                   className="min-h-9 min-w-9 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
@@ -1172,20 +1235,38 @@ export function Canvas({
                         p{projectReport.score}
                       </span>
                     )}
-                    {onPolishMobile && entryHtml && (
-                      <button
-                        type="button"
-                        onClick={onPolishMobile}
-                        className={cn(
-                          "shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-semibold transition-colors",
-                          responsiveReport && !responsiveReport.ok
-                            ? "bg-amber-500/20 text-amber-200 hover:bg-amber-500/30"
-                            : "bg-surface-2 text-muted-foreground hover:bg-surface-3 hover:text-foreground",
-                        )}
-                        title="Ask Builder to rewrite layout mobile-first"
-                      >
-                        Mobile-first
-                      </button>
+                    {(onPolishPrompt || onPolishMobile) && entryHtml && (
+                      <div className="flex max-w-[min(100%,14rem)] flex-wrap items-center gap-0.5">
+                        {ARTIFACT_POLISH_ACTIONS.map((action) => {
+                          const run =
+                            action.id === "mobile-first" && !onPolishPrompt && onPolishMobile
+                              ? onPolishMobile
+                              : onPolishPrompt
+                                ? () => onPolishPrompt(action.prompt)
+                                : null;
+                          if (!run) return null;
+                          const emphasizeMobile =
+                            action.id === "mobile-first" &&
+                            responsiveReport &&
+                            !responsiveReport.ok;
+                          return (
+                            <button
+                              key={action.id}
+                              type="button"
+                              onClick={run}
+                              className={cn(
+                                "shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-semibold transition-colors",
+                                emphasizeMobile
+                                  ? "bg-amber-500/20 text-amber-200 hover:bg-amber-500/30"
+                                  : "bg-surface-2 text-muted-foreground hover:bg-surface-3 hover:text-foreground",
+                              )}
+                              title={action.title}
+                            >
+                              {action.label}
+                            </button>
+                          );
+                        })}
+                      </div>
                     )}
                     {onPolishProject && projectReport && !projectReport.ok && (
                       <button
@@ -1214,15 +1295,29 @@ export function Canvas({
                   Sandbox: scripts+forms only — no same-origin, no top-nav, no downloads.
                   Preview is untrusted user/agent HTML; keep capabilities minimal.
                 */}
-                <iframe
-                  key={key}
-                  ref={iframeRef}
-                  {...(previewSrc ? { src: previewSrc } : srcDoc ? { srcDoc } : {})}
-                  sandbox="allow-scripts allow-forms"
-                  className="block w-full border-0 bg-white"
+                <div
+                  className="relative"
                   style={{ height: frame.iframeHeight, width: frame.mediaWidth }}
-                  title={artifact.title}
-                />
+                >
+                  {!iframeLoaded && (
+                    <Skeleton aria-hidden className="absolute inset-0 rounded-none" />
+                  )}
+                  <iframe
+                    key={key}
+                    ref={iframeRef}
+                    {...(previewSrc ? { src: previewSrc } : srcDoc ? { srcDoc } : {})}
+                    sandbox="allow-scripts allow-forms"
+                    onLoad={() => setIframeLoaded(true)}
+                    onError={() => setIframeLoaded(true)}
+                    className={cn(
+                      "relative block w-full border-0 bg-panel",
+                      !reducedMotion && "transition-opacity duration-300",
+                      iframeLoaded ? "opacity-100" : "opacity-0",
+                    )}
+                    style={{ height: frame.iframeHeight, width: frame.mediaWidth }}
+                    title={artifact.title}
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -1233,20 +1328,24 @@ export function Canvas({
               style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}
             >
               <h2 className="mt-0!">{artifact.title}</h2>
-              <ReactMarkdown>{currentFile?.content ?? artifact.content}</ReactMarkdown>
+              <Suspense fallback={<HeavyFallback label="Loading markdown…" />}>
+                <ReactMarkdown>{currentFile?.content ?? artifact.content}</ReactMarkdown>
+              </Suspense>
             </article>
           )}
 
           {artifact && view === "code" && currentFile && (
-            <MonacoEditor
-              path={currentFile.path}
-              value={currentFile.content}
-              language={currentFile.language}
-              onChange={(val) => {
-                const path = currentFile.path;
-                setEdits((prev) => ({ ...prev, [path]: val }));
-              }}
-            />
+            <Suspense fallback={<HeavyFallback label="Loading editor…" />}>
+              <MonacoEditor
+                path={currentFile.path}
+                value={currentFile.content}
+                language={currentFile.language}
+                onChange={(val) => {
+                  const path = currentFile.path;
+                  setEdits((prev) => ({ ...prev, [path]: val }));
+                }}
+              />
+            </Suspense>
           )}
 
           {artifact && view === "diff" && currentFile && (
@@ -1256,20 +1355,22 @@ export function Canvas({
                   ? "Model change — edit_file beforeSnippet → afterSnippet"
                   : "Local edits — saved file vs current buffer (undo stack if you Reset)"}
               </p>
-              <MonacoDiff
-                path={currentFile.path}
-                language={currentFile.language}
-                original={
-                  diffMode === "model" && modelSnippet
-                    ? modelSnippet.beforeSnippet
-                    : (originalCurrent?.content ?? "")
-                }
-                modified={
-                  diffMode === "model" && modelSnippet
-                    ? modelSnippet.afterSnippet
-                    : currentFile.content
-                }
-              />
+              <Suspense fallback={<HeavyFallback label="Loading diff…" />}>
+                <MonacoDiff
+                  path={currentFile.path}
+                  language={currentFile.language}
+                  original={
+                    diffMode === "model" && modelSnippet
+                      ? modelSnippet.beforeSnippet
+                      : (originalCurrent?.content ?? "")
+                  }
+                  modified={
+                    diffMode === "model" && modelSnippet
+                      ? modelSnippet.afterSnippet
+                      : currentFile.content
+                  }
+                />
+              </Suspense>
             </div>
           )}
         </div>
@@ -1283,7 +1384,7 @@ export function Canvas({
                     <iframe
                       src={previewSrc}
                       sandbox="allow-scripts allow-forms"
-                      className="pointer-events-none h-[200%] w-[200%] origin-top-left scale-50 border-0 bg-white"
+                      className="pointer-events-none h-[200%] w-[200%] origin-top-left scale-50 border-0 bg-surface-2"
                       title="Share preview"
                       tabIndex={-1}
                     />
@@ -1293,7 +1394,7 @@ export function Canvas({
                       // Same as main preview — empty sandbox logs "allow-scripts is not set"
                       // and confuses debugging (thumbnail is pointer-events-none only).
                       sandbox="allow-scripts allow-forms"
-                      className="pointer-events-none h-[200%] w-[200%] origin-top-left scale-50 border-0 bg-white"
+                      className="pointer-events-none h-[200%] w-[200%] origin-top-left scale-50 border-0 bg-surface-2"
                       title="Share preview"
                       tabIndex={-1}
                     />
@@ -1307,7 +1408,9 @@ export function Canvas({
                   <div className="text-xs font-semibold">Share</div>
                   <div className="truncate text-sm">{artifact.title}</div>
                   <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground">
-                    {publicArtifactUrl(artifact.id)}
+                    {typeof window !== "undefined"
+                      ? `${window.location.origin}/a/${artifact.id}`
+                      : `/a/${artifact.id}`}
                   </div>
                 </div>
               </div>
@@ -1316,7 +1419,7 @@ export function Canvas({
                   type="button"
                   className="min-h-11 rounded-md border border-border px-3 text-xs"
                   onClick={async () => {
-                    const url = publicArtifactUrl(artifact.id);
+                    const url = `${window.location.origin}/a/${artifact.id}`;
                     await navigator.clipboard.writeText(url);
                     toast.success("Link copied");
                   }}
@@ -1327,7 +1430,7 @@ export function Canvas({
                   type="button"
                   className="min-h-11 rounded-md border border-border px-3 text-xs"
                   onClick={async () => {
-                    const embed = `<iframe src="${publicEmbedUrl(artifact.id)}" style="width:100%;height:640px;border:0;border-radius:12px" title="${artifact.title}"></iframe>`;
+                    const embed = `<iframe src="${window.location.origin}/a/${artifact.id}/embed" style="width:100%;height:640px;border:0;border-radius:12px" title="${artifact.title}"></iframe>`;
                     await navigator.clipboard.writeText(embed);
                     toast.success("Embed code copied");
                   }}
@@ -1411,7 +1514,8 @@ export function Canvas({
                   Clear
                 </button>
                 <button
-                  onClick={() => setShowConsole(false)}
+                  type="button"
+                  onClick={() => setBottomTab(null)}
                   className="rounded p-1 text-muted-foreground hover:bg-surface-2 hover:text-foreground"
                   aria-label="Close console"
                 >
@@ -1444,7 +1548,15 @@ export function Canvas({
           </div>
         )}
 
-        {showNetwork && <NetworkPanel entries={network} onClear={() => setNetwork([])} />}
+        {showNetwork && (
+          <Suspense fallback={<HeavyFallback label="Loading network…" />}>
+            <NetworkPanel
+              entries={network}
+              onClear={() => setNetwork([])}
+              onClose={() => setBottomTab(null)}
+            />
+          </Suspense>
+        )}
       </div>
     </div>
   );

@@ -5,9 +5,7 @@ import { artifactToFiles, cachePreviewFiles, signPreviewToken } from "@/lib/proj
 
 export const mintPreviewToken = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z.object({ artifactId: z.string().uuid() }).parse(input),
-  )
+  .inputValidator((input: unknown) => z.object({ artifactId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { data: row, error } = await context.supabase
       .from("artifacts")

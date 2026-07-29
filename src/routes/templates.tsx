@@ -1,20 +1,34 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { TEMPLATES, TEMPLATE_CATEGORIES } from "@/lib/templates.seed";
 import { cn } from "@/lib/utils";
 
+/**
+ * /templates layout: index list lives here; /templates/$slug renders via <Outlet />.
+ * (TanStack nests templates.$slug under this route — without Outlet, detail never paints.)
+ */
 export const Route = createFileRoute("/templates")({
   head: () => ({
     meta: [
       { title: "Templates · Builder" },
       {
         name: "description",
-        content: "Browse static Builder templates — landing pages, dashboards, docs, and app UI seeds.",
+        content:
+          "Browse static Builder templates — landing pages, dashboards, docs, and app UI seeds.",
       },
     ],
   }),
-  component: TemplatesIndexPage,
+  component: TemplatesRoute,
 });
+
+function TemplatesRoute() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isIndex = pathname === "/templates" || pathname === "/templates/";
+  if (!isIndex) {
+    return <Outlet />;
+  }
+  return <TemplatesIndexPage />;
+}
 
 function TemplatesIndexPage() {
   const [cat, setCat] = useState<string>("All");
@@ -34,11 +48,7 @@ function TemplatesIndexPage() {
             <Link to="/chat" className="hover:text-foreground">
               Open chat
             </Link>
-            <Link
-              to="/auth"
-              search={{ next: "", oauth_stage: "", lr: "", provider: "" }}
-              className="hover:text-foreground"
-            >
+            <Link to="/auth" search={{ next: "" }} className="hover:text-foreground">
               Sign in
             </Link>
           </nav>
@@ -48,7 +58,8 @@ function TemplatesIndexPage() {
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-8">
         <h1 className="text-3xl font-semibold tracking-tight">Templates</h1>
         <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-          Static seeds you can drop into a new thread. Use template fills the composer — it does not auto-send.
+          Static seeds you can drop into a new thread. Use template fills the composer — it does not
+          auto-send.
         </p>
 
         <div className="mt-6 flex flex-wrap gap-2" role="tablist" aria-label="Categories">

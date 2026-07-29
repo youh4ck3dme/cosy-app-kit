@@ -5,6 +5,8 @@ import { useMemo, useRef, useState } from "react";
 import { Monitor, Smartphone, Tablet, ExternalLink } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
+import { useReducedMotionSafe } from "@/lib/motion";
+import { Skeleton } from "@/components/ui/skeleton";
 import { buildPreviewBridgeScript } from "@/lib/preview-bridge";
 import { injectScriptIntoHtmlHead } from "@/lib/preview-storage-polyfill";
 import { needsUrlPreview } from "@/lib/project-fs";
@@ -21,7 +23,8 @@ const getPublicArtifact = createServerFn({ method: "GET" })
       global: {
         fetch: (input, init) => {
           const h = new Headers(init?.headers);
-          if (key.startsWith("sb_") && h.get("Authorization") === `Bearer ${key}`) h.delete("Authorization");
+          if (key.startsWith("sb_") && h.get("Authorization") === `Bearer ${key}`)
+            h.delete("Authorization");
           h.set("apikey", key);
           return fetch(input, { ...init, headers: h });
         },
@@ -36,9 +39,13 @@ const getPublicArtifact = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     if (!row) return null;
     return row as {
-      id: string; title: string; kind: string; content: string;
+      id: string;
+      title: string;
+      kind: string;
+      content: string;
       files: Array<{ path: string; language: string; content: string }> | null;
-      entry_path: string | null; created_at: string;
+      entry_path: string | null;
+      created_at: string;
     };
   });
 
@@ -82,6 +89,7 @@ export const Route = createFileRoute("/a/$artifactId")({
 });
 
 type Device = "desktop" | "tablet" | "mobile";
+/** mobile width aligned with iPhone 17 Air CSS viewport (420pt) */
 const WIDTHS: Record<Device, number> = { desktop: 1200, tablet: 768, mobile: 420 };
 
 function PublicArtifactPage() {
@@ -92,10 +100,10 @@ function PublicArtifactPage() {
     if (window.innerWidth < 1024) return "tablet";
     return "desktop";
   });
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const reducedMotion = useReducedMotionSafe();
   const bridgeTokenRef = useRef(
-    typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `tok-${Date.now()}`,
+    typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `tok-${Date.now()}`,
   );
 
   const files = useMemo(() => {
@@ -133,7 +141,10 @@ function PublicArtifactPage() {
 
   const srcDoc = useMemo(() => {
     if (!isHtml || !entry || urlMode) return null;
-    return injectScriptIntoHtmlHead(entry.content, buildPreviewBridgeScript(bridgeTokenRef.current));
+    return injectScriptIntoHtmlHead(
+      entry.content,
+      buildPreviewBridgeScript(bridgeTokenRef.current),
+    );
   }, [entry, isHtml, urlMode]);
 
   if (!artifact || !entry) return null;
@@ -194,13 +205,22 @@ function PublicArtifactPage() {
             className="overflow-hidden rounded-2xl border border-border-subtle bg-panel shadow-elevated"
             style={{ width: WIDTHS[device], maxWidth: "100%" }}
           >
-            <iframe
-              {...(previewSrc ? { src: previewSrc } : { srcDoc: srcDoc! })}
-              sandbox="allow-scripts allow-forms"
-              className="block w-full border-0 bg-white"
-              style={{ height: "80vh" }}
-              title={artifact.title}
-            />
+            <div className="relative" style={{ height: "80vh" }}>
+              {!iframeLoaded && <Skeleton aria-hidden className="absolute inset-0 rounded-none" />}
+              <iframe
+                {...(previewSrc ? { src: previewSrc } : { srcDoc: srcDoc! })}
+                sandbox="allow-scripts allow-forms"
+                onLoad={() => setIframeLoaded(true)}
+                onError={() => setIframeLoaded(true)}
+                className={cn(
+                  "relative block w-full border-0 bg-panel",
+                  !reducedMotion && "transition-opacity duration-300",
+                  iframeLoaded ? "opacity-100" : "opacity-0",
+                )}
+                style={{ height: "80vh" }}
+                title={artifact.title}
+              />
+            </div>
           </div>
         ) : (
           <article className="prose prose-invert prose-sm max-w-3xl rounded-2xl border border-border-subtle bg-panel px-8 py-6 shadow-elevated">

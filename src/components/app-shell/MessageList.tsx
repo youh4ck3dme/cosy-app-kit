@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { UIMessage } from "ai";
 import {
   Check,
@@ -90,7 +90,35 @@ function isToolPart(part: UIMessage["parts"][number]): part is ToolPart {
 function toolHasError(tp: ToolPart): boolean {
   if (tp.state === "output-error") return true;
   const errorText = (tp as { errorText?: unknown }).errorText;
-  return typeof errorText === "string" && Boolean(errorText.trim());
+  if (typeof errorText === "string" && Boolean(errorText.trim())) return true;
+  if (
+    tp.state === "output-available" &&
+    "output" in tp &&
+    tp.output != null &&
+    typeof tp.output === "object" &&
+    (tp.output as { ok?: unknown }).ok === false
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function toolSoftErrorText(tp: ToolPart): string | undefined {
+  if ("errorText" in tp && typeof tp.errorText === "string" && tp.errorText.trim()) {
+    return tp.errorText;
+  }
+  if (
+    tp.state === "output-available" &&
+    "output" in tp &&
+    tp.output != null &&
+    typeof tp.output === "object"
+  ) {
+    const out = tp.output as { ok?: unknown; error?: unknown };
+    if (out.ok === false && typeof out.error === "string" && out.error.trim()) {
+      return out.error;
+    }
+  }
+  return undefined;
 }
 
 function toolNameOf(tp: ToolPart): string {
@@ -233,16 +261,18 @@ function ThinkingWorkPanel({
                     : "text-muted-foreground/45",
               )}
             >
-              {current ? (
-                <Loader2
-                  className="mt-0.5 h-3 w-3 shrink-0 animate-spin text-accent-primary"
-                  aria-hidden
-                />
-              ) : done ? (
-                <Check className="mt-0.5 h-3 w-3 shrink-0 text-accent-primary/80" aria-hidden />
-              ) : (
-                <Circle className="mt-0.5 h-3 w-3 shrink-0 opacity-40" aria-hidden />
-              )}
+              <span
+                className="mt-0.5 inline-flex h-3 w-3 shrink-0 items-center justify-center"
+                aria-hidden
+              >
+                {current ? (
+                  <Loader2 className="h-3 w-3 animate-spin text-accent-primary" />
+                ) : done ? (
+                  <Check className="h-3 w-3 text-accent-primary/80" />
+                ) : (
+                  <Circle className="h-3 w-3 opacity-40" />
+                )}
+              </span>
               <span>{row.title}</span>
             </li>
           );
@@ -265,15 +295,20 @@ function ThinkingWorkPanel({
               const err = tp.state === "output-error" || tp.state === "output-denied";
               return (
                 <li key={toolKey(tp, i)} className="flex items-start gap-2 text-[11px]">
-                  {running ? (
-                    <Loader2 className="mt-0.5 h-3 w-3 shrink-0 animate-spin text-accent-primary" />
-                  ) : ok ? (
-                    <Check className="mt-0.5 h-3 w-3 shrink-0 text-emerald-500" />
-                  ) : err ? (
-                    <Circle className="mt-0.5 h-3 w-3 shrink-0 text-destructive" />
-                  ) : (
-                    <Circle className="mt-0.5 h-3 w-3 shrink-0 opacity-40" />
-                  )}
+                  <span
+                    className="mt-0.5 inline-flex h-3 w-3 shrink-0 items-center justify-center"
+                    aria-hidden
+                  >
+                    {running ? (
+                      <Loader2 className="h-3 w-3 animate-spin text-accent-primary" />
+                    ) : ok ? (
+                      <Check className="h-3 w-3 text-emerald-500" />
+                    ) : err ? (
+                      <Circle className="h-3 w-3 text-destructive" />
+                    ) : (
+                      <Circle className="h-3 w-3 opacity-40" />
+                    )}
+                  </span>
                   <div className="min-w-0">
                     <div className="font-medium text-foreground/90">{toolLabel(name)}</div>
                     <div className="text-muted-foreground">{toolThought(name)}</div>
@@ -666,10 +701,10 @@ function MessageRow({
                 <ToolContent>
                   {"input" in tp && tp.input !== undefined && <ToolInput input={tp.input} />}
                   {(("output" in tp && tp.output !== undefined) ||
-                    ("errorText" in tp && tp.errorText)) && (
+                    toolSoftErrorText(tp) !== undefined) && (
                     <ToolOutput
                       output={"output" in tp ? tp.output : undefined}
-                      errorText={"errorText" in tp ? tp.errorText : undefined}
+                      errorText={toolSoftErrorText(tp)}
                     />
                   )}
                 </ToolContent>
@@ -711,19 +746,45 @@ function MessageActions({
   regenerateLabel?: string;
 }) {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const canCopy = Boolean(text.trim());
+
+  const clearResetTimer = () => {
+    if (resetTimerRef.current !== null) {
+      clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    clearResetTimer();
+    setCopyState("idle");
+  }, [text]);
+
+  useEffect(() => () => clearResetTimer(), []);
+
+  const scheduleReset = (ms: number) => {
+    clearResetTimer();
+    resetTimerRef.current = setTimeout(() => {
+      resetTimerRef.current = null;
+      setCopyState("idle");
+    }, ms);
+  };
 
   const copy = async () => {
     if (!canCopy) return;
     try {
       await navigator.clipboard.writeText(text);
       setCopyState("copied");
-      window.setTimeout(() => setCopyState("idle"), 1600);
+      scheduleReset(1600);
     } catch {
       setCopyState("failed");
-      window.setTimeout(() => setCopyState("idle"), 2000);
+      scheduleReset(2000);
     }
   };
+
+  const copyLabel =
+    copyState === "copied" ? "Copied" : copyState === "failed" ? "Copy failed" : "Copy";
 
   return (
     <div
@@ -738,12 +799,22 @@ function MessageActions({
         className="inline-flex min-h-11 items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40"
         aria-label={copyState === "copied" ? "Copied to clipboard" : "Copy message"}
       >
-        {copyState === "copied" ? (
-          <Check className="h-3 w-3" aria-hidden />
-        ) : (
-          <Copy className="h-3 w-3" aria-hidden />
-        )}
-        {copyState === "copied" ? "Copied" : copyState === "failed" ? "Copy failed" : "Copy"}
+        {/* Fixed icon slot: keep both SVGs mounted to avoid React 19 insertBefore crashes on swap. */}
+        <span className="relative inline-flex h-3 w-3 shrink-0" aria-hidden>
+          <Copy
+            className={cn(
+              "absolute inset-0 h-3 w-3",
+              copyState === "copied" ? "invisible" : "visible",
+            )}
+          />
+          <Check
+            className={cn(
+              "absolute inset-0 h-3 w-3",
+              copyState === "copied" ? "visible" : "invisible",
+            )}
+          />
+        </span>
+        <span className="min-w-[4.5rem] text-left">{copyLabel}</span>
       </button>
       <span className="sr-only" aria-live="polite">
         {copyState === "copied"

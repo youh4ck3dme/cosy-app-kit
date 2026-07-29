@@ -40,9 +40,7 @@ export function analyzeResponsiveHtml(html: string): ResponsiveReport {
   }
 
   // Hard: real responsive strategy (not mere fixed min-width:1200 on body)
-  const hasMedia =
-    /@media\s*\(/i.test(html) ||
-    /\b(sm|md|lg|xl):[a-z]/i.test(html); // Tailwind responsive variants
+  const hasMedia = /@media\s*\(/i.test(html) || /\b(sm|md|lg|xl):[a-z]/i.test(html); // Tailwind responsive variants
   if (!hasMedia) {
     hardFails.push("no_media_queries");
     hints.push("Add @media (max-width: 768px) or mobile-first min-width breakpoints.");

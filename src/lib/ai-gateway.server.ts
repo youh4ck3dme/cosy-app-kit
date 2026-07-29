@@ -14,14 +14,20 @@ export {
   DEFAULT_TEMPERATURE,
 } from "@/lib/models";
 
+import { mistralKeyRotator } from "@/lib/builder/ai/MistralKeyRotator";
+
+export { mistralKeyRotator };
+
 /**
- * Direct Mistral API only — no Lovable AI Gateway, no OpenAI, no ChatGPT.
- * Server-only. Key: process.env.MISTRAL_API_KEY
+ * Direct Mistral API with Multi-Key Load Balancer & Rotator.
+ * Server-only. Keys: process.env.MISTRAL_API_KEYS or process.env.MISTRAL_API_KEY
  * Docs: https://docs.mistral.ai/
  */
-export function createMistralProvider(apiKey: string) {
+export function createMistralProvider(apiKey?: string) {
+  // If a specific key is passed, use it; otherwise use mistralKeyRotator to rotate among MISTRAL_API_KEYS
+  const activeKey = apiKey && apiKey.trim() ? apiKey.trim() : mistralKeyRotator.getNextKey();
   return createMistral({
-    apiKey,
+    apiKey: activeKey,
   });
 }
 

@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useParams, useRouter } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -19,7 +19,7 @@ import { publicArtifactUrl, publicEmbedUrl } from "@/lib/public-artifact-url";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/app-shell/Header";
 import { ThreadList } from "@/components/app-shell/ThreadList";
-import { Canvas, type Artifact } from "@/components/app-shell/Canvas";
+import type { Artifact } from "@/components/app-shell/Canvas";
 import {
   Composer,
   type BuilderMode,
@@ -38,8 +38,13 @@ import { truncateThreadMessagesClient } from "@/lib/truncate-messages";
 import { extractEditFileSnippets } from "@/lib/edit-snippets";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { MOBILE_FIRST_POLISH_PROMPT, PROJECT_RUNTIME_POLISH_PROMPT } from "@/lib/agent/prompts";
+import { PROJECT_RUNTIME_POLISH_PROMPT } from "@/lib/agent/prompts";
 import { isPreviewMode, type PreviewMode } from "@/lib/preview-frame";
+
+/** Canvas is heavy (preview bridge + optional Monaco). Keep chat shell paint first. */
+const Canvas = lazy(() =>
+  import("@/components/app-shell/Canvas").then((m) => ({ default: m.Canvas })),
+);
 
 export const Route = createFileRoute("/_authenticated/chat/$threadId")({
   component: ChatPage,
@@ -107,9 +112,17 @@ function ChatPage() {
   const publishArtifact = useServerFn(setArtifactPublic);
   useAppViewportLock(true);
 
+  const isOptimisticId = threadId.startsWith("optimistic-");
+
+  useEffect(() => {
+    if (!isOptimisticId) return;
+    navigate("/chat");
+  }, [isOptimisticId, navigate]);
+
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["thread", threadId],
     queryFn: () => load({ data: { threadId } }),
+    enabled: !isOptimisticId,
   });
 
   const initialMessages: UIMessage[] = useMemo(() => {
@@ -210,7 +223,14 @@ function ChatPage() {
       // G1.3 transient stream data parts from /api/chat
       const p = part as { type?: string; data?: Record<string, unknown> };
       if (!p?.type || !p.data) return;
-      if (p.type === "data-artifact-created") {
+      if (p.type === "data-intent-detected") {
+        const intent = typeof p.data.intent === "string" ? p.data.intent : "product";
+        const brand = typeof p.data.brand === "string" ? p.data.brand : "";
+        toast.message(`Instant skeleton · ${intent}`, {
+          id: "intent-detected",
+          description: brand ? `${brand} — Build is filling logic…` : "Build is filling logic…",
+        });
+      } else if (p.type === "data-artifact-created") {
         const artifactId = typeof p.data.artifactId === "string" ? p.data.artifactId : null;
         const title = typeof p.data.title === "string" ? p.data.title : "Artifact";
         if (artifactId) setActiveArtifactId(artifactId);
@@ -445,6 +465,17 @@ function ChatPage() {
     { allowInInput: true },
   );
 
+  if (isOptimisticId) {
+    return (
+      <div className="flex h-dvh flex-col items-center justify-center gap-3 px-4 text-center">
+        <p className="text-sm text-muted-foreground">Opening chat…</p>
+        <Link to="/chat" className="rounded-md border border-border px-4 py-2 text-sm">
+          All chats
+        </Link>
+      </div>
+    );
+  }
+
   if (isError) {
     const msg =
       error instanceof Error
@@ -473,7 +504,7 @@ function ChatPage() {
   }
 
   return (
-    <div className="fixed inset-0 z-0 flex h-dvh max-h-dvh max-w-[100vw] flex-col overflow-hidden overscroll-none bg-background text-foreground">
+    <div className="app-shell-fixed z-0 flex flex-col bg-background text-foreground">
       <a
         href="#chat-main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground"
@@ -599,28 +630,35 @@ function ChatPage() {
               <Skeleton className="h-[60%] w-[80%] rounded-2xl" />
             </div>
           ) : (
-            <Canvas
-              artifact={activeArtifact}
-              threadId={threadId}
-              editSnippets={editSnippets}
-              onPolishMobile={() => {
-                // One-tap mobile-first rewrite (MR-40 M3)
-                setMode("Build");
-                void sendMessage({ text: MOBILE_FIRST_POLISH_PROMPT });
-                setView("preview");
-              }}
-              onPolishProject={() => {
-                // One-tap multi-file project runtime fix (ZIP acceptance)
-                setMode("Build");
-                void sendMessage({ text: PROJECT_RUNTIME_POLISH_PROMPT });
-                setView("preview");
-              }}
-              onFixFromConsole={(prompt) => {
-                setMode("Build");
-                setView("chat");
-                fillComposer(prompt, "replace");
-              }}
-            />
+            <Suspense
+              fallback={
+                <div className="flex flex-1 items-center justify-center">
+                  <Skeleton className="h-[60%] w-[80%] rounded-2xl" />
+                </div>
+              }
+            >
+              <Canvas
+                artifact={activeArtifact}
+                threadId={threadId}
+                editSnippets={editSnippets}
+                onPolishPrompt={(prompt) => {
+                  setMode("Build");
+                  void sendMessage({ text: prompt });
+                  setView("preview");
+                }}
+                onPolishProject={() => {
+                  // One-tap multi-file project runtime fix (ZIP acceptance)
+                  setMode("Build");
+                  void sendMessage({ text: PROJECT_RUNTIME_POLISH_PROMPT });
+                  setView("preview");
+                }}
+                onFixFromConsole={(prompt) => {
+                  setMode("Build");
+                  setView("chat");
+                  fillComposer(prompt, "replace");
+                }}
+              />
+            </Suspense>
           )}
         </section>
       </div>
@@ -628,8 +666,8 @@ function ChatPage() {
       <AppDialog
         open={showSettings}
         onClose={() => setShowSettings(false)}
-        title="Agent settings"
-        description="Configure model, temperature, system prompt, and tools."
+        title="Settings"
+        description="Speed, PWA, model, tools, and thread memory."
       >
         <AgentSettingsPanel threadId={threadId} />
       </AppDialog>

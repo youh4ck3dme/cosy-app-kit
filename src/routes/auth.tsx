@@ -1,29 +1,14 @@
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  bounceTokensToLocalDev,
-  clearStagedLocalReturn,
-  decodeOAuthState,
-  extractOAuthTokensFromLocation,
-  isLocalDevReturnUrl,
-  isLocalHost,
-  lovable,
-  readStagedLocalReturn,
-  startPublishedOAuthAfterStage,
-  stripOAuthParamsFromUrl,
-} from "@/integrations/lovable";
 import { toast } from "sonner";
 import { Loader2, Zap } from "lucide-react";
 import { buildEmailRedirectTo } from "@/lib/auth-redirect";
 
 /**
- * Shared shell for:
- * - route pendingComponent (ssr:false Suspense / ClientOnly fallback)
- * - OAuth bridge bootstrap
- * Must stay identical so SSR HTML and first client paint match (no hydration mismatch).
+ * Shared shell for auth pending/loading states.
  */
-function AuthPendingShell({ label = "Completing sign-in…" }: { label?: string }) {
+function AuthPendingShell({ label = "Checking session…" }: { label?: string }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
       <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
@@ -34,14 +19,12 @@ function AuthPendingShell({ label = "Completing sign-in…" }: { label?: string 
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
-  // Critical: Match wraps ssr:false in Suspense + ClientOnly; without this the
-  // server fallback is null while the client paints AuthPage → hydration error.
   pendingComponent: AuthPendingShell,
   head: () => ({
     meta: [
-      { title: "Sign in — Builder" },
+      { title: "Sign in — COSY.AI" },
       { name: "robots", content: "noindex" },
-      { name: "description", content: "Sign in to Builder — AI-first app studio." },
+      { name: "description", content: "Sign in to COSY.AI — Visual Code Engine." },
     ],
   }),
   validateSearch: (s: Record<string, unknown>) => ({
@@ -49,10 +32,6 @@ export const Route = createFileRoute("/auth")({
       typeof s.next === "string" && s.next.startsWith("/") && !s.next.startsWith("//")
         ? s.next
         : "",
-    // Always present so `to: "/auth", search: { next }` typechecks; empty = unset.
-    oauth_stage: s.oauth_stage === "1" || s.oauth_stage === 1 ? "1" : "",
-    lr: typeof s.lr === "string" ? s.lr : "",
-    provider: typeof s.provider === "string" ? s.provider : "",
   }),
   component: AuthPage,
 });
@@ -60,122 +39,46 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const navigate = useNavigate();
   const router = useRouter();
-  const { next, oauth_stage, lr: lrParam, provider: providerParam } = Route.useSearch();
+  const { next } = Route.useSearch();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  // true until client OAuth/session bootstrap finishes — same UI as pendingComponent
-  const [bridging, setBridging] = useState(true);
-  // Avoid isLocalHost() (window) on any pre-effect paint of the form copy.
-  const [localHint, setLocalHint] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   const goTo = (path: string) => {
-    if (path.startsWith("http")) {
-      window.location.href = path;
-      return;
-    }
-    if (path.startsWith("/")) {
+    if (path.startsWith("http") || path.startsWith("/")) {
       window.location.href = path;
       return;
     }
     navigate({ to: "/chat" });
   };
 
-  // OAuth: stage from local → published OAuth → bounce tokens back to local.
   useEffect(() => {
     let cancelled = false;
-    setLocalHint(isLocalHost());
+    setMounted(true);
 
     (async () => {
-      // ── 1) Published: local hopped here to STAGE return URL, then start Google ──
-      if (!isLocalHost() && oauth_stage === "1" && lrParam && isLocalDevReturnUrl(lrParam)) {
-        const nextPath = next || "/chat";
-        const provider = (
-          providerParam === "apple" || providerParam === "microsoft" || providerParam === "lovable"
-            ? providerParam
-            : "google"
-        ) as "google" | "apple" | "microsoft" | "lovable";
-        startPublishedOAuthAfterStage(provider, lrParam, nextPath);
-        return;
-      }
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (cancelled) return;
 
-      // ── 2) Tokens in URL (hash/query) after OAuth broker ──
-      const tokens = extractOAuthTokensFromLocation();
-      if (tokens) {
-        const st = decodeOAuthState(tokens.state);
-        const staged = !isLocalHost() ? readStagedLocalReturn() : null;
-        const lr = (st?.lr && isLocalDevReturnUrl(st.lr) ? st.lr : null) || staged?.lr || null;
-        const nextPath = st?.next || staged?.next || next || "/chat";
-
-        // On production with a local return target → bounce home (do NOT setSession on prod)
-        if (lr && !isLocalHost()) {
-          bounceTokensToLocalDev({
-            access_token: tokens.access_token,
-            refresh_token: tokens.refresh_token,
-            state: tokens.state,
-            lr,
-            next: nextPath,
-          });
+        if (data.session) {
+          goTo(next || "/chat");
           return;
         }
-
-        // Local (or prod without bridge): apply session here
-        try {
-          const { error } = await supabase.auth.setSession({
-            access_token: tokens.access_token,
-            refresh_token: tokens.refresh_token,
-          });
-          if (error) throw error;
-          stripOAuthParamsFromUrl();
-          clearStagedLocalReturn();
-          if (cancelled) return;
-          const dest =
-            nextPath ||
-            new URLSearchParams(window.location.hash.replace(/^#/, "")).get("next") ||
-            "/chat";
-          goTo(dest.startsWith("/") ? dest : "/chat");
-          return;
-        } catch (e) {
-          if (!cancelled) {
-            toast.error((e as Error).message || "Failed to apply Google session");
-            stripOAuthParamsFromUrl();
-          }
-        }
+      } catch (e) {
+        console.error("[Auth] Session check failed:", e);
+      } finally {
+        if (!cancelled) setCheckingSession(false);
       }
-
-      // ── 3) Already signed in (cookie session on this origin) ──
-      const { data } = await supabase.auth.getSession();
-      if (cancelled) return;
-
-      if (data.session) {
-        // Critical: if production has session after OAuth but no hash tokens,
-        // still bounce to local when we staged lr (broker may drop hash/state).
-        const staged = !isLocalHost() ? readStagedLocalReturn() : null;
-        if (staged?.lr && !isLocalHost()) {
-          const { access_token, refresh_token } = data.session;
-          if (access_token && refresh_token) {
-            bounceTokensToLocalDev({
-              access_token,
-              refresh_token,
-              lr: staged.lr,
-              next: staged.next,
-            });
-            return;
-          }
-        }
-        goTo(next || "/chat");
-        return;
-      }
-
-      setBridging(false);
     })();
 
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- OAuth bootstrap once per landing
-  }, []);
+  }, [next]);
 
   const goNext = () => {
     goTo(next || "/chat");
@@ -210,30 +113,11 @@ function AuthPage() {
     }
   };
 
-  const google = async () => {
-    setLoading(true);
-    try {
-      const nextPath = next || "/chat";
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: `${window.location.origin}${nextPath}`,
-        nextPath,
-      });
-      if (result.error) {
-        toast.error(result.error.message, { duration: 8_000 });
-        setLoading(false);
-        return;
-      }
-      // Full-page redirect (local stage or production) — keep loading until unload.
-      if (result.redirected) return;
-      await router.invalidate();
-      goNext();
-    } catch (err) {
-      toast.error((err as Error).message || "Google sign-in failed");
-      setLoading(false);
-    }
-  };
+  if (!mounted) {
+    return null;
+  }
 
-  if (bridging) {
+  if (checkingSession) {
     return <AuthPendingShell />;
   }
 
@@ -248,35 +132,21 @@ function AuthPage() {
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-panel">
             <Zap className="h-4 w-4" />
           </span>
-          BUILDER
+          COSY.AI
         </div>
 
-        <div className="w-full rounded-2xl border border-border bg-panel/80 p-6 shadow-2xl backdrop-blur">
+        <div
+          data-testid="auth-sign-in"
+          className="w-full rounded-2xl border border-border bg-panel/80 p-6 shadow-2xl backdrop-blur"
+        >
           <h1 className="mb-1 text-xl font-semibold">
-            {mode === "signin" ? "Sign in to Builder" : "Create your Builder account"}
+            {mode === "signin" ? "Sign in to COSY.AI" : "Create your COSY.AI account"}
           </h1>
           <p className="mb-6 text-sm text-muted-foreground">
             {mode === "signin"
-              ? localHint
-                ? "Google: short hop via published app, then returns here. Or use email."
-                : "Continue where you left off."
-              : "Start building with your own AI agent."}
+              ? "Sign in with your email and password."
+              : "Start building with your own AI engine."}
           </p>
-
-          <button
-            onClick={google}
-            disabled={loading}
-            className="mb-4 flex w-full items-center justify-center gap-2 rounded-md border border-border bg-surface px-4 py-2.5 text-sm font-medium hover:bg-elevated disabled:opacity-50"
-          >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
-            Continue with Google
-          </button>
-
-          <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
-            <div className="h-px flex-1 bg-border" />
-            or
-            <div className="h-px flex-1 bg-border" />
-          </div>
 
           <form onSubmit={submit} className="space-y-3">
             <input
@@ -321,16 +191,5 @@ function AuthPage() {
         </div>
       </div>
     </div>
-  );
-}
-
-function GoogleIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden>
-      <path
-        fill="#EA4335"
-        d="M12 10.2v3.9h5.5c-.24 1.4-1.65 4.1-5.5 4.1-3.31 0-6.01-2.74-6.01-6.1S8.69 5.9 12 5.9c1.88 0 3.14.8 3.86 1.49l2.63-2.55C16.86 3.29 14.65 2.4 12 2.4 6.86 2.4 2.7 6.56 2.7 11.7S6.86 21 12 21c6.9 0 9.3-4.85 9.3-7.79 0-.53-.06-.93-.13-1.31H12z"
-      />
-    </svg>
   );
 }

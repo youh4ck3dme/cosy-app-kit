@@ -105,9 +105,7 @@ export function VersionTimeline({
             Version timeline
           </div>
           <div className="max-h-72 overflow-y-auto p-2">
-            {q.isLoading && (
-              <p className="px-2 py-3 text-[12px] text-muted-foreground">Loading…</p>
-            )}
+            {q.isLoading && <p className="px-2 py-3 text-[12px] text-muted-foreground">Loading…</p>}
             {missingTable && (
               <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-[12px] text-destructive">
                 Apply migration <code className="font-mono">20260720120000</code> — see{" "}

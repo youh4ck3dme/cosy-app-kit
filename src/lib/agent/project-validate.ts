@@ -8,11 +8,7 @@ import {
   isMultiPageProject,
   type ProjectFile,
 } from "@/lib/agent/project-runtime-gate";
-import {
-  findDuplicatePaths,
-  normalizeProjectPath,
-  type ProjectFsFile,
-} from "@/lib/project-fs";
+import { findDuplicatePaths, normalizeProjectPath, type ProjectFsFile } from "@/lib/project-fs";
 
 export type CheckStatus = "pass" | "fail" | "unverified";
 
@@ -62,8 +58,14 @@ function extractRefs(html: string): string[] {
   let m: RegExpExecArray | null;
   while ((m = re.exec(html)) !== null) {
     const raw = m[1]!.trim();
-    if (!raw || raw.startsWith("#") || raw.startsWith("mailto:") || raw.startsWith("tel:")) continue;
-    if (/^https?:\/\//i.test(raw) || raw.startsWith("//") || raw.startsWith("data:") || raw.startsWith("javascript:")) {
+    if (!raw || raw.startsWith("#") || raw.startsWith("mailto:") || raw.startsWith("tel:"))
+      continue;
+    if (
+      /^https?:\/\//i.test(raw) ||
+      raw.startsWith("//") ||
+      raw.startsWith("data:") ||
+      raw.startsWith("javascript:")
+    ) {
       continue;
     }
     const noQuery = raw.split("?")[0]!.split("#")[0]!;
@@ -160,7 +162,12 @@ export function validateProject(
         });
         continue;
       }
-      if (!pathSet.has(n.path) && ![...pathSet].some((p) => p.endsWith("/" + n.path) || p.split("/").pop() === n.path.split("/").pop())) {
+      if (
+        !pathSet.has(n.path) &&
+        ![...pathSet].some(
+          (p) => p.endsWith("/" + n.path) || p.split("/").pop() === n.path.split("/").pop(),
+        )
+      ) {
         dead++;
         checks.push({
           id: `link:${f.path}->${ref}`,
@@ -207,7 +214,11 @@ export function validateProject(
     });
   }
 
-  if (isMultiPageProject(files) && pathSet.has("styles.css") === false && runtime.hardFails.includes("missing_styles_css")) {
+  if (
+    isMultiPageProject(files) &&
+    pathSet.has("styles.css") === false &&
+    runtime.hardFails.includes("missing_styles_css")
+  ) {
     // already in runtime checks
   }
 

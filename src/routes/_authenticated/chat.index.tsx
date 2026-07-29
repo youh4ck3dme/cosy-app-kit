@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2 } from "lucide-react";
@@ -29,24 +29,44 @@ function ChatIndex() {
   const qc = useQueryClient();
   const list = useServerFn(listThreads);
   const create = useServerFn(createThread);
-  const { data, isLoading } = useQuery({ queryKey: ["threads"], queryFn: () => list() });
+  const {
+    data,
+    isLoading,
+    isError,
+    error: listError,
+  } = useQuery({
+    queryKey: ["threads"],
+    queryFn: () => list(),
+  });
+  const [bootError, setBootError] = useState<string | null>(null);
   useAppViewportLock(true);
 
   useEffect(() => {
     if (isLoading) return;
+    if (isError) {
+      setBootError(listError?.message || "Failed to load chats");
+      return;
+    }
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     (async () => {
       try {
+        setBootError(null);
         let threadId: string | undefined;
-        if (data && data.length > 0) {
-          threadId = data[0]!.id;
+        // Never open optimistic-* placeholders (New chat race with ThreadList cache).
+        const realThreads = (data ?? []).filter((t) => !t.id.startsWith("optimistic-"));
+        if (realThreads.length > 0) {
+          threadId = realThreads[0]!.id;
         } else {
           const { id } = await create({ data: {} });
           threadId = id;
           await qc.invalidateQueries({ queryKey: ["threads"] });
         }
-        if (cancelled || !threadId) return;
+        if (cancelled) return;
+        if (!threadId || threadId.startsWith("optimistic-") || !/^[0-9a-f-]{36}$/i.test(threadId)) {
+          setBootError("Could not create a chat (invalid thread id). Try again.");
+          return;
+        }
         // Macrotask after commit — navigate must not race Transitioner first paint.
         timer = setTimeout(() => {
           if (cancelled) return;
@@ -56,18 +76,43 @@ function ChatIndex() {
             replace: true,
           });
         }, 0);
-      } catch {
-        /* error boundary / retry */
+      } catch (e) {
+        if (!cancelled) {
+          setBootError((e as Error).message || "Could not open chat");
+        }
       }
     })();
     return () => {
       cancelled = true;
       if (timer !== undefined) clearTimeout(timer);
     };
-  }, [data, isLoading, navigate, create, qc]);
+  }, [data, isLoading, isError, listError, navigate, create, qc]);
+
+  if (bootError) {
+    return (
+      <div className="app-shell-fixed flex flex-col">
+        <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-border md:block">
+          <ThreadList />
+        </aside>
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
+          <p className="text-sm text-destructive">{bootError}</p>
+          <button
+            type="button"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+            onClick={() => {
+              setBootError(null);
+              void qc.invalidateQueries({ queryKey: ["threads"] });
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="fixed inset-0 flex h-dvh max-h-dvh overflow-hidden">
+    <div className="app-shell-fixed flex flex-col">
       <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-border md:block">
         <ThreadList />
       </aside>

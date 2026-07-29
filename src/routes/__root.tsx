@@ -7,15 +7,28 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import React, { useEffect, useState, type ReactNode } from "react";
 import { Toaster } from "sonner";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { registerServiceWorker } from "../lib/register-sw";
+import { bindInstallPromptCapture, warmPwaAssets } from "../lib/pwa-booster";
+import { getAppPreferences, syncSpeedModeDom } from "../lib/app-preferences";
+import { scheduleIdle } from "../lib/performance-contract";
 import { THEME_BOOTSTRAP_SCRIPT, useTheme } from "../lib/theme";
 import { supabase } from "@/integrations/supabase/client";
 import { authHashRecoveryLocation } from "@/lib/auth-redirect";
+
+/** Client-only: avoid sonner hooks during SSR (duplicate-React / invalid-hook crash). */
+function ClientToaster(props: React.ComponentProps<typeof Toaster>) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    setReady(true);
+  }, []);
+  if (!ready) return null;
+  return <Toaster {...props} />;
+}
 
 function NotFoundComponent() {
   return (
@@ -78,27 +91,31 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { title: "Builder — AI-first app studio" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "COSY.AI" },
+      { title: "COSY.AI — Visual Code Engine" },
       {
         name: "description",
         content:
-          "Builder is a dark, focused AI studio. Chat with your agent, watch it ship live artifacts to a real preview canvas.",
+          "Enterprise visual web construction engine. Figma, screenshots & ideas → production React/Tailwind with live canvas and spatial AI edits.",
       },
-      { name: "author", content: "Builder" },
-      { property: "og:title", content: "Builder — AI-first app studio" },
+      { name: "author", content: "COSY.AI" },
+      { property: "og:title", content: "COSY.AI — Visual Code Engine" },
       {
         property: "og:description",
         content:
-          "Builder is a dark, focused AI studio. Chat with your agent, watch it ship live artifacts to a real preview canvas.",
+          "Enterprise visual web construction engine. Figma, screenshots & ideas → production React/Tailwind with live canvas and spatial AI edits.",
       },
       { property: "og:type", content: "website" },
-      { name: "theme-color", content: "#0e0f14" },
+      { name: "theme-color", content: "#0A0A0C" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Builder — AI-first app studio" },
+      { name: "twitter:title", content: "COSY.AI — Visual Code Engine" },
       {
         name: "twitter:description",
         content:
-          "Builder is a dark, focused AI studio. Chat with your agent, watch it ship live artifacts to a real preview canvas.",
+          "Enterprise visual web construction engine. Figma, screenshots & ideas → production React/Tailwind with live canvas and spatial AI edits.",
       },
     ],
     scripts: [
@@ -107,6 +124,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "icon", href: "/brand/cosy-ai/favicon.svg", type: "image/svg+xml" },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
       { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
@@ -139,9 +158,22 @@ function RootComponent() {
   const router = useRouter();
   const { resolved } = useTheme();
 
-  // PWA: prod-only service worker (ported from Claude PR #3 — never caches /api or Supabase)
+  // PWA: prod-only service worker (ported from Claude PR #3 — never caches /api or Supabase).
+  // Warm assets after idle so they do not contend with chat/canvas first paint.
   useEffect(() => {
     registerServiceWorker();
+    const unbind = bindInstallPromptCapture();
+    syncSpeedModeDom(getAppPreferences().speedMode);
+    const cancelWarm =
+      getAppPreferences().pwaBooster
+        ? scheduleIdle(() => {
+            void warmPwaAssets();
+          })
+        : () => undefined;
+    return () => {
+      cancelWarm();
+      unbind();
+    };
   }, []);
 
   useEffect(() => {
@@ -178,7 +210,11 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
-      <Toaster theme={resolved} position="top-center" richColors />
+      <ClientToaster
+        theme={resolved === "light" ? "light" : "dark"}
+        position="top-center"
+        richColors
+      />
     </QueryClientProvider>
   );
 }
