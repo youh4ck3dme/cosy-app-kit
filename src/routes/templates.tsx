@@ -2,6 +2,7 @@ import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-r
 import { useMemo, useState } from "react";
 import { TEMPLATES, TEMPLATE_CATEGORIES } from "@/lib/templates.seed";
 import { cn } from "@/lib/utils";
+import { authSearch } from "@/integrations/lovable";
 
 /**
  * /templates layout: index list lives here; /templates/$slug renders via <Outlet />.
@@ -48,7 +49,7 @@ function TemplatesIndexPage() {
             <Link to="/chat" className="hover:text-foreground">
               Open chat
             </Link>
-            <Link to="/auth" search={{ next: "" }} className="hover:text-foreground">
+            <Link to="/auth" search={authSearch("")} className="hover:text-foreground">
               Sign in
             </Link>
           </nav>

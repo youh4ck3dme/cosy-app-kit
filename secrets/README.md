@@ -11,3 +11,5 @@ Committed guides and **examples** only. Real keys stay in:
 | [mistr.md](./mistr.md)                             | Yes — setup guide |
 | [mistr.local.md.example](./mistr.local.md.example) | Yes — template    |
 | `mistr.local.md`                                   | **No**            |
+| [google-oauth.local.md.example](./google-oauth.local.md.example) | Yes — Google OAuth template |
+| `google-oauth.local.md`                            | **No**            |
