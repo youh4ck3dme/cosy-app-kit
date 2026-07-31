@@ -8,7 +8,6 @@ describe("CosyLogo", () => {
     const html = renderToStaticMarkup(<CosyLogo />);
     expect(html).toContain("COSY");
     expect(html).toContain(".AI");
-    expect(html).toContain("Visual Code Engine");
     expect(html).toContain('viewBox="0 0 64 64"');
   });
 

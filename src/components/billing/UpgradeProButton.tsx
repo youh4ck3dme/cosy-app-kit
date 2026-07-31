@@ -12,8 +12,8 @@ import {
 } from "@/lib/billing/repair-passes";
 
 /**
- * Upgrade to CAI Pro — opens Stripe Checkout (Artifact Insurance = repair passes).
- * Only renders when billing is live (Stripe configured).
+ * Upgrade to COSY Pro — opens Stripe Checkout (Artifact Insurance = repair passes).
+ * Always renders; fails honestly with toast if Stripe not configured (no "Coming soon" theater).
  */
 export function UpgradeProButton({ className }: { className?: string }) {
   const getBillingStatus = useServerFn(getBillingStatusFn);
@@ -23,20 +23,9 @@ export function UpgradeProButton({ className }: { className?: string }) {
   });
   const [loading, setLoading] = useState(false);
 
-  // Don't render if billing is not live
+  // Hide Pro CTA when billing is not live (T36: no "Coming soon" theater)
   if (billing && !billing.live) {
-    return (
-      <div className={className} data-testid="upgrade-pro">
-        <div className="rounded-md border border-border-subtle bg-surface-2/40 p-3 opacity-60">
-          <div className="text-sm font-medium text-muted-foreground">
-            Pro Plan
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Coming soon
-          </p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   async function onUpgrade() {

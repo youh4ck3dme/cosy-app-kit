@@ -9,7 +9,7 @@ export interface CosyLogoProps {
   size?: number;
   /** Show COSY.AI wordmark next to mark. */
   showWordmark?: boolean;
-  /** Show "Visual Code Engine" micro-label. */
+  /** Show "Studio" micro-label (Option A: Artifact Insurance Studio). */
   showSubtitle?: boolean;
   /** Mark style. */
   variant?: CosyLogoVariant;
@@ -124,14 +124,13 @@ function Mark({ variant, size }: { variant: CosyLogoVariant; size: number }) {
 }
 
 /**
- * COSY.AI brand logo — Spatial AST mark + geometric wordmark.
- * Linear / Vercel / Figma grade. Zero image assets.
+ * COSY.AI brand logo — Mark + wordmark.
  */
 export const CosyLogo: React.FC<CosyLogoProps> = ({
   className,
   size = 40,
   showWordmark = true,
-  showSubtitle = true,
+  showSubtitle = false,
   variant = "spatial",
   decorative = false,
 }) => {
@@ -144,7 +143,7 @@ export const CosyLogo: React.FC<CosyLogoProps> = ({
       )}
       aria-hidden={decorative || undefined}
       role={decorative ? undefined : "img"}
-      aria-label={decorative ? undefined : showWordmark ? "COSY.AI Visual Code Engine" : "COSY.AI"}
+      aria-label={decorative ? undefined : "COSY.AI"}
     >
       <Mark variant={variant} size={size} />
 
@@ -156,7 +155,7 @@ export const CosyLogo: React.FC<CosyLogoProps> = ({
           </span>
           {showSubtitle && (
             <span className="font-brand mt-1 text-[9px] font-semibold uppercase tracking-[0.2em] text-brand-muted">
-              Visual Code Engine
+              Studio
             </span>
           )}
         </div>

@@ -36,7 +36,7 @@ flowchart TB
   UI -.->|Not wired| Kernel
 ```
 
-**Fact:** Product UI does not currently import `@/lib/builder`. The kernel is a library with unit tests, not the live editor runtime.
+**Fact:** Product UI imports `@/lib/builder` in `/builder/*` routes only (playground/DEV-only). The kernel is a library with unit tests; `/builder` is **not the GTM product surface** (Option A: primary = `/chat`).
 
 ## 2. Repository layout (engineering-relevant)
 
