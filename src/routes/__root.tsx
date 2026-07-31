@@ -95,27 +95,27 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       { name: "apple-mobile-web-app-title", content: "COSY.AI" },
-      { title: "COSY.AI — Visual Code Engine" },
+      { title: "COSY.AI" },
       {
         name: "description",
         content:
-          "Enterprise visual web construction engine. Figma, screenshots & ideas → production React/Tailwind with live canvas and spatial AI edits.",
+          "Chatuj, dostaneš živý web artifact. Automatické kontroly a opravy. Exportuj ako ZIP. Mistral engine.",
       },
       { name: "author", content: "COSY.AI" },
-      { property: "og:title", content: "COSY.AI — Visual Code Engine" },
+      { property: "og:title", content: "COSY.AI" },
       {
         property: "og:description",
         content:
-          "Enterprise visual web construction engine. Figma, screenshots & ideas → production React/Tailwind with live canvas and spatial AI edits.",
+          "Chatuj, dostaneš živý web artifact. Automatické kontroly a opravy. Exportuj ako ZIP. Mistral engine.",
       },
       { property: "og:type", content: "website" },
       { name: "theme-color", content: "#0A0A0C" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "COSY.AI — Visual Code Engine" },
+      { name: "twitter:title", content: "COSY.AI" },
       {
         name: "twitter:description",
         content:
-          "Enterprise visual web construction engine. Figma, screenshots & ideas → production React/Tailwind with live canvas and spatial AI edits.",
+          "Chatuj, dostaneš živý web artifact. Automatické kontroly a opravy. Exportuj ako ZIP. Mistral engine.",
       },
     ],
     scripts: [

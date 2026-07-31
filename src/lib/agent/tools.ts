@@ -11,10 +11,12 @@ import {
   sanitizeRelativePath,
 } from "@/lib/agent/patch";
 import { analyzeProjectRuntime } from "@/lib/agent/project-runtime-gate";
+import { maybeAutoRepairProjectFiles } from "@/lib/agent/auto-repair";
 import { formatUnverified, validateProject } from "@/lib/agent/project-validate";
 import { fetchUrlText, webSearch } from "@/lib/agent/web";
 import { snapshotArtifactVersion } from "@/lib/agent/versions";
 import { normalizePlanStepsInput } from "@/lib/agent/plan-normalize";
+import { consumeRepairPass } from "@/lib/billing/metering.server";
 
 type Client = SupabaseClient<Database>;
 
@@ -115,6 +117,71 @@ export function buildTools({
     validate_javascript_syntax: flags?.validate_javascript_syntax !== false,
     run_project_smoke: flags?.run_project_smoke !== false,
   };
+
+  async function resolveThreadUserId(): Promise<string | null> {
+    const { data } = await supabase
+      .from("threads")
+      .select("user_id")
+      .eq("id", threadId)
+      .maybeSingle();
+    return data?.user_id ?? null;
+  }
+
+  /** Auto-repair when gates fail; debit one monthly repair pass (T15). */
+  async function repairWithQuota(
+    files: ArtifactFile[],
+    quality: ReturnType<typeof analyzeProjectRuntime>,
+  ) {
+    let working = files;
+    let report = quality;
+    let autoRepaired = false;
+    let repairPasses = 0;
+    let quotaExceeded = false;
+    let quotaMeta: {
+      used: number;
+      limit: number;
+      remaining: number;
+      period: string;
+    } | null = null;
+
+    if (!report.ok && report.hardFails.length > 0) {
+      const userId = await resolveThreadUserId();
+      if (userId) {
+        const debit = await consumeRepairPass(userId);
+        quotaMeta = {
+          used: debit.used,
+          limit: debit.limit,
+          remaining: debit.remaining,
+          period: debit.period,
+        };
+        if (!debit.ok) {
+          quotaExceeded = true;
+          return {
+            files: working,
+            quality: report,
+            autoRepaired,
+            repairPasses,
+            quotaExceeded,
+            quotaMeta,
+          };
+        }
+      }
+      const repaired = await maybeAutoRepairProjectFiles(working, report);
+      working = repaired.files;
+      report = repaired.quality;
+      autoRepaired = repaired.autoRepaired;
+      repairPasses = repaired.repairPasses;
+    }
+
+    return {
+      files: working,
+      quality: report,
+      autoRepaired,
+      repairPasses,
+      quotaExceeded,
+      quotaMeta,
+    };
+  }
 
   async function loadArtifactRow(artifact_id?: string) {
     const select = "id,title,kind,entry_path,content,files,created_at";
@@ -361,8 +428,11 @@ export function buildTools({
       }
       const resolvedEntry =
         entry ?? files.find((x) => /\.html?$/i.test(x.path))?.path ?? files[0].path;
-      const main = files.find((x) => x.path === resolvedEntry) ?? files[0];
-      const quality = analyzeProjectRuntime(files);
+      let quality = analyzeProjectRuntime(files);
+      const repaired = await repairWithQuota(files, quality);
+      const finalFiles = repaired.files;
+      quality = repaired.quality;
+      const main = finalFiles.find((x) => x.path === resolvedEntry) ?? finalFiles[0];
       const { data, error } = await supabase
         .from("artifacts")
         .insert({
@@ -370,7 +440,7 @@ export function buildTools({
           kind,
           title: title.slice(0, 120),
           content: main.content,
-          files: asFiles(files),
+          files: asFiles(finalFiles),
           entry_path: resolvedEntry,
         })
         .select("id,title,kind,entry_path")
@@ -378,7 +448,7 @@ export function buildTools({
       if (error) return { ok: false as const, error: error.message };
       await snapshotArtifactVersion(supabase, {
         artifactId: data.id,
-        files,
+        files: finalFiles,
         content: main.content,
         entry_path: resolvedEntry,
         title: data.title,
@@ -393,7 +463,7 @@ export function buildTools({
         artifactId: data.id,
         title: data.title,
         kind: data.kind,
-        filesCount: files.length,
+        filesCount: finalFiles.length,
         entry_path: resolvedEntry,
         quality: {
           score: quality.score,
@@ -402,6 +472,10 @@ export function buildTools({
           softFails: quality.softFails,
           hints: quality.hints.slice(0, 6),
           externalUrlCount: quality.externalUrlCount,
+          autoRepaired: repaired.autoRepaired,
+          repairPasses: repaired.repairPasses,
+          quotaExceeded: repaired.quotaExceeded,
+          quota: repaired.quotaMeta,
         },
       };
     },
@@ -481,13 +555,16 @@ export function buildTools({
       }
 
       const updated = files.map((x, i) => (i === idx ? { ...x, content: next } : x));
-      const entry = art.entry_path || updated[0].path;
-      const main = updated.find((x) => x.path === entry) ?? updated[0];
-      const quality = analyzeProjectRuntime(updated);
+      let quality = analyzeProjectRuntime(updated);
+      const repaired = await repairWithQuota(updated, quality);
+      const finalFiles = repaired.files;
+      quality = repaired.quality;
+      const entry = art.entry_path || finalFiles[0].path;
+      const main = finalFiles.find((x) => x.path === entry) ?? finalFiles[0];
       const { error: upErr } = await supabase
         .from("artifacts")
         .update({
-          files: asFiles(updated),
+          files: asFiles(finalFiles),
           content: main.content,
           title: art.title || inferTitle(main.content, pathOk.path),
         })
@@ -495,7 +572,7 @@ export function buildTools({
       if (upErr) return { ok: false as const, error: upErr.message };
       await snapshotArtifactVersion(supabase, {
         artifactId: art.id,
-        files: updated,
+        files: finalFiles,
         content: main.content,
         entry_path: entry,
         title: art.title,
@@ -519,6 +596,10 @@ export function buildTools({
           hardFails: quality.hardFails,
           softFails: quality.softFails,
           hints: quality.hints.slice(0, 6),
+          autoRepaired: repaired.autoRepaired,
+          repairPasses: repaired.repairPasses,
+          quotaExceeded: repaired.quotaExceeded,
+          quota: repaired.quotaMeta,
         },
       };
     },

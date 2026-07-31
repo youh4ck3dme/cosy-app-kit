@@ -24,7 +24,7 @@ export const Route = createFileRoute("/auth")({
     meta: [
       { title: "Sign in — COSY.AI" },
       { name: "robots", content: "noindex" },
-      { name: "description", content: "Sign in to COSY.AI — Visual Code Engine." },
+      { name: "description", content: "Sign in to COSY.AI." },
     ],
   }),
   validateSearch: (s: Record<string, unknown>) => ({

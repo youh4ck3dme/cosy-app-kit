@@ -207,6 +207,135 @@ export type Database = {
           },
         ];
       };
+      billing_customers: {
+        Row: {
+          user_id: string;
+          stripe_customer_id: string;
+          email: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          stripe_customer_id: string;
+          email?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          stripe_customer_id?: string;
+          email?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      subscriptions: {
+        Row: {
+          id: string;
+          user_id: string;
+          stripe_subscription_id: string;
+          stripe_customer_id: string | null;
+          status: string;
+          plan: string;
+          repair_passes_monthly: number;
+          current_period_end: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          stripe_subscription_id: string;
+          stripe_customer_id?: string | null;
+          status?: string;
+          plan?: string;
+          repair_passes_monthly?: number;
+          current_period_end?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          stripe_subscription_id?: string;
+          stripe_customer_id?: string | null;
+          status?: string;
+          plan?: string;
+          repair_passes_monthly?: number;
+          current_period_end?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      stripe_events: {
+        Row: {
+          event_id: string;
+          processed_at: string;
+        };
+        Insert: {
+          event_id: string;
+          processed_at?: string;
+        };
+        Update: {
+          event_id?: string;
+          processed_at?: string;
+        };
+        Relationships: [];
+      };
+      usage_counters: {
+        Row: {
+          user_id: string;
+          period: string;
+          messages: number;
+          repair_passes: number;
+          ai_tokens: number;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          period: string;
+          messages?: number;
+          repair_passes?: number;
+          ai_tokens?: number;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          period?: string;
+          messages?: number;
+          repair_passes?: number;
+          ai_tokens?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      product_metrics_events: {
+        Row: {
+          id: number;
+          event_type: string;
+          user_id: string | null;
+          meta: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: number;
+          event_type: string;
+          user_id?: string | null;
+          meta?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          event_type?: string;
+          user_id?: string | null;
+          meta?: Json;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       threads: {
         Row: {
           created_at: string;
@@ -270,6 +399,14 @@ export type Database = {
         Args: {
           _role: Database["public"]["Enums"]["app_role"];
           _user_id: string;
+        };
+        Returns: boolean;
+      };
+      consume_repair_pass: {
+        Args: {
+          p_user_id: string;
+          p_period: string;
+          p_limit: number;
         };
         Returns: boolean;
       };

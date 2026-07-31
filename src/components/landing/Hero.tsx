@@ -20,8 +20,8 @@ export function Hero() {
         className="animate-in-fade mx-auto mt-5 max-w-lg text-sm text-muted-foreground sm:text-base"
         style={{ animationDelay: "0.05s" }}
       >
-        Enterprise visual web engine — Figma, screenshots & ideas → production React/Tailwind. Live
-        canvas, spatial AI edits, Mistral-powered.
+        Chatuj, dostaneš živý web artifact. Automatické kontroly a opravy. Exportuj ako ZIP. Mistral
+        engine.
       </p>
       <div
         className="animate-in-fade mt-8 flex flex-wrap items-center justify-center gap-3"

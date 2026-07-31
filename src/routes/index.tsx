@@ -38,11 +38,10 @@ export const Route = createFileRoute("/")({
   loader: () => listPublicArtifacts(),
   head: () => ({
     meta: [
-      { title: "COSY.AI — Visual Code Engine" },
+      { title: "COSY.AI" },
       {
         name: "description",
-        content:
-          "Figma, screenshots & ideas → production React/Tailwind. Live canvas, spatial AI edits, powered by Mistral.",
+        content: "Chatuj, dostaneš živý web artifact. Automatické kontroly a opravy. Exportuj ako ZIP. Mistral engine.",
       },
     ],
   }),

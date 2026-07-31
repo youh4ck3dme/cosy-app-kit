@@ -36,7 +36,7 @@ export function PrivacyPolicyPage() {
             <h2 className="text-lg text-white">Data Protection & Privacy Overview</h2>
           </div>
           <p className="text-sm text-slate-300 leading-relaxed">
-            COSY.AI ("Visual Code Engine") is engineered with privacy-by-design principles. We
+            COSY.AI is engineered with privacy-by-design principles. We
             prioritize local browser execution, encrypted token handling, and strict data
             minimization across all mobile, web, and native desktop runtimes.
           </p>
@@ -92,7 +92,7 @@ export function PrivacyPolicyPage() {
       </main>
 
       <footer className="border-t border-white/10 py-6 px-6 text-center text-xs text-slate-500">
-        © 2026 COSY.AI Visual Code Engine. All rights reserved.
+        © 2026 COSY.AI. All rights reserved.
       </footer>
     </div>
   );
