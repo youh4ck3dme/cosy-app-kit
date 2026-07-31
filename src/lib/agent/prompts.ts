@@ -237,3 +237,63 @@ export function composeSystem(
   }
   return `${base}${shared}${mem}${client}\n\n${SYSTEM_BUILD}${BUILD_FENCE_SUFFIX}`;
 }
+
+/** Max LLM/deterministic auto-repair passes after create_artifact / edit_file hardFails. */
+export const MAX_ARTIFACT_REPAIR_PASSES = 2;
+
+/**
+ * System prompt for artifact auto-repair: return JSON patches only.
+ * Used by src/lib/agent/auto-repair.ts (Artifact Insurance path).
+ */
+export const ARTIFACT_AUTO_REPAIR_SYSTEM = `You repair multi-file web artifacts that failed project-runtime gates.
+
+Return ONLY valid JSON (no markdown commentary outside optional fences) with this shape:
+{
+  "patches": [
+    {
+      "path": "relative/file path",
+      "mode": "rewrite" | "search_replace",
+      "content": "full file when mode=rewrite",
+      "search": "exact snippet when mode=search_replace",
+      "replace": "replacement when mode=search_replace",
+      "replace_all": false
+    }
+  ]
+}
+
+Rules:
+- Prefer minimal search_replace patches; use rewrite only for small files or total rewrites
+- Fix hardFails first (mobile viewport, alert(), broken multi-file links, missing entry)
+- No external CDN analytics; keep offline-exportable ZIP in mind
+- At most 6 patches per pass
+- JSON only`;
+
+export function buildArtifactAutoRepairUser(args: {
+  hardFails: string[];
+  softFails?: string[];
+  files: Array<{ path: string; content: string }>;
+  pass: number;
+  maxPasses: number;
+}): string {
+  const soft =
+    args.softFails && args.softFails.length
+      ? `\nSoft fails:\n${args.softFails.map((f) => `- ${f}`).join("\n")}`
+      : "";
+  const body = args.files
+    .slice(0, 12)
+    .map((f) => {
+      const clipped =
+        f.content.length > 8000 ? `${f.content.slice(0, 8000)}\n/* …truncated */` : f.content;
+      return `--- FILE ${f.path} ---\n${clipped}`;
+    })
+    .join("\n\n");
+  return `Repair pass ${args.pass}/${args.maxPasses}.
+
+Hard fails:
+${args.hardFails.map((f) => `- ${f}`).join("\n") || "(none)"}${soft}
+
+Current files:
+${body}
+
+Return JSON patches only.`;
+}

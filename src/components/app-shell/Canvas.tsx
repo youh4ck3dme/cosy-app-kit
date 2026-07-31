@@ -53,7 +53,6 @@ import { mintPreviewToken } from "@/lib/preview-token.functions";
 import { buildPreviewBridgeScript } from "@/lib/preview-bridge";
 import { resolvePreviewNavTarget } from "@/lib/preview-nav";
 import { injectScriptIntoHtmlHead } from "@/lib/preview-storage-polyfill";
-import { PendingCover } from "@/components/studio/PendingCover";
 import { getRepairQuotaFn } from "@/lib/billing/repair-quota.functions";
 
 /** Heavy editors / docks — keep off the preview-first path (Performance Contract v0.1). */

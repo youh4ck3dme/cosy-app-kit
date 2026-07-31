@@ -13,7 +13,7 @@ describe("repair-passes (Artifact Insurance)", () => {
     expect(PRO_REPAIR_PASSES_MONTHLY).toBe(100);
     expect(repairPassesForPlan("free")).toBe(5);
     expect(repairPassesForPlan("pro")).toBe(100);
-    expect(repairPassesForPlan("cai_pro")).toBe(100);
+    expect(repairPassesForPlan("cosy_pro")).toBe(100);
     expect(repairPassesForPlan(null)).toBe(5);
   });
 });
