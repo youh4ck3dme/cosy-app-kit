@@ -53,6 +53,8 @@ import { mintPreviewToken } from "@/lib/preview-token.functions";
 import { buildPreviewBridgeScript } from "@/lib/preview-bridge";
 import { resolvePreviewNavTarget } from "@/lib/preview-nav";
 import { injectScriptIntoHtmlHead } from "@/lib/preview-storage-polyfill";
+import { PendingCover } from "@/components/studio/PendingCover";
+import { getRepairQuotaFn } from "@/lib/billing/repair-quota.functions";
 
 /** Heavy editors / docks — keep off the preview-first path (Performance Contract v0.1). */
 const MonacoEditor = lazy(() =>
@@ -224,6 +226,21 @@ export function Canvas({
   const [hostWidth, setHostWidth] = useState<number>(() =>
     typeof window !== "undefined" ? Math.min(window.innerWidth, 1200) : 800,
   );
+  
+  // T30: Server-sourced repair quota
+  const getRepairQuota = useServerFn(getRepairQuotaFn);
+  const [repairQuota, setRepairQuota] = useState<{
+    used: number;
+    limit: number;
+    remaining: number;
+    period: string;
+    isAuthenticated: boolean;
+  } | null>(null);
+  
+  // Load quota on mount
+  useEffect(() => {
+    getRepairQuota().then(setRepairQuota);
+  }, []);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const paneRef = useRef<HTMLDivElement | null>(null);
   // `key` remounts the iframe on every refresh/edit — reset the fade-in state
@@ -961,6 +978,12 @@ export function Canvas({
                 >
                   <Download className="h-3.5 w-3.5" />
                 </button>
+                {/* T30: Real quota chip (server-sourced, not fake) */}
+                {repairQuota ? (
+                  <span className="rounded-full bg-accent-primary/20 px-2 py-0.5 text-[10px] font-mono text-accent-primary">
+                    {repairQuota.remaining} left this {repairQuota.period}
+                  </span>
+                ) : null}
                 <button
                   onClick={handleShare}
                   disabled={sharing}

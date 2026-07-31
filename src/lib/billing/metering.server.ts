@@ -165,3 +165,16 @@ export async function canConsumeRepairPass(userId: string): Promise<{
     period,
   };
 }
+
+/**
+ * T30 - Get current repair pass quota for display in UI (server-sourced).
+ * Returns the quota information without consuming.
+ */
+export async function getRepairQuota(userId: string): Promise<{
+  used: number;
+  limit: number;
+  remaining: number;
+  period: string;
+}> {
+  return canConsumeRepairPass(userId);
+}
