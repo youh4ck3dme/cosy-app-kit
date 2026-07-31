@@ -7,12 +7,11 @@ import type { DisplayOverride } from "vite-plugin-pwa";
  * vite-plugin-pwa generates and serves its own, silently shadowing it.
  */
 export const PWA_MANIFEST = {
-  name: "COSY.AI — Visual Code Engine",
+  name: "COSY.AI",
   short_name: "COSY.AI",
-  description:
-    "Enterprise visual web construction engine. Figma, screenshots & ideas → production React/Tailwind in milliseconds.",
+  description: "Chatuj, dostaneš živý web artifact. Automatické kontroly a opravy. Exportuj ako ZIP. Mistral engine.",
   start_url: "/chat",
-  id: "com.cosyapp.visualcodeengine",
+  id: "com.cosyapp.studio",
   scope: "/",
   display: "standalone" as const,
   display_override: ["window-controls-overlay", "standalone", "minimal-ui"] as DisplayOverride[],
@@ -54,14 +53,14 @@ export const PWA_MANIFEST = {
       sizes: "512x512",
       type: "image/png",
       form_factor: "narrow" as const,
-      label: "COSY.AI Mobile Builder Canvas",
+      label: "COSY.AI chat and canvas on mobile",
     },
     {
       src: "/icons/icon-512.png",
       sizes: "512x512",
       type: "image/png",
       form_factor: "wide" as const,
-      label: "COSY.AI Desktop Visual Workspace",
+      label: "COSY.AI studio on desktop",
     },
   ],
   shortcuts: [
