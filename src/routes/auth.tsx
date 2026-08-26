@@ -1,18 +1,7 @@
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  bounceTokensToLocalDev,
-  clearStagedLocalReturn,
-  decodeOAuthState,
-  extractOAuthTokensFromLocation,
-  isLocalDevReturnUrl,
-  isLocalHost,
-  lovable,
-  readStagedLocalReturn,
-  startPublishedOAuthAfterStage,
-  stripOAuthParamsFromUrl,
-} from "@/integrations/lovable";
+import { isLocalHost, stripOAuthParamsFromUrl } from "@/lib/auth-oauth";
 import { toast } from "sonner";
 import { formatGoogleSignInError, isGoogleProviderDisabledError, logGoogleProviderSetupHint } from "@/lib/auth-google";
 import { claimDeveloperEntry } from "@/lib/dev-entry.functions";
@@ -22,7 +11,7 @@ import { Code2, Loader2, Zap } from "lucide-react";
 /**
  * Shared shell for:
  * - route pendingComponent (ssr:false Suspense / ClientOnly fallback)
- * - OAuth bridge bootstrap
+ * - OAuth session bootstrap
  * Must stay identical so SSR HTML and first client paint match (no hydration mismatch).
  */
 function AuthPendingShell({ label = "Completing sign-in…" }: { label?: string }) {
@@ -36,8 +25,6 @@ function AuthPendingShell({ label = "Completing sign-in…" }: { label?: string 
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
-  // Critical: Match wraps ssr:false in Suspense + ClientOnly; without this the
-  // server fallback is null while the client paints AuthPage → hydration error.
   pendingComponent: AuthPendingShell,
   head: () => ({
     meta: [
@@ -51,10 +38,9 @@ export const Route = createFileRoute("/auth")({
       typeof s.next === "string" && s.next.startsWith("/") && !s.next.startsWith("//")
         ? s.next
         : "",
-    // Always present so `to: "/auth", search: { next }` typechecks; empty = unset.
-    oauth_stage: s.oauth_stage === "1" || s.oauth_stage === 1 ? "1" : "",
-    lr: typeof s.lr === "string" ? s.lr : "",
-    provider: typeof s.provider === "string" ? s.provider : "",
+    oauth_stage: "",
+    lr: "",
+    provider: "",
   }),
   component: AuthPage,
 });
@@ -62,18 +48,14 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const navigate = useNavigate();
   const router = useRouter();
-  const { next, oauth_stage, lr: lrParam, provider: providerParam } = Route.useSearch();
+  const { next } = Route.useSearch();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  // true until client OAuth/session bootstrap finishes — same UI as pendingComponent
   const [bridging, setBridging] = useState(true);
-  // Avoid isLocalHost() (window) on any pre-effect paint of the form copy.
   const [localHint, setLocalHint] = useState(false);
   const claimDevEntry = useServerFn(claimDeveloperEntry);
-  // ssr:false ClientOnly renders null on the server — first client paint must match
-  // (returning AuthPendingShell here caused hydration mismatch under Lazy/MatchInner).
   const [mounted, setMounted] = useState(false);
 
   const goTo = (path: string) => {
@@ -88,13 +70,12 @@ function AuthPage() {
     navigate({ to: "/chat" });
   };
 
-  // OAuth: stage from local → published OAuth → bounce tokens back to local.
+  // Native Supabase OAuth: client parses hash/PKCE callback on getSession().
   useEffect(() => {
     let cancelled = false;
     setMounted(true);
     setLocalHint(isLocalHost());
 
-    // Fail-open if getUser/getSession hang (offline, flaky network, e2e).
     const BRIDGE_TIMEOUT_MS = 12_000;
     const bridgeTimer = window.setTimeout(() => {
       if (!cancelled) setBridging(false);
@@ -102,81 +83,16 @@ function AuthPage() {
 
     (async () => {
       try {
-        // ── 1) Published: local hopped here to STAGE return URL, then start Google ──
-        if (!isLocalHost() && oauth_stage === "1" && lrParam && isLocalDevReturnUrl(lrParam)) {
-          const nextPath = next || "/chat";
-          const provider = (
-            providerParam === "apple" ||
-            providerParam === "microsoft" ||
-            providerParam === "lovable"
-              ? providerParam
-              : "google"
-          ) as "google" | "apple" | "microsoft" | "lovable";
-          startPublishedOAuthAfterStage(provider, lrParam, nextPath);
-          return;
-        }
-
-        // ── 2) Tokens in URL (hash/query) after OAuth broker ──
-        const tokens = extractOAuthTokensFromLocation();
-        if (tokens) {
-          const st = decodeOAuthState(tokens.state);
-          const staged = !isLocalHost() ? readStagedLocalReturn() : null;
-          const lr = (st?.lr && isLocalDevReturnUrl(st.lr) ? st.lr : null) || staged?.lr || null;
-          const nextPath = st?.next || staged?.next || next || "/chat";
-
-          // On production with a local return target → bounce home (do NOT setSession on prod)
-          if (lr && !isLocalHost()) {
-            bounceTokensToLocalDev({
-              access_token: tokens.access_token,
-              refresh_token: tokens.refresh_token,
-              state: tokens.state,
-              lr,
-              next: nextPath,
-            });
-            return;
-          }
-
-          // Local (or prod without bridge): apply session here
-          try {
-            const { error } = await supabase.auth.setSession({
-              access_token: tokens.access_token,
-              refresh_token: tokens.refresh_token,
-            });
-            if (error) throw error;
-
-            stripOAuthParamsFromUrl();
-            clearStagedLocalReturn();
-            if (cancelled) return;
-            const dest =
-              nextPath ||
-              new URLSearchParams(window.location.hash.replace(/^#/, "")).get("next") ||
-              "/chat";
-            goTo(dest.startsWith("/") ? dest : "/chat");
-            return;
-          } catch (e) {
-            if (!cancelled) {
-              toast.error((e as Error).message || "Failed to apply Google session");
-              stripOAuthParamsFromUrl();
-            }
-          }
-        }
-
-        // ── 3) Already signed in (cookie session on this origin) ──
-        // Drop cross-project / rotated-JWKS sessions (e.g. hyff env + magq OAuth kid).
-        {
-          const { data: userData, error: userErr } = await supabase.auth.getUser();
-          if (userErr) {
-            const msg = (userErr.message || "").toLowerCase();
-            if (
-              msg.includes("jwt") ||
-              msg.includes("kid") ||
-              msg.includes("unverifiable") ||
-              msg.includes("invalid")
-            ) {
-              await supabase.auth.signOut({ scope: "local" });
-            }
-          } else if (!userData.user) {
-            /* no session */
+        const { data: userData, error: userErr } = await supabase.auth.getUser();
+        if (userErr) {
+          const msg = (userErr.message || "").toLowerCase();
+          if (
+            msg.includes("jwt") ||
+            msg.includes("kid") ||
+            msg.includes("unverifiable") ||
+            msg.includes("invalid")
+          ) {
+            await supabase.auth.signOut({ scope: "local" });
           }
         }
         if (cancelled) return;
@@ -185,20 +101,11 @@ function AuthPage() {
         if (cancelled) return;
 
         if (data.session) {
-          // Critical: if production has session after OAuth but no hash tokens,
-          // still bounce to local when we staged lr (broker may drop hash/state).
-          const staged = !isLocalHost() ? readStagedLocalReturn() : null;
-          if (staged?.lr && !isLocalHost()) {
-            const { access_token, refresh_token } = data.session;
-            if (access_token && refresh_token) {
-              bounceTokensToLocalDev({
-                access_token,
-                refresh_token,
-                lr: staged.lr,
-                next: staged.next,
-              });
-              return;
-            }
+          if (
+            window.location.hash.includes("access_token") ||
+            window.location.search.includes("code=")
+          ) {
+            stripOAuthParamsFromUrl();
           }
           goTo(next || "/chat");
           return;
@@ -252,22 +159,19 @@ function AuthPage() {
     setLoading(true);
     try {
       const nextPath = next || "/chat";
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: `${window.location.origin}/auth`,
-        nextPath,
+      const redirectTo = `${window.location.origin}/auth${
+        nextPath !== "/chat" ? `?next=${encodeURIComponent(nextPath)}` : ""
+      }`;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo },
       });
-
-      if (result.error) {
-        const raw = result.error.message;
+      if (error) {
+        const raw = error.message;
         if (isGoogleProviderDisabledError(raw)) logGoogleProviderSetupHint();
         toast.error(formatGoogleSignInError(raw), { duration: 10_000 });
         setLoading(false);
-        return;
       }
-      // Full-page redirect (local stage or production) — keep loading until unload.
-      if (result.redirected) return;
-      await router.invalidate();
-      goNext();
     } catch (err) {
       const raw = err instanceof Error ? err.message : String(err);
       if (isGoogleProviderDisabledError(raw)) logGoogleProviderSetupHint();
@@ -279,7 +183,11 @@ function AuthPage() {
   const developerFreeEntry = async () => {
     setLoading(true);
     try {
-      const session = await claimDevEntry();
+      const token = (import.meta.env.VITE_DEV_ENTRY_TOKEN as string | undefined)?.trim();
+      if (!token) {
+        throw new Error("Set VITE_DEV_ENTRY_TOKEN in .env.local (must match server DEV_ENTRY_TOKEN).");
+      }
+      const session = await claimDevEntry({ data: { token } });
       const { error } = await supabase.auth.setSession({
         access_token: session.access_token,
         refresh_token: session.refresh_token,
@@ -296,8 +204,6 @@ function AuthPage() {
   };
 
   if (!mounted) {
-    // Match ssr:false ClientOnly server HTML (empty MatchInner) — pendingComponent
-    // covers Suspense; do not paint AuthPendingShell here on the first client frame.
     return null;
   }
 
@@ -329,7 +235,7 @@ function AuthPage() {
           <p className="mb-6 text-sm text-muted-foreground">
             {mode === "signin"
               ? localHint
-                ? "Google: short hop via published app, then returns here. Or use email."
+                ? "Continue with Google or email. Redirect stays on this origin."
                 : "Continue where you left off."
               : "Start building with your own AI agent."}
           </p>

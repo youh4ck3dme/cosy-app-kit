@@ -1,34 +1,22 @@
 /**
- * Verify Google OAuth path for Lovable-hosted cosy-app-kit.
- *
- * Lovable broker (preferred):
- *   GET https://cosy-app-kit.lovable.app/~oauth/initiate  (expect not 404)
- *
- * Native Supabase authorize (only if Google provider enabled in Supabase):
- *   GET …/auth/v1/authorize?provider=google → 302 accounts.google.com
+ * Verify native Supabase Google OAuth for Cosy (Vercel prod + local dev).
  *
  *   bun run verify:google-oauth
+ *
+ * Expect 302 → accounts.google.com once Google provider is enabled in Supabase.
  */
 const PROJECT = "uotvcsjoriamsagfprbq";
-const PUBLISHED = "https://cosy-app-kit.lovable.app";
-const REDIRECT = encodeURIComponent(`${PUBLISHED}/auth`);
+const PROD_AUTH = "https://cosy-app-kit.vercel.app/auth";
+const LOCAL_AUTH = "http://127.0.0.1:8080/auth";
 
-async function checkLovableBroker() {
-  const url = `${PUBLISHED}/~oauth/initiate`;
-  const res = await fetch(url, { redirect: "manual" });
-  return {
-    url,
-    status: res.status,
-    ok: res.status !== 404,
-  };
-}
-
-async function checkSupabaseAuthorize() {
-  const url = `https://${PROJECT}.supabase.co/auth/v1/authorize?provider=google&redirect_to=${REDIRECT}`;
+async function checkSupabaseAuthorize(redirectTo: string, label: string) {
+  const url = `https://${PROJECT}.supabase.co/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectTo)}`;
   const res = await fetch(url, { redirect: "manual" });
   const location = res.headers.get("location") || "";
-  const body = res.status >= 400 ? (await res.text()).slice(0, 200) : "";
+  const body = res.status >= 400 ? (await res.text()).slice(0, 300) : "";
   return {
+    label,
+    redirectTo,
     status: res.status,
     locationHost: (() => {
       try {
@@ -42,36 +30,30 @@ async function checkSupabaseAuthorize() {
   };
 }
 
-const broker = await checkLovableBroker();
-const supabaseAuth = await checkSupabaseAuthorize();
+const prod = await checkSupabaseAuthorize(PROD_AUTH, "prod");
+const local = await checkSupabaseAuthorize(LOCAL_AUTH, "local");
 
-console.log(JSON.stringify({ lovableBroker: broker, supabaseAuthorize: supabaseAuth }, null, 2));
+console.log(JSON.stringify({ supabaseAuthorize: { prod, local } }, null, 2));
 
-if (!broker.ok && !supabaseAuth.ok) {
+if (!prod.ok && !local.ok) {
   console.error(`
-Google OAuth not ready.
+Google OAuth not ready (native Supabase path).
 
-Lovable path (you chose this):
-1. Google Cloud → OAuth client → add Authorized redirect URIs:
-   - https://oauth.lovable.app/callback
-   - https://cosy-app-kit.lovable.app/~oauth/callback
-   - https://${PROJECT}.supabase.co/auth/v1/callback  (keep)
-2. Lovable → Nastavenia Googlu → check BOTH redirect URI boxes → Save.
-3. External Testing → add your Gmail as test user.
+1. Supabase → Authentication → Providers → Google → Enable + paste Client ID/Secret.
+2. Supabase → Authentication → URL configuration → Redirect URLs:
+   - ${PROD_AUTH}
+   - ${LOCAL_AUTH}
+3. Google Cloud → OAuth client → Authorized redirect URIs:
+   - https://${PROJECT}.supabase.co/auth/v1/callback
 4. Re-run: bun run verify:google-oauth
 `);
   process.exit(1);
 }
 
-if (broker.ok) {
-  console.log("\nLovable /~oauth broker reachable — use Continue with Google on published app.");
-}
-if (supabaseAuth.ok) {
-  console.log("Supabase Google authorize OK (302 → Google).");
-} else if (supabaseAuth.providerDisabled) {
-  console.log(
-    "\nNote: native Supabase Google provider still disabled — OK if Lovable broker handles OAuth.",
-  );
+if (prod.ok) console.log("\nProd Google authorize OK (302 → accounts.google.com).");
+if (local.ok) console.log("Local Google authorize OK (302 → accounts.google.com).");
+if (!prod.ok && prod.providerDisabled) {
+  console.log("\nNote: Google provider still disabled in Supabase — enable it in the dashboard.");
 }
 
 process.exit(0);

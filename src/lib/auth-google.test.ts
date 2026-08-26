@@ -3,6 +3,7 @@ import {
   formatGoogleSignInError,
   isGoogleProviderDisabledError,
   logGoogleProviderSetupHint,
+  PROD_AUTH_REDIRECT,
 } from "@/lib/auth-google";
 
 describe("formatGoogleSignInError", () => {
@@ -25,10 +26,11 @@ describe("isGoogleProviderDisabledError", () => {
 });
 
 describe("logGoogleProviderSetupHint", () => {
-  it("logs setup details to console", () => {
+  it("logs Supabase setup details to console", () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     logGoogleProviderSetupHint();
-    expect(spy).toHaveBeenCalledWith(expect.stringMatching(/Client ID|oauth\.lovable\.app/i));
+    expect(spy).toHaveBeenCalledWith(expect.stringMatching(/Supabase|uotvcsjoriamsagfprbq/i));
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining(PROD_AUTH_REDIRECT));
     spy.mockRestore();
   });
 });

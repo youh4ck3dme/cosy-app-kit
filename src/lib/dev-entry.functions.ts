@@ -3,25 +3,45 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
 /**
- * Opt-in developer one-tap sign-in for local/LAN QA only.
- * Production stays closed unless explicitly enabled with server-only secrets:
+ * Opt-in developer one-tap sign-in for local QA only.
+ * Production must leave all vars unset (fail closed).
+ *
+ * Required server secrets (Lovable Cloud / local .env — never VITE_*):
  *   DEV_ENTRY_ENABLED=1
  *   DEV_ENTRY_EMAIL=…
- *   DEV_ENTRY_PASSWORD=…   (optional if service-role magic link works)
- *
- * Never use VITE_* for credentials — they ship in the client bundle.
+ *   DEV_ENTRY_PASSWORD=…
+ *   DEV_ENTRY_TOKEN=…   (caller must POST matching token)
  */
-function entryEnabled(): boolean {
-  const flag = (process.env.DEV_ENTRY_ENABLED ?? "").trim();
+export function entryEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  const flag = (env.DEV_ENTRY_ENABLED ?? "").trim();
   return flag === "1" || flag.toLowerCase() === "true";
 }
 
-function resolveEmail(): string {
-  return (process.env.DEV_ENTRY_EMAIL ?? "").trim();
+export function assertDeveloperEntryAllowed(
+  token: string,
+  env: NodeJS.ProcessEnv = process.env,
+): void {
+  if (!entryEnabled(env)) {
+    throw new Error("Developer entry is disabled on this deploy.");
+  }
+  const expectedToken = (env.DEV_ENTRY_TOKEN ?? "").trim();
+  if (!expectedToken || token !== expectedToken) {
+    throw new Error("Forbidden");
+  }
+  if (!(env.DEV_ENTRY_EMAIL ?? "").trim()) {
+    throw new Error("DEV_ENTRY_EMAIL is not configured.");
+  }
+  if (!(env.DEV_ENTRY_PASSWORD ?? "").trim()) {
+    throw new Error("DEV_ENTRY_PASSWORD is not configured.");
+  }
 }
 
-function resolvePassword(): string {
-  return (process.env.DEV_ENTRY_PASSWORD ?? "").trim();
+function resolveEmail(env: NodeJS.ProcessEnv = process.env): string {
+  return (env.DEV_ENTRY_EMAIL ?? "").trim();
+}
+
+function resolvePassword(env: NodeJS.ProcessEnv = process.env): string {
+  return (env.DEV_ENTRY_PASSWORD ?? "").trim();
 }
 
 export type DeveloperEntrySession = {
@@ -29,16 +49,16 @@ export type DeveloperEntrySession = {
   refresh_token: string;
 };
 
-export const claimDeveloperEntry = createServerFn({ method: "POST" }).handler(
-  async (): Promise<DeveloperEntrySession> => {
-    if (!entryEnabled()) {
-      throw new Error("Developer entry is disabled on this deploy.");
-    }
+export const claimDeveloperEntry = createServerFn({ method: "POST" })
+  .validator((input: unknown) => {
+    const o = input as { token?: unknown };
+    return { token: typeof o?.token === "string" ? o.token.trim() : "" };
+  })
+  .handler(async ({ data }): Promise<DeveloperEntrySession> => {
+    assertDeveloperEntryAllowed(data.token);
 
     const email = resolveEmail();
-    if (!email) {
-      throw new Error("DEV_ENTRY_EMAIL is not configured.");
-    }
+    const password = resolvePassword();
 
     const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "").trim();
     const anon = (
@@ -50,57 +70,17 @@ export const claimDeveloperEntry = createServerFn({ method: "POST" }).handler(
       throw new Error("Supabase URL/key missing on server.");
     }
 
-    const password = resolvePassword();
-    if (password) {
-      const client = createClient<Database>(url, anon, {
-        auth: { persistSession: false, autoRefreshToken: false },
-      });
-      const { data, error } = await client.auth.signInWithPassword({ email, password });
-      if (error) throw new Error(error.message);
-      const session = data.session;
-      if (!session?.access_token || !session.refresh_token) {
-        throw new Error("No session returned from developer sign-in.");
-      }
-      return {
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
-      };
-    }
-
-    // Passwordless path: service-role magic link → OTP verify (no password in client).
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: "magiclink",
-      email,
-    });
-    if (linkError) throw new Error(linkError.message);
-
-    const otp =
-      linkData.properties?.email_otp ||
-      linkData.properties?.hashed_token ||
-      "";
-    if (!otp) {
-      throw new Error(
-        "Could not mint developer session (no OTP). Set DEV_ENTRY_PASSWORD in Lovable Secrets.",
-      );
-    }
-
-    const verifyClient = createClient<Database>(url, anon, {
+    const client = createClient<Database>(url, anon, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
-    const { data: verified, error: verifyError } = await verifyClient.auth.verifyOtp({
-      email,
-      token: otp,
-      type: "magiclink",
-    });
-    if (verifyError) throw new Error(verifyError.message);
-    const session = verified.session;
+    const { data: signIn, error } = await client.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message);
+    const session = signIn.session;
     if (!session?.access_token || !session.refresh_token) {
-      throw new Error("verifyOtp returned no session.");
+      throw new Error("No session returned from developer sign-in.");
     }
     return {
       access_token: session.access_token,
       refresh_token: session.refresh_token,
     };
-  },
-);
+  });
