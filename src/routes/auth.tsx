@@ -14,7 +14,7 @@ import {
   stripOAuthParamsFromUrl,
 } from "@/integrations/lovable";
 import { toast } from "sonner";
-import { formatGoogleSignInError } from "@/lib/auth-google";
+import { formatGoogleSignInError, isGoogleProviderDisabledError, logGoogleProviderSetupHint } from "@/lib/auth-google";
 import { claimDeveloperEntry } from "@/lib/dev-entry.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { Code2, Loader2, Zap } from "lucide-react";
@@ -258,7 +258,9 @@ function AuthPage() {
       });
 
       if (result.error) {
-        toast.error(formatGoogleSignInError(result.error.message), { duration: 10_000 });
+        const raw = result.error.message;
+        if (isGoogleProviderDisabledError(raw)) logGoogleProviderSetupHint();
+        toast.error(formatGoogleSignInError(raw), { duration: 10_000 });
         setLoading(false);
         return;
       }
@@ -268,6 +270,7 @@ function AuthPage() {
       goNext();
     } catch (err) {
       const raw = err instanceof Error ? err.message : String(err);
+      if (isGoogleProviderDisabledError(raw)) logGoogleProviderSetupHint();
       toast.error(formatGoogleSignInError(raw), { duration: 10_000 });
       setLoading(false);
     }
@@ -276,30 +279,15 @@ function AuthPage() {
   const developerFreeEntry = async () => {
     setLoading(true);
     try {
-      try {
-        const session = await claimDevEntry();
-        const { error } = await supabase.auth.setSession({
-          access_token: session.access_token,
-          refresh_token: session.refresh_token,
-        });
-        if (error) throw error;
-        await router.invalidate();
-        toast.success("Developer entry");
-        goNext();
-        return;
-      } catch (serverErr) {
-        const devEmail = (import.meta.env.VITE_DEV_EMAIL as string | undefined)?.trim();
-        const devPassword = (import.meta.env.VITE_DEV_PASSWORD as string | undefined)?.trim();
-        if (!devEmail || !devPassword) throw serverErr;
-        const { error } = await supabase.auth.signInWithPassword({
-          email: devEmail,
-          password: devPassword,
-        });
-        if (error) throw error;
-        await router.invalidate();
-        toast.success("Developer entry");
-        goNext();
-      }
+      const session = await claimDevEntry();
+      const { error } = await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      });
+      if (error) throw error;
+      await router.invalidate();
+      toast.success("Developer entry");
+      goNext();
     } catch (err) {
       toast.error((err as Error).message || "Developer entry failed");
     } finally {
@@ -397,7 +385,7 @@ function AuthPage() {
             </button>
           </form>
 
-          {(isLocalHost() || import.meta.env.DEV || Date.now() < Date.parse("2026-08-11T00:00:00.000Z")) && (
+          {(isLocalHost() || import.meta.env.DEV) && (
             <button
               type="button"
               data-testid="auth-developer-entry"

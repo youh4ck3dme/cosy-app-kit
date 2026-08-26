@@ -3,36 +3,25 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
 /**
- * Temporary production developer free-entry (device QA).
- * Disable by setting DEV_ENTRY_ENABLED=0 or after TEMP_DEV_ENTRY_UNTIL.
- *
- * Prefer Lovable Cloud Secrets:
+ * Opt-in developer one-tap sign-in for local/LAN QA only.
+ * Production stays closed unless explicitly enabled with server-only secrets:
  *   DEV_ENTRY_ENABLED=1
  *   DEV_ENTRY_EMAIL=…
  *   DEV_ENTRY_PASSWORD=…   (optional if service-role magic link works)
  *
- * Never commit real passwords. TEMP email is only for short QA window.
+ * Never use VITE_* for credentials — they ship in the client bundle.
  */
-const TEMP_DEV_ENTRY_UNTIL = Date.parse("2026-08-11T00:00:00.000Z");
-/** TEMP QA target — remove after TEMP_DEV_ENTRY_UNTIL. */
-const TEMP_DEV_ENTRY_EMAIL = "erikbabcan@gmail.com";
-
 function entryEnabled(): boolean {
-  const flag = (process.env.DEV_ENTRY_ENABLED ?? process.env.VITE_DEV_ENTRY ?? "").trim();
-  if (flag === "0" || flag.toLowerCase() === "false") return false;
-  if (flag === "1" || flag.toLowerCase() === "true") return true;
-  return Date.now() < TEMP_DEV_ENTRY_UNTIL;
+  const flag = (process.env.DEV_ENTRY_ENABLED ?? "").trim();
+  return flag === "1" || flag.toLowerCase() === "true";
 }
 
 function resolveEmail(): string {
-  return (
-    (process.env.DEV_ENTRY_EMAIL ?? process.env.VITE_DEV_EMAIL ?? "").trim() ||
-    (Date.now() < TEMP_DEV_ENTRY_UNTIL ? TEMP_DEV_ENTRY_EMAIL : "")
-  );
+  return (process.env.DEV_ENTRY_EMAIL ?? "").trim();
 }
 
 function resolvePassword(): string {
-  return (process.env.DEV_ENTRY_PASSWORD ?? process.env.VITE_DEV_PASSWORD ?? "").trim();
+  return (process.env.DEV_ENTRY_PASSWORD ?? "").trim();
 }
 
 export type DeveloperEntrySession = {
