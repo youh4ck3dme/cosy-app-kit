@@ -1,36 +1,35 @@
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { AuthPendingShell, AuthScreen } from "@/components/auth/AuthScreen";
 import { isLocalHost, stripOAuthParamsFromUrl } from "@/lib/auth-oauth";
 import { toast } from "sonner";
-import { formatGoogleSignInError, isGoogleProviderDisabledError, logGoogleProviderSetupHint } from "@/lib/auth-google";
+import {
+  formatGoogleSignInError,
+  isGoogleProviderDisabledError,
+  logGoogleProviderSetupHint,
+} from "@/lib/auth-google";
+import { signInWithAccessCode } from "@/lib/access-code.functions";
 import { claimDeveloperEntry } from "@/lib/dev-entry.functions";
 import { useServerFn } from "@tanstack/react-start";
-import { Code2, Loader2, Zap } from "lucide-react";
 
-/**
- * Shared shell for:
- * - route pendingComponent (ssr:false Suspense / ClientOnly fallback)
- * - OAuth session bootstrap
- * Must stay identical so SSR HTML and first client paint match (no hydration mismatch).
- */
-function AuthPendingShell({ label = "Completing sign-in…" }: { label?: string }) {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
-      <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-      {label}
-    </div>
-  );
-}
+export { AuthPendingShell };
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
   pendingComponent: AuthPendingShell,
   head: () => ({
     meta: [
-      { title: "Sign in — Builder" },
+      { title: "Sign in — COSY.AI" },
       { name: "robots", content: "noindex" },
-      { name: "description", content: "Sign in to Builder — AI-first app studio." },
+      { name: "description", content: "Prihlásenie do COSY.AI — Vitaj v cosy." },
+      { name: "theme-color", content: "#f7f5f2" },
+    ],
+    links: [
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap",
+      },
     ],
   }),
   validateSearch: (s: Record<string, unknown>) => ({
@@ -52,10 +51,16 @@ function AuthPage() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [accessCode, setAccessCode] = useState("");
+  const [accessCodeError, setAccessCodeError] = useState<string | null>(null);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [accessCodeLoading, setAccessCodeLoading] = useState(false);
+  const [devLoading, setDevLoading] = useState(false);
   const [bridging, setBridging] = useState(true);
-  const [localHint, setLocalHint] = useState(false);
+  const [showDeveloperEntry, setShowDeveloperEntry] = useState(false);
   const claimDevEntry = useServerFn(claimDeveloperEntry);
+  const accessCodeSignIn = useServerFn(signInWithAccessCode);
   const [mounted, setMounted] = useState(false);
 
   const goTo = (path: string) => {
@@ -70,16 +75,14 @@ function AuthPage() {
     navigate({ to: "/chat" });
   };
 
-  // Native Supabase OAuth: client parses hash/PKCE callback on getSession().
   useEffect(() => {
     let cancelled = false;
     setMounted(true);
-    setLocalHint(isLocalHost());
+    setShowDeveloperEntry(isLocalHost() || import.meta.env.DEV);
 
-    const BRIDGE_TIMEOUT_MS = 12_000;
     const bridgeTimer = window.setTimeout(() => {
       if (!cancelled) setBridging(false);
-    }, BRIDGE_TIMEOUT_MS);
+    }, 12_000);
 
     (async () => {
       try {
@@ -128,9 +131,16 @@ function AuthPage() {
     goTo(next || "/chat");
   };
 
-  const submit = async (e: React.FormEvent) => {
+  const applySession = async (access_token: string, refresh_token: string) => {
+    const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+    if (error) throw error;
+    await router.invalidate();
+    goNext();
+  };
+
+  const onEmailSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setEmailLoading(true);
     try {
       if (mode === "signup") {
         const redirectPath = next || "/chat";
@@ -140,7 +150,7 @@ function AuthPage() {
           options: { emailRedirectTo: `${window.location.origin}${redirectPath}` },
         });
         if (error) throw error;
-        toast.success("Account created. You can sign in now.");
+        toast.success("Účet vytvorený. Môžeš sa prihlásiť.");
         setMode("signin");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -151,12 +161,12 @@ function AuthPage() {
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
-      setLoading(false);
+      setEmailLoading(false);
     }
   };
 
-  const google = async () => {
-    setLoading(true);
+  const onGoogleSignIn = async () => {
+    setGoogleLoading(true);
     try {
       const nextPath = next || "/chat";
       const redirectTo = `${window.location.origin}/auth${
@@ -170,36 +180,45 @@ function AuthPage() {
         const raw = error.message;
         if (isGoogleProviderDisabledError(raw)) logGoogleProviderSetupHint();
         toast.error(formatGoogleSignInError(raw), { duration: 10_000 });
-        setLoading(false);
+        setGoogleLoading(false);
       }
     } catch (err) {
       const raw = err instanceof Error ? err.message : String(err);
       if (isGoogleProviderDisabledError(raw)) logGoogleProviderSetupHint();
       toast.error(formatGoogleSignInError(raw), { duration: 10_000 });
-      setLoading(false);
+      setGoogleLoading(false);
     }
   };
 
-  const developerFreeEntry = async () => {
-    setLoading(true);
+  const onAccessCodeSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setAccessCodeError(null);
+    setAccessCodeLoading(true);
+    try {
+      const session = await accessCodeSignIn({ data: { code: accessCode } });
+      await applySession(session.access_token, session.refresh_token);
+    } catch (err) {
+      const msg = (err as Error).message || "Prihlásenie zlyhalo.";
+      setAccessCodeError(msg);
+    } finally {
+      setAccessCodeLoading(false);
+    }
+  };
+
+  const onDeveloperEntry = async () => {
+    setDevLoading(true);
     try {
       const token = (import.meta.env.VITE_DEV_ENTRY_TOKEN as string | undefined)?.trim();
       if (!token) {
-        throw new Error("Set VITE_DEV_ENTRY_TOKEN in .env.local (must match server DEV_ENTRY_TOKEN).");
+        throw new Error("Nastav VITE_DEV_ENTRY_TOKEN v .env.local (musí sedieť s DEV_ENTRY_TOKEN).");
       }
       const session = await claimDevEntry({ data: { token } });
-      const { error } = await supabase.auth.setSession({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
-      });
-      if (error) throw error;
-      await router.invalidate();
+      await applySession(session.access_token, session.refresh_token);
       toast.success("Developer entry");
-      goNext();
     } catch (err) {
       toast.error((err as Error).message || "Developer entry failed");
     } finally {
-      setLoading(false);
+      setDevLoading(false);
     }
   };
 
@@ -212,118 +231,28 @@ function AuthPage() {
   }
 
   return (
-    <div className="relative min-h-screen bg-background bg-grid-pattern">
-      <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-transparent via-background/60 to-background" />
-      <div
-        id="main-content"
-        className="relative mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6 py-10"
-      >
-        <div className="mb-8 flex items-center gap-2 font-mono text-sm font-semibold tracking-tight">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-panel">
-            <Zap className="h-4 w-4" />
-          </span>
-          BUILDER
-        </div>
-
-        <div
-          data-testid="auth-sign-in"
-          className="w-full rounded-2xl border border-border bg-panel/80 p-6 shadow-2xl backdrop-blur"
-        >
-          <h1 className="mb-1 text-xl font-semibold">
-            {mode === "signin" ? "Sign in to Builder" : "Create your Builder account"}
-          </h1>
-          <p className="mb-6 text-sm text-muted-foreground">
-            {mode === "signin"
-              ? localHint
-                ? "Continue with Google or email. Redirect stays on this origin."
-                : "Continue where you left off."
-              : "Start building with your own AI agent."}
-          </p>
-
-          <button
-            type="button"
-            onClick={() => void google()}
-            disabled={loading}
-            data-testid="auth-google-signin"
-            className="mb-4 flex w-full items-center justify-center gap-2 rounded-md border border-border bg-surface px-4 py-2.5 text-sm font-medium hover:bg-elevated disabled:opacity-50"
-          >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
-            Continue with Google
-          </button>
-
-          <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
-            <div className="h-px flex-1 bg-border" />
-            or
-            <div className="h-px flex-1 bg-border" />
-          </div>
-
-          <form onSubmit={submit} className="space-y-3">
-            <input
-              id="auth-email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              placeholder="you@company.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-ring"
-            />
-            <input
-              id="auth-password"
-              name="password"
-              type="password"
-              autoComplete={mode === "signin" ? "current-password" : "new-password"}
-              required
-              minLength={6}
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-ring"
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
-            >
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {mode === "signin" ? "Sign in" : "Create account"}
-            </button>
-          </form>
-
-          {(isLocalHost() || import.meta.env.DEV) && (
-            <button
-              type="button"
-              data-testid="auth-developer-entry"
-              disabled={loading}
-              onClick={() => void developerFreeEntry()}
-              className="mt-3 flex w-full min-h-11 items-center justify-center gap-2 rounded-md border border-dashed border-border-subtle bg-surface-1/50 px-4 py-2.5 font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:border-border hover:bg-surface-2 hover:text-foreground disabled:opacity-50"
-            >
-              {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Code2 className="h-3.5 w-3.5" />}
-              Developer — free entry
-            </button>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-            className="mt-4 w-full text-center text-xs text-muted-foreground hover:text-foreground"
-          >
-            {mode === "signin" ? "No account yet? Create one" : "Already have an account? Sign in"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function GoogleIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden>
-      <path
-        fill="#EA4335"
-        d="M12 10.2v3.9h5.5c-.24 1.4-1.65 4.1-5.5 4.1-3.31 0-6.01-2.74-6.01-6.1S8.69 5.9 12 5.9c1.88 0 3.14.8 3.86 1.49l2.63-2.55C16.86 3.29 14.65 2.4 12 2.4 6.86 2.4 2.7 6.56 2.7 11.7S6.86 21 12 21c6.9 0 9.3-4.85 9.3-7.79 0-.53-.06-.93-.13-1.31H12z"
-      />
-    </svg>
+    <AuthScreen
+      mode={mode}
+      onModeChange={setMode}
+      email={email}
+      onEmailChange={setEmail}
+      password={password}
+      onPasswordChange={setPassword}
+      accessCode={accessCode}
+      onAccessCodeChange={(value) => {
+        setAccessCode(value);
+        if (accessCodeError) setAccessCodeError(null);
+      }}
+      accessCodeError={accessCodeError}
+      onGoogleSignIn={() => void onGoogleSignIn()}
+      onEmailSubmit={(e) => void onEmailSubmit(e)}
+      onAccessCodeSubmit={(e) => void onAccessCodeSubmit(e)}
+      onDeveloperEntry={() => void onDeveloperEntry()}
+      googleLoading={googleLoading}
+      emailLoading={emailLoading}
+      accessCodeLoading={accessCodeLoading}
+      devLoading={devLoading}
+      showDeveloperEntry={showDeveloperEntry}
+    />
   );
 }
