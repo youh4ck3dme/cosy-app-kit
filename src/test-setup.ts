@@ -10,8 +10,11 @@ interface ViMock {
 
 declare const vi: ViMock;
 
-// Global test environment setup for both Vitest and Bun native test runner.
-if (typeof window === "undefined") {
+const isVitestRunner = typeof process !== "undefined" && process.env.VITEST === "true";
+
+// Global test environment setup for Bun native test runner (see bunfig.toml preload).
+// Vitest provides its own environments and vi — do not polyfill when VITEST is set.
+if (!isVitestRunner && typeof window === "undefined") {
   const happyWindow = new HappyWindow();
   Object.assign(globalThis, {
     window: happyWindow as unknown as typeof window,
@@ -30,8 +33,8 @@ const __originalGlobals = new Map<string, unknown>();
 // Helper to access globals without using `any`.
 const globals = globalThis as unknown as Record<string, unknown>;
 
-// Provide a minimal "vi" mock when Vitest globals are not present (e.g., Bun).
-if (typeof vi === "undefined") {
+// Provide a minimal "vi" mock when Vitest globals are not present (e.g., Bun test).
+if (!isVitestRunner && typeof vi === "undefined") {
   const noop = () => {};
   const viMock: ViMock = {
     fn: () => ({
@@ -57,7 +60,11 @@ if (typeof vi === "undefined") {
     },
   };
   (globalThis as unknown as Record<string, unknown>)["vi"] = viMock;
-} else if (!(vi as unknown as { stubGlobal?: unknown }).stubGlobal) {
+} else if (
+  !isVitestRunner &&
+  typeof vi !== "undefined" &&
+  !(vi as unknown as { stubGlobal?: unknown }).stubGlobal
+) {
   // Polyfill stubGlobal / unstubAllGlobals for Bun's native test runner when "vi" exists.
   (vi as unknown as {
     stubGlobal?: (name: string, value: unknown) => void;
