@@ -4,8 +4,8 @@ export const BUILD_MARKER = "mistral-agent-g2-1";
 /** Bump when UI/PWA/shell ships (viewport lock, settings, manifest). */
 export const SHELL_REV = "native-shell-2";
 
-/** Production URL — used by prod-smoke and CI. */
-export const PROD_ORIGIN = "https://cosy-app-kit.lovable.app";
+/** Production URL — used by prod-smoke and verify scripts. */
+export const PROD_ORIGIN = "https://cosy-app-kit.vercel.app";
 
 /** Best-effort git SHA from CI / hosting env (never throws). */
 export function resolveGitSha(): string | null {

@@ -61,15 +61,6 @@ const lovableConfig = defineConfig({
         // Debug NDJSON ingest must not trigger Vite HMR (render↔log feedback loop).
         ignored: ["**/.cursor/**"],
       },
-      // Optional: if something still hits relative /~oauth/* on local loopback,
-      // proxy to the published app (Google OAuth client lives there).
-      proxy: {
-        "/~oauth": {
-          target: "https://cosy-app-kit.lovable.app",
-          changeOrigin: true,
-          secure: true,
-        },
-      },
     },
   },
 });

@@ -2,9 +2,11 @@
 
 TanStack Start application (chat + artifact preview) with a headless **Builder Kernel** and isolated **Plugin SDK**. This README describes what is in the repository today. Planned work is labeled as such.
 
-[![CI](https://github.com/youh4ck3dme/cosy-app-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/youh4ck3dme/cosy-app-kit/actions/workflows/ci.yml)
+> **GitHub Actions is off** (account billing lock). Run local gates before merge:  
+> `bun run test:unit` · `bun run test:ship-gates` · `bun run lint:gate` · `bun run typecheck`  
+> `bun run build` currently fails with a Vite 8 + `@lovable.dev/vite-tanstack-config` `require()` cycle — separate from the billing lock.
 
-> Coverage badge: **not published** — `@vitest/coverage-v8` is installed but CI does not upload coverage.  
+> Coverage badge: **not published** — `@vitest/coverage-v8` is installed but no CI uploads coverage.  
 > License: **proprietary / private** — see [LICENSE](./LICENSE) and [docs/LICENSE_GUIDE.md](./docs/LICENSE_GUIDE.md).
 
 ## Vision
@@ -200,11 +202,11 @@ Full: [docs/ROADMAP.md](./docs/ROADMAP.md)
 
 ## Technical highlights (verified)
 
-- Package manager: **Bun** (`bun.lock`); CI also sets Node 24
+- Package manager: **Bun** (`bun.lock`)
 - Framework: **TanStack Start**, React 19, Vite 8, Tailwind 4, Zod 4
 - Product AI policy: **Mistral only** (`MISTRAL_API_KEY`)
 - Hosting: Lovable Cloud → Cloudflare Worker ([docs/product/deploy.md](./docs/product/deploy.md))
-- CI gate: unit tests + typecheck + build (`.github/workflows/ci.yml`)
+- Local gate: unit tests + ship-gates + lint + typecheck (GitHub Actions disabled — billing)
 - `main` is protected (PR only) — see `.github/BRANCH_PROTECTION.md`
 
 ## Repository statistics (approximate, branch-dependent)
@@ -214,7 +216,7 @@ Full: [docs/ROADMAP.md](./docs/ROADMAP.md)
 | npm name          | `tanstack_start_ts` (`private: true`)        |
 | npm version field | unset (releases via git tags)                |
 | Unit test pattern | `src/**/*.test.ts` + `examples/**/*.test.ts` |
-| E2E               | Playwright local; not in GitHub CI           |
+| E2E               | Playwright local; GitHub Actions disabled    |
 
 ## Contributing
 

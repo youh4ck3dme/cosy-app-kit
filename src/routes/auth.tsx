@@ -1,20 +1,19 @@
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { AuthPendingShell, AuthScreen } from "@/components/auth/AuthScreen";
+import { isLocalHost, stripOAuthParamsFromUrl } from "@/lib/auth-oauth";
 import { toast } from "sonner";
-import { Loader2, Zap } from "lucide-react";
+import {
+  formatGoogleSignInError,
+  isGoogleProviderDisabledError,
+  logGoogleProviderSetupHint,
+} from "@/lib/auth-google";
+import { signInWithAccessCode } from "@/lib/access-code.functions";
+import { claimDeveloperEntry } from "@/lib/dev-entry.functions";
+import { useServerFn } from "@tanstack/react-start";
 
-/**
- * Shared shell for auth pending/loading states.
- */
-function AuthPendingShell({ label = "Checking session…" }: { label?: string }) {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
-      <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-      {label}
-    </div>
-  );
-}
+export { AuthPendingShell };
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -23,7 +22,14 @@ export const Route = createFileRoute("/auth")({
     meta: [
       { title: "Sign in — COSY.AI" },
       { name: "robots", content: "noindex" },
-      { name: "description", content: "Sign in to COSY.AI — Visual Code Engine." },
+      { name: "description", content: "Prihlásenie do COSY.AI — Vitaj v cosy." },
+      { name: "theme-color", content: "#f7f5f2" },
+    ],
+    links: [
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap",
+      },
     ],
   }),
   validateSearch: (s: Record<string, unknown>) => ({
@@ -31,6 +37,9 @@ export const Route = createFileRoute("/auth")({
       typeof s.next === "string" && s.next.startsWith("/") && !s.next.startsWith("//")
         ? s.next
         : "",
+    oauth_stage: "",
+    lr: "",
+    provider: "",
   }),
   component: AuthPage,
 });
@@ -42,12 +51,24 @@ function AuthPage() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [checkingSession, setCheckingSession] = useState(true);
+  const [accessCode, setAccessCode] = useState("");
+  const [accessCodeError, setAccessCodeError] = useState<string | null>(null);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [accessCodeLoading, setAccessCodeLoading] = useState(false);
+  const [devLoading, setDevLoading] = useState(false);
+  const [bridging, setBridging] = useState(true);
+  const [showDeveloperEntry, setShowDeveloperEntry] = useState(false);
+  const claimDevEntry = useServerFn(claimDeveloperEntry);
+  const accessCodeSignIn = useServerFn(signInWithAccessCode);
   const [mounted, setMounted] = useState(false);
 
   const goTo = (path: string) => {
-    if (path.startsWith("http") || path.startsWith("/")) {
+    if (path.startsWith("http")) {
+      window.location.href = path;
+      return;
+    }
+    if (path.startsWith("/")) {
       window.location.href = path;
       return;
     }
@@ -57,35 +78,69 @@ function AuthPage() {
   useEffect(() => {
     let cancelled = false;
     setMounted(true);
+    setShowDeveloperEntry(isLocalHost() || import.meta.env.DEV);
+
+    const bridgeTimer = window.setTimeout(() => {
+      if (!cancelled) setBridging(false);
+    }, 12_000);
 
     (async () => {
       try {
+        const { data: userData, error: userErr } = await supabase.auth.getUser();
+        if (userErr) {
+          const msg = (userErr.message || "").toLowerCase();
+          if (
+            msg.includes("jwt") ||
+            msg.includes("kid") ||
+            msg.includes("unverifiable") ||
+            msg.includes("invalid")
+          ) {
+            await supabase.auth.signOut({ scope: "local" });
+          }
+        }
+        if (cancelled) return;
+
         const { data } = await supabase.auth.getSession();
         if (cancelled) return;
 
         if (data.session) {
+          if (
+            window.location.hash.includes("access_token") ||
+            window.location.search.includes("code=")
+          ) {
+            stripOAuthParamsFromUrl();
+          }
           goTo(next || "/chat");
           return;
         }
-      } catch (e) {
-        console.error("[Auth] Session check failed:", e);
+
+        setBridging(false);
       } finally {
-        if (!cancelled) setCheckingSession(false);
+        window.clearTimeout(bridgeTimer);
       }
     })();
 
     return () => {
       cancelled = true;
+      window.clearTimeout(bridgeTimer);
     };
-  }, [next]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- OAuth bootstrap once per landing
+  }, []);
 
   const goNext = () => {
     goTo(next || "/chat");
   };
 
-  const submit = async (e: React.FormEvent) => {
+  const applySession = async (access_token: string, refresh_token: string) => {
+    const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+    if (error) throw error;
+    await router.invalidate();
+    goNext();
+  };
+
+  const onEmailSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setEmailLoading(true);
     try {
       if (mode === "signup") {
         const redirectPath = next || "/chat";
@@ -95,7 +150,7 @@ function AuthPage() {
           options: { emailRedirectTo: `${window.location.origin}${redirectPath}` },
         });
         if (error) throw error;
-        toast.success("Account created. You can sign in now.");
+        toast.success("Účet vytvorený. Môžeš sa prihlásiť.");
         setMode("signin");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -106,7 +161,64 @@ function AuthPage() {
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
-      setLoading(false);
+      setEmailLoading(false);
+    }
+  };
+
+  const onGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    try {
+      const nextPath = next || "/chat";
+      const redirectTo = `${window.location.origin}/auth${
+        nextPath !== "/chat" ? `?next=${encodeURIComponent(nextPath)}` : ""
+      }`;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo },
+      });
+      if (error) {
+        const raw = error.message;
+        if (isGoogleProviderDisabledError(raw)) logGoogleProviderSetupHint();
+        toast.error(formatGoogleSignInError(raw), { duration: 10_000 });
+        setGoogleLoading(false);
+      }
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : String(err);
+      if (isGoogleProviderDisabledError(raw)) logGoogleProviderSetupHint();
+      toast.error(formatGoogleSignInError(raw), { duration: 10_000 });
+      setGoogleLoading(false);
+    }
+  };
+
+  const onAccessCodeSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setAccessCodeError(null);
+    setAccessCodeLoading(true);
+    try {
+      const session = await accessCodeSignIn({ data: { code: accessCode } });
+      await applySession(session.access_token, session.refresh_token);
+    } catch (err) {
+      const msg = (err as Error).message || "Prihlásenie zlyhalo.";
+      setAccessCodeError(msg);
+    } finally {
+      setAccessCodeLoading(false);
+    }
+  };
+
+  const onDeveloperEntry = async () => {
+    setDevLoading(true);
+    try {
+      const token = (import.meta.env.VITE_DEV_ENTRY_TOKEN as string | undefined)?.trim();
+      if (!token) {
+        throw new Error("Nastav VITE_DEV_ENTRY_TOKEN v .env.local (musí sedieť s DEV_ENTRY_TOKEN).");
+      }
+      const session = await claimDevEntry({ data: { token } });
+      await applySession(session.access_token, session.refresh_token);
+      toast.success("Developer entry");
+    } catch (err) {
+      toast.error((err as Error).message || "Developer entry failed");
+    } finally {
+      setDevLoading(false);
     }
   };
 
@@ -114,79 +226,33 @@ function AuthPage() {
     return null;
   }
 
-  if (checkingSession) {
+  if (bridging) {
     return <AuthPendingShell />;
   }
 
   return (
-    <div className="relative min-h-screen bg-background bg-grid-pattern">
-      <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-transparent via-background/60 to-background" />
-      <div
-        id="main-content"
-        className="relative mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6 py-10"
-      >
-        <div className="mb-8 flex items-center gap-2 font-mono text-sm font-semibold tracking-tight">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-panel">
-            <Zap className="h-4 w-4" />
-          </span>
-          COSY.AI
-        </div>
-
-        <div
-          data-testid="auth-sign-in"
-          className="w-full rounded-2xl border border-border bg-panel/80 p-6 shadow-2xl backdrop-blur"
-        >
-          <h1 className="mb-1 text-xl font-semibold">
-            {mode === "signin" ? "Sign in to COSY.AI" : "Create your COSY.AI account"}
-          </h1>
-          <p className="mb-6 text-sm text-muted-foreground">
-            {mode === "signin"
-              ? "Sign in with your email and password."
-              : "Start building with your own AI engine."}
-          </p>
-
-          <form onSubmit={submit} className="space-y-3">
-            <input
-              id="auth-email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              placeholder="you@company.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-ring"
-            />
-            <input
-              id="auth-password"
-              name="password"
-              type="password"
-              autoComplete={mode === "signin" ? "current-password" : "new-password"}
-              required
-              minLength={6}
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-ring"
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
-            >
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {mode === "signin" ? "Sign in" : "Create account"}
-            </button>
-          </form>
-
-          <button
-            onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-            className="mt-4 w-full text-center text-xs text-muted-foreground hover:text-foreground"
-          >
-            {mode === "signin" ? "No account yet? Create one" : "Already have an account? Sign in"}
-          </button>
-        </div>
-      </div>
-    </div>
+    <AuthScreen
+      mode={mode}
+      onModeChange={setMode}
+      email={email}
+      onEmailChange={setEmail}
+      password={password}
+      onPasswordChange={setPassword}
+      accessCode={accessCode}
+      onAccessCodeChange={(value) => {
+        setAccessCode(value);
+        if (accessCodeError) setAccessCodeError(null);
+      }}
+      accessCodeError={accessCodeError}
+      onGoogleSignIn={() => void onGoogleSignIn()}
+      onEmailSubmit={(e) => void onEmailSubmit(e)}
+      onAccessCodeSubmit={(e) => void onAccessCodeSubmit(e)}
+      onDeveloperEntry={() => void onDeveloperEntry()}
+      googleLoading={googleLoading}
+      emailLoading={emailLoading}
+      accessCodeLoading={accessCodeLoading}
+      devLoading={devLoading}
+      showDeveloperEntry={showDeveloperEntry}
+    />
   );
 }

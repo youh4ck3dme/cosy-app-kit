@@ -5,6 +5,7 @@ import { HowItWorks } from "@/components/landing/HowItWorks";
 import { FeatureGrid } from "@/components/landing/FeatureGrid";
 import { CommunityGallery } from "@/components/landing/CommunityGallery";
 import { CosyLogo } from "@/components/brand/CosyLogo";
+import { authSearch } from "@/integrations/lovable";
 
 const listPublicArtifacts = createServerFn({ method: "GET" }).handler(async () => {
   const { createClient } = await import("@supabase/supabase-js");
@@ -65,7 +66,7 @@ function LandingPage() {
           </Link>
           <Link
             to="/auth"
-            search={{ next: "/builder" }}
+            search={authSearch("/builder")}
             className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground"
           >
             Sign in
@@ -89,7 +90,7 @@ function LandingPage() {
             <Link to="/templates" className="hover:text-foreground">
               Templates
             </Link>
-            <Link to="/auth" search={{ next: "/builder" }} className="hover:text-foreground">
+            <Link to="/auth" search={authSearch("/builder")} className="hover:text-foreground">
               Sign in
             </Link>
           </nav>

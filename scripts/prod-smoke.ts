@@ -2,7 +2,7 @@
  * Production smoke — no browser required.
  *
  *   bun run prod-smoke
- *   SMOKE_BASE_URL=https://cosy-app-kit.lovable.app bun run prod-smoke
+ *   SMOKE_BASE_URL=https://cosy-app-kit.vercel.app bun run prod-smoke
  *
  * Checks live URL contracts and detects when main is merged but Lovable Cloud Publish is pending.
  */
